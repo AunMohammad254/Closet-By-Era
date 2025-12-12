@@ -180,10 +180,10 @@ export default function CheckoutPage() {
                             {(['information', 'shipping', 'payment'] as CheckoutStep[]).map((s, index) => (
                                 <div key={s} className="flex items-center">
                                     <div className={`flex items-center justify-center w-8 h-8 rounded-full text-sm font-medium ${step === s
-                                            ? 'bg-slate-900 text-white'
-                                            : index < ['information', 'shipping', 'payment'].indexOf(step)
-                                                ? 'bg-emerald-500 text-white'
-                                                : 'bg-gray-200 text-gray-500'
+                                        ? 'bg-slate-900 text-white'
+                                        : index < ['information', 'shipping', 'payment'].indexOf(step)
+                                            ? 'bg-emerald-500 text-white'
+                                            : 'bg-gray-200 text-gray-500'
                                         }`}>
                                         {index < ['information', 'shipping', 'payment'].indexOf(step) ? (
                                             <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
@@ -222,6 +222,7 @@ export default function CheckoutPage() {
                                                     name="email"
                                                     value={formData.email}
                                                     onChange={handleInputChange}
+                                                    suppressHydrationWarning
                                                     className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-rose-500 ${errors.email ? 'border-rose-500' : 'border-gray-200'
                                                         }`}
                                                     placeholder="your@email.com"

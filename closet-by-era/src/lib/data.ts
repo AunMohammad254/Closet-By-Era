@@ -31,7 +31,7 @@ export async function getProducts(options?: {
     }
 
     if (options?.featured) {
-        query = query.eq('featured', true);
+        query = query.eq('is_featured', true);
     }
 
     if (options?.isNew) {

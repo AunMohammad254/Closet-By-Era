@@ -49,6 +49,7 @@ export default function Newsletter() {
                             onChange={(e) => setEmail(e.target.value)}
                             placeholder="Enter your email address"
                             required
+                            suppressHydrationWarning
                             className="flex-1 px-6 py-4 bg-white/10 backdrop-blur-sm border border-white/20 rounded-full text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-rose-500 focus:border-transparent transition-all"
                         />
                         <button

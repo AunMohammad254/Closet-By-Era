@@ -84,7 +84,7 @@ export interface Product {
     sizes?: string[];
     colors?: string[];
     in_stock: boolean;
-    featured: boolean;
+    is_featured: boolean;
     is_new?: boolean;
     is_sale?: boolean;
     created_at: string;

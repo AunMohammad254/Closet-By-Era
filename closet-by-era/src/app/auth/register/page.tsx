@@ -145,6 +145,7 @@ export default function RegisterPage() {
                                 name="email"
                                 value={formData.email}
                                 onChange={handleChange}
+                                suppressHydrationWarning
                                 className={`w-full px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-rose-500 focus:border-transparent transition-all ${errors.email ? 'border-rose-500' : 'border-gray-200'
                                     }`}
                                 placeholder="your@email.com"
