@@ -7,6 +7,7 @@ import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import { useCart } from '@/context/CartContext';
 import { useAuth } from '@/context/AuthContext';
+import { sendOrderConfirmationEmail, formatOrderForEmail } from '@/lib/email';
 
 type CheckoutStep = 'information' | 'shipping' | 'payment';
 
@@ -94,17 +95,69 @@ export default function CheckoutPage() {
 
         setIsProcessing(true);
 
-        // Simulate order processing
-        await new Promise((resolve) => setTimeout(resolve, 2000));
+        try {
+            // Simulate order processing
+            await new Promise((resolve) => setTimeout(resolve, 1500));
 
-        // Generate order number
-        const newOrderNumber = `CBE-${Date.now().toString().slice(-8)}`;
-        setOrderNumber(newOrderNumber);
+            // Generate order number
+            const newOrderNumber = `CBE-${Date.now().toString().slice(-8)}`;
+            setOrderNumber(newOrderNumber);
 
-        // Clear cart and show success
-        clearCart();
-        setOrderComplete(true);
-        setIsProcessing(false);
+            // Prepare order data for email
+            const orderItems = items.map((item) => ({
+                productName: item.name,
+                quantity: item.quantity,
+                size: item.size,
+                color: item.color,
+                unitPrice: item.price,
+                totalPrice: item.price * item.quantity,
+            }));
+
+            const shippingAddress = {
+                firstName: formData.firstName,
+                lastName: formData.lastName,
+                address: formData.address,
+                apartment: formData.apartment,
+                city: formData.city,
+                postalCode: formData.postalCode,
+                country: formData.country,
+                phone: formData.phone,
+            };
+
+            // Format and send order confirmation email
+            const emailData = formatOrderForEmail(
+                {
+                    order_number: newOrderNumber,
+                    subtotal: subtotal,
+                    shipping_cost: shipping + shippingMethodCost,
+                    discount: 0,
+                    total: total,
+                },
+                orderItems,
+                formData.email,
+                `${formData.firstName} ${formData.lastName}`,
+                shippingAddress,
+                formData.paymentMethod
+            );
+
+            // Send email (non-blocking - don't wait for result)
+            sendOrderConfirmationEmail(emailData).then((result) => {
+                if (!result.success) {
+                    console.warn('Email sending failed:', result.error);
+                }
+            });
+
+            // Clear cart and show success
+            clearCart();
+            setOrderComplete(true);
+        } catch (error) {
+            console.error('Order processing error:', error);
+            // Still complete the order even if email fails
+            clearCart();
+            setOrderComplete(true);
+        } finally {
+            setIsProcessing(false);
+        }
     };
 
     if (items.length === 0 && !orderComplete) {

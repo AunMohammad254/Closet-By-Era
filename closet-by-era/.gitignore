@@ -40,6 +40,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
-./Notes.md
-Notes.md
-/database/
+
+#Docs
+docs/
