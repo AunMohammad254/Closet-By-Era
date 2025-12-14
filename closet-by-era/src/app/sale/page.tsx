@@ -1,3 +1,6 @@
+'use client';
+
+import { useState, useMemo } from 'react';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import ProductCard from '@/components/ProductCard';
@@ -14,7 +17,54 @@ const saleProducts = [
     { id: '8', name: 'Premium Leather Loafers', price: 8990, originalPrice: 12990, image: '/products/s8.jpg', category: 'Footwear', isSale: true },
 ];
 
+const categories = ['All', 'Outerwear', 'Tops', 'Pants', 'Knitwear', 'Footwear', 'Accessories'];
+
+type SortOption = 'biggest-discount' | 'price-low-high' | 'price-high-low';
+
+// Calculate discount percentage
+const getDiscountPercent = (price: number, originalPrice?: number): number => {
+    if (!originalPrice) return 0;
+    return Math.round(((originalPrice - price) / originalPrice) * 100);
+};
+
 export default function SalePage() {
+    const [selectedCategory, setSelectedCategory] = useState<string>('All');
+    const [sortBy, setSortBy] = useState<SortOption>('biggest-discount');
+
+    // Filter and sort products
+    const filteredAndSortedProducts = useMemo(() => {
+        // First, filter by category
+        let filtered = selectedCategory === 'All'
+            ? saleProducts
+            : saleProducts.filter(product => product.category === selectedCategory);
+
+        // Then, sort by selected option
+        const sorted = [...filtered].sort((a, b) => {
+            switch (sortBy) {
+                case 'price-low-high':
+                    return a.price - b.price;
+                case 'price-high-low':
+                    return b.price - a.price;
+                case 'biggest-discount':
+                default:
+                    // Sort by discount percentage (highest first)
+                    const discountA = getDiscountPercent(a.price, a.originalPrice);
+                    const discountB = getDiscountPercent(b.price, b.originalPrice);
+                    return discountB - discountA;
+            }
+        });
+
+        return sorted;
+    }, [selectedCategory, sortBy]);
+
+    const handleCategoryClick = (category: string) => {
+        setSelectedCategory(category);
+    };
+
+    const handleSortChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+        setSortBy(e.target.value as SortOption);
+    };
+
     return (
         <main className="min-h-screen bg-white">
             <Navbar />
@@ -54,12 +104,13 @@ export default function SalePage() {
                     {/* Filter Bar */}
                     <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-10 pb-6 border-b border-gray-200">
                         <div className="flex flex-wrap gap-2">
-                            {['All', 'Outerwear', 'Tops', 'Pants', 'Knitwear', 'Accessories'].map((cat) => (
+                            {categories.map((cat) => (
                                 <button
                                     key={cat}
-                                    className={`px-4 py-2 text-sm font-medium rounded-full transition-colors ${cat === 'All'
-                                            ? 'bg-rose-600 text-white'
-                                            : 'bg-gray-100 text-gray-700 hover:bg-rose-100 hover:text-rose-600'
+                                    onClick={() => handleCategoryClick(cat)}
+                                    className={`px-4 py-2 text-sm font-medium rounded-full transition-all duration-200 ${selectedCategory === cat
+                                        ? 'bg-rose-600 text-white shadow-md shadow-rose-200'
+                                        : 'bg-gray-100 text-gray-700 hover:bg-rose-100 hover:text-rose-600'
                                         }`}
                                 >
                                     {cat}
@@ -68,30 +119,60 @@ export default function SalePage() {
                         </div>
 
                         <div className="flex items-center gap-4">
-                            <span className="text-sm text-gray-500">{saleProducts.length} items on sale</span>
-                            <select className="px-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-rose-500">
-                                <option>Biggest Discount</option>
-                                <option>Price: Low to High</option>
-                                <option>Price: High to Low</option>
+                            <span className="text-sm text-gray-500">
+                                {filteredAndSortedProducts.length} {filteredAndSortedProducts.length === 1 ? 'item' : 'items'} on sale
+                            </span>
+                            <select
+                                value={sortBy}
+                                onChange={handleSortChange}
+                                className="px-4 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-rose-500 cursor-pointer appearance-none pr-10"
+                                style={{
+                                    backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%236b7280'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")`,
+                                    backgroundRepeat: 'no-repeat',
+                                    backgroundPosition: 'right 0.5rem center',
+                                    backgroundSize: '1.5rem 1.5rem'
+                                }}
+                            >
+                                <option value="biggest-discount">Biggest Discount</option>
+                                <option value="price-low-high">Price: Low to High</option>
+                                <option value="price-high-low">Price: High to Low</option>
                             </select>
                         </div>
                     </div>
 
                     {/* Products Grid */}
-                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-x-4 gap-y-8 sm:gap-x-6 sm:gap-y-10">
-                        {saleProducts.map((product) => (
-                            <ProductCard
-                                key={product.id}
-                                id={product.id}
-                                name={product.name}
-                                price={product.price}
-                                originalPrice={product.originalPrice}
-                                image={product.image}
-                                category={product.category}
-                                isSale={product.isSale}
-                            />
-                        ))}
-                    </div>
+                    {filteredAndSortedProducts.length > 0 ? (
+                        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-x-4 gap-y-8 sm:gap-x-6 sm:gap-y-10">
+                            {filteredAndSortedProducts.map((product) => (
+                                <ProductCard
+                                    key={product.id}
+                                    id={product.id}
+                                    name={product.name}
+                                    price={product.price}
+                                    originalPrice={product.originalPrice}
+                                    image={product.image}
+                                    category={product.category}
+                                    isSale={product.isSale}
+                                />
+                            ))}
+                        </div>
+                    ) : (
+                        <div className="text-center py-16">
+                            <div className="text-gray-400 mb-4">
+                                <svg className="w-16 h-16 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
+                                </svg>
+                            </div>
+                            <h3 className="text-lg font-medium text-gray-900 mb-2">No sale items found</h3>
+                            <p className="text-gray-500 mb-6">Try selecting a different category</p>
+                            <button
+                                onClick={() => setSelectedCategory('All')}
+                                className="px-6 py-2 bg-rose-600 text-white rounded-full hover:bg-rose-700 transition-colors"
+                            >
+                                View All Sale Items
+                            </button>
+                        </div>
+                    )}
                 </div>
             </section>
 
