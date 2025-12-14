@@ -8,6 +8,8 @@ import Footer from '@/components/Footer';
 import { useCart } from '@/context/CartContext';
 import { useAuth } from '@/context/AuthContext';
 import { sendOrderConfirmationEmail, formatOrderForEmail } from '@/lib/email';
+import { supabase, getOrCreateCustomer } from '@/lib/supabase';
+import { revalidateAccountPage } from '@/app/actions';
 
 type CheckoutStep = 'information' | 'shipping' | 'payment';
 
@@ -20,6 +22,7 @@ export default function CheckoutPage() {
     const [isProcessing, setIsProcessing] = useState(false);
     const [orderComplete, setOrderComplete] = useState(false);
     const [orderNumber, setOrderNumber] = useState('');
+    const [orderError, setOrderError] = useState<string | null>(null);
 
     // Form state
     const [formData, setFormData] = useState({
@@ -94,17 +97,88 @@ export default function CheckoutPage() {
         if (!validateStep('payment')) return;
 
         setIsProcessing(true);
+        setOrderError(null);
 
         try {
-            // Simulate order processing
-            await new Promise((resolve) => setTimeout(resolve, 1500));
-
             // Generate order number
             const newOrderNumber = `CBE-${Date.now().toString().slice(-8)}`;
+
+            // Prepare shipping address
+            const shippingAddress = {
+                firstName: formData.firstName,
+                lastName: formData.lastName,
+                address: formData.address,
+                apartment: formData.apartment,
+                city: formData.city,
+                state: formData.state,
+                postalCode: formData.postalCode,
+                country: formData.country,
+                phone: formData.phone,
+            };
+
+            // Get or create customer if user is logged in
+            let customerId: string | null = null;
+            if (user) {
+                const customer = await getOrCreateCustomer(
+                    user.id,
+                    formData.email,
+                    formData.firstName,
+                    formData.lastName
+                );
+                if (customer) {
+                    customerId = customer.id;
+                }
+            }
+
+            // Create order in database
+            const { data: orderData, error: orderError } = await supabase
+                .from('orders')
+                .insert({
+                    order_number: newOrderNumber,
+                    customer_id: customerId,
+                    status: 'pending',
+                    subtotal: subtotal,
+                    discount: 0,
+                    shipping_cost: shipping + shippingMethodCost,
+                    total: total,
+                    shipping_address: shippingAddress,
+                    payment_method: formData.paymentMethod,
+                    notes: formData.notes || null,
+                })
+                .select()
+                .single();
+
+            if (orderError) {
+                console.error('Error creating order:', orderError);
+                // Continue with order even if database fails
+            }
+
+            // Create order items in database
+            if (orderData && !orderError) {
+                const orderItems = items.map((item) => ({
+                    order_id: orderData.id,
+                    product_id: item.productId,
+                    product_name: item.name,
+                    size: item.size,
+                    color: item.color,
+                    quantity: item.quantity,
+                    unit_price: item.price,
+                    total_price: item.price * item.quantity,
+                }));
+
+                const { error: itemsError } = await supabase
+                    .from('order_items')
+                    .insert(orderItems);
+
+                if (itemsError) {
+                    console.error('Error creating order items:', itemsError);
+                }
+            }
+
             setOrderNumber(newOrderNumber);
 
             // Prepare order data for email
-            const orderItems = items.map((item) => ({
+            const emailOrderItems = items.map((item) => ({
                 productName: item.name,
                 quantity: item.quantity,
                 size: item.size,
@@ -112,17 +186,6 @@ export default function CheckoutPage() {
                 unitPrice: item.price,
                 totalPrice: item.price * item.quantity,
             }));
-
-            const shippingAddress = {
-                firstName: formData.firstName,
-                lastName: formData.lastName,
-                address: formData.address,
-                apartment: formData.apartment,
-                city: formData.city,
-                postalCode: formData.postalCode,
-                country: formData.country,
-                phone: formData.phone,
-            };
 
             // Format and send order confirmation email
             const emailData = formatOrderForEmail(
@@ -133,7 +196,7 @@ export default function CheckoutPage() {
                     discount: 0,
                     total: total,
                 },
-                orderItems,
+                emailOrderItems,
                 formData.email,
                 `${formData.firstName} ${formData.lastName}`,
                 shippingAddress,
@@ -147,14 +210,15 @@ export default function CheckoutPage() {
                 }
             });
 
+            // Revalidate account page cache so orders appear immediately
+            await revalidateAccountPage();
+
             // Clear cart and show success
             clearCart();
             setOrderComplete(true);
         } catch (error) {
             console.error('Order processing error:', error);
-            // Still complete the order even if email fails
-            clearCart();
-            setOrderComplete(true);
+            setOrderError('There was an error processing your order. Please try again.');
         } finally {
             setIsProcessing(false);
         }
@@ -208,7 +272,7 @@ export default function CheckoutPage() {
                                 Continue Shopping
                             </Link>
                             <Link
-                                href="/account/orders"
+                                href="/account?tab=orders"
                                 className="px-8 py-4 border border-gray-200 text-gray-700 font-medium rounded-full hover:border-gray-400 transition-colors"
                             >
                                 View Orders
