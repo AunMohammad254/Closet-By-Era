@@ -4,6 +4,7 @@ import { useState, useMemo } from 'react';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import ProductCard from '@/components/ProductCard';
+import CustomDropdown from '@/components/CustomDropdown';
 
 // Mock data for sale products
 const saleProducts = [
@@ -122,21 +123,16 @@ export default function SalePage() {
                             <span className="text-sm text-gray-500">
                                 {filteredAndSortedProducts.length} {filteredAndSortedProducts.length === 1 ? 'item' : 'items'} on sale
                             </span>
-                            <select
+                            <CustomDropdown
+                                options={[
+                                    { value: 'biggest-discount', label: 'Biggest Discount' },
+                                    { value: 'price-low-high', label: 'Price: Low to High' },
+                                    { value: 'price-high-low', label: 'Price: High to Low' }
+                                ]}
                                 value={sortBy}
-                                onChange={handleSortChange}
-                                className="px-4 py-2 border border-gray-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-rose-500 cursor-pointer appearance-none pr-10"
-                                style={{
-                                    backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%236b7280'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")`,
-                                    backgroundRepeat: 'no-repeat',
-                                    backgroundPosition: 'right 0.5rem center',
-                                    backgroundSize: '1.5rem 1.5rem'
-                                }}
-                            >
-                                <option value="biggest-discount">Biggest Discount</option>
-                                <option value="price-low-high">Price: Low to High</option>
-                                <option value="price-high-low">Price: High to Low</option>
-                            </select>
+                                onChange={(value) => setSortBy(value as SortOption)}
+                                variant="rose"
+                            />
                         </div>
                     </div>
 

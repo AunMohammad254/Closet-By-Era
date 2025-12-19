@@ -4,6 +4,7 @@ import { useState, useMemo } from 'react';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import ProductCard from '@/components/ProductCard';
+import CustomDropdown from '@/components/CustomDropdown';
 
 // Mock products - will be replaced with Supabase data
 const allProducts = [
@@ -87,8 +88,8 @@ export default function ProductsPage() {
                                     key={cat}
                                     onClick={() => setSelectedCategory(cat)}
                                     className={`px-4 py-2 text-sm font-medium rounded-full transition-colors ${selectedCategory === cat
-                                            ? 'bg-slate-900 text-white'
-                                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                                        ? 'bg-slate-900 text-white'
+                                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                                         }`}
                                 >
                                     {cat}
@@ -99,15 +100,12 @@ export default function ProductsPage() {
                         {/* Sort */}
                         <div className="flex items-center gap-4">
                             <span className="text-sm text-gray-500">{filteredAndSortedProducts.length} products</span>
-                            <select 
+                            <CustomDropdown
+                                options={sortOptions.map(option => ({ value: option, label: option }))}
                                 value={sortOption}
-                                onChange={(e) => setSortOption(e.target.value)}
-                                className="px-4 py-2 border border-gray-200 rounded-lg text-sm text-black bg-white focus:outline-none focus:ring-2 focus:ring-rose-500"
-                            >
-                                {sortOptions.map((option) => (
-                                    <option key={option} value={option} className="text-black">{option}</option>
-                                ))}
-                            </select>
+                                onChange={(value) => setSortOption(value)}
+                                variant="slate"
+                            />
                         </div>
                     </div>
 

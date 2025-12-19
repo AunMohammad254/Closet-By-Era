@@ -118,3 +118,60 @@ body {
   -webkit-text-fill-color: transparent;
   background-clip: text;
 }
+
+/* Custom Dropdown Scrollbar */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: #f8fafc;
+  border-radius: 3px;
+}
+
+/* Dropdown animations */
+@keyframes dropdownSlideIn {
+  0% {
+    opacity: 0;
+    transform: translateY(-8px) scale(0.96);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes dropdownSlideOut {
+  0% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-8px) scale(0.96);
+  }
+}
+
+.animate-dropdown-in {
+  animation: dropdownSlideIn 0.25s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+.animate-dropdown-out {
+  animation: dropdownSlideOut 0.2s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+/* Option reveal animation */
+@keyframes optionReveal {
+  0% {
+    opacity: 0;
+    transform: translateX(-8px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.animate-option-reveal {
+  animation: optionReveal 0.3s ease-out forwards;
+}
