@@ -46,6 +46,7 @@ function AccountPageContent() {
     const [orders, setOrders] = useState<OrderWithItems[]>([]);
     const [ordersLoading, setOrdersLoading] = useState(true);
     const [customer, setCustomer] = useState<Customer | null>(null);
+    const [customerLoaded, setCustomerLoaded] = useState(false);
     const [addresses, setAddresses] = useState<Address[]>([]);
 
     const [profile, setProfile] = useState({
@@ -71,13 +72,34 @@ function AccountPageContent() {
         params.set('tab', tab);
         router.push(`/account?${params.toString()}`, { scroll: false });
     };
-
-    // Fetch customer data
+    // Fetch customer data (create if needed)
     useEffect(() => {
-        const fetchCustomer = async () => {
-            if (!user) return;
+        const fetchOrCreateCustomer = async () => {
+            if (!user) {
+                setCustomerLoaded(true);
+                return;
+            }
 
-            const customerData = await getCustomerByAuthId(user.id);
+            let customerData = await getCustomerByAuthId(user.id);
+
+            // If no customer record exists, create one
+            if (!customerData) {
+                const { data: newCustomer, error } = await supabase
+                    .from('customers')
+                    .insert({
+                        auth_id: user.id,
+                        email: user.email,
+                        first_name: user.user_metadata?.first_name || '',
+                        last_name: user.user_metadata?.last_name || '',
+                    })
+                    .select()
+                    .single();
+
+                if (!error && newCustomer) {
+                    customerData = newCustomer as Customer;
+                }
+            }
+
             if (customerData) {
                 setCustomer(customerData);
                 setProfile({
@@ -87,7 +109,7 @@ function AccountPageContent() {
                     phone: customerData.phone || '',
                 });
             } else {
-                // Set defaults from user
+                // Set defaults from user even if customer creation failed
                 setProfile({
                     firstName: user.user_metadata?.first_name || '',
                     lastName: user.user_metadata?.last_name || '',
@@ -95,14 +117,21 @@ function AccountPageContent() {
                     phone: '',
                 });
             }
+
+            setCustomerLoaded(true);
         };
 
-        fetchCustomer();
+        fetchOrCreateCustomer();
     }, [user]);
 
     // Fetch orders from database
     useEffect(() => {
         const fetchOrders = async () => {
+            // Wait for customer fetch to complete before fetching orders
+            if (!customerLoaded) {
+                return;
+            }
+
             if (!user || !customer) {
                 setOrdersLoading(false);
                 return;
@@ -153,7 +182,7 @@ function AccountPageContent() {
         };
 
         fetchOrders();
-    }, [user, customer]);
+    }, [user, customer, customerLoaded]);
 
     // Extract addresses from orders
     useEffect(() => {

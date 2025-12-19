@@ -1,27 +1,66 @@
+'use client';
+
+import { useState, useMemo } from 'react';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import ProductCard from '@/components/ProductCard';
 
 // Mock products - will be replaced with Supabase data
 const allProducts = [
-    { id: '1', name: 'Signature Wool Blend Overcoat', price: 12990, originalPrice: 16990, image: '/products/1.jpg', category: 'Outerwear', isNew: true },
-    { id: '2', name: 'Premium Cotton Oxford Shirt', price: 4490, image: '/products/2.jpg', category: 'Shirts', isNew: true },
-    { id: '3', name: 'Slim Fit Stretch Chinos', price: 5990, originalPrice: 7490, image: '/products/3.jpg', category: 'Pants', isSale: true },
-    { id: '4', name: 'Cashmere Blend Sweater', price: 8990, image: '/products/4.jpg', category: 'Knitwear' },
-    { id: '5', name: 'Classic Leather Belt', price: 2990, originalPrice: 3990, image: '/products/5.jpg', category: 'Accessories', isSale: true },
-    { id: '6', name: 'Tailored Blazer', price: 14990, image: '/products/6.jpg', category: 'Outerwear', isNew: true },
-    { id: '7', name: 'Relaxed Fit Denim Jeans', price: 6490, image: '/products/7.jpg', category: 'Denim' },
-    { id: '8', name: 'Merino Wool Scarf', price: 3490, originalPrice: 4490, image: '/products/8.jpg', category: 'Accessories', isSale: true },
-    { id: '9', name: 'Cotton Polo Shirt', price: 3990, image: '/products/9.jpg', category: 'Shirts' },
-    { id: '10', name: 'Leather Crossbody Bag', price: 7990, originalPrice: 9990, image: '/products/10.jpg', category: 'Accessories', isSale: true },
-    { id: '11', name: 'Linen Summer Dress', price: 6990, image: '/products/11.jpg', category: 'Dresses', isNew: true },
-    { id: '12', name: 'Classic Watch Silver', price: 12990, image: '/products/12.jpg', category: 'Accessories' },
+    { id: '1', name: 'Signature Wool Blend Overcoat', price: 12990, originalPrice: 16990, image: '/products/1.jpg', category: 'Outerwear', isNew: true, createdAt: new Date('2024-01-15') },
+    { id: '2', name: 'Premium Cotton Oxford Shirt', price: 4490, image: '/products/2.jpg', category: 'Shirts', isNew: true, createdAt: new Date('2024-01-14') },
+    { id: '3', name: 'Slim Fit Stretch Chinos', price: 5990, originalPrice: 7490, image: '/products/3.jpg', category: 'Pants', isSale: true, createdAt: new Date('2024-01-10') },
+    { id: '4', name: 'Cashmere Blend Sweater', price: 8990, image: '/products/4.jpg', category: 'Knitwear', createdAt: new Date('2024-01-08') },
+    { id: '5', name: 'Classic Leather Belt', price: 2990, originalPrice: 3990, image: '/products/5.jpg', category: 'Accessories', isSale: true, createdAt: new Date('2024-01-05') },
+    { id: '6', name: 'Tailored Blazer', price: 14990, image: '/products/6.jpg', category: 'Outerwear', isNew: true, createdAt: new Date('2024-01-16') },
+    { id: '7', name: 'Relaxed Fit Denim Jeans', price: 6490, image: '/products/7.jpg', category: 'Denim', createdAt: new Date('2024-01-03') },
+    { id: '8', name: 'Merino Wool Scarf', price: 3490, originalPrice: 4490, image: '/products/8.jpg', category: 'Accessories', isSale: true, createdAt: new Date('2024-01-02') },
+    { id: '9', name: 'Cotton Polo Shirt', price: 3990, image: '/products/9.jpg', category: 'Shirts', createdAt: new Date('2024-01-01') },
+    { id: '10', name: 'Leather Crossbody Bag', price: 7990, originalPrice: 9990, image: '/products/10.jpg', category: 'Accessories', isSale: true, createdAt: new Date('2023-12-28') },
+    { id: '11', name: 'Linen Summer Dress', price: 6990, image: '/products/11.jpg', category: 'Dresses', isNew: true, createdAt: new Date('2024-01-12') },
+    { id: '12', name: 'Classic Watch Silver', price: 12990, image: '/products/12.jpg', category: 'Accessories', createdAt: new Date('2023-12-20') },
 ];
 
-const categories = ['All', 'Outerwear', 'Shirts', 'Pants', 'Knitwear', 'Dresses', 'Accessories'];
+const categories = ['All', 'Outerwear', 'Shirts', 'Pants', 'Knitwear', 'Dresses', 'Denim', 'Accessories'];
 const sortOptions = ['Newest', 'Price: Low to High', 'Price: High to Low', 'Best Selling'];
 
 export default function ProductsPage() {
+    const [selectedCategory, setSelectedCategory] = useState('All');
+    const [sortOption, setSortOption] = useState('Newest');
+
+    // Filter and sort products based on selected options
+    const filteredAndSortedProducts = useMemo(() => {
+        // First, filter by category
+        let filtered = selectedCategory === 'All'
+            ? [...allProducts]
+            : allProducts.filter(product => product.category === selectedCategory);
+
+        // Then, sort based on sort option
+        switch (sortOption) {
+            case 'Price: Low to High':
+                filtered.sort((a, b) => a.price - b.price);
+                break;
+            case 'Price: High to Low':
+                filtered.sort((a, b) => b.price - a.price);
+                break;
+            case 'Newest':
+                filtered.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+                break;
+            case 'Best Selling':
+                // For now, prioritize items on sale, then new items
+                filtered.sort((a, b) => {
+                    const aScore = (a.isSale ? 2 : 0) + (a.isNew ? 1 : 0);
+                    const bScore = (b.isSale ? 2 : 0) + (b.isNew ? 1 : 0);
+                    return bScore - aScore;
+                });
+                break;
+            default:
+                break;
+        }
+
+        return filtered;
+    }, [selectedCategory, sortOption]);
+
     return (
         <main className="min-h-screen bg-white">
             <Navbar />
@@ -46,7 +85,8 @@ export default function ProductsPage() {
                             {categories.map((cat) => (
                                 <button
                                     key={cat}
-                                    className={`px-4 py-2 text-sm font-medium rounded-full transition-colors ${cat === 'All'
+                                    onClick={() => setSelectedCategory(cat)}
+                                    className={`px-4 py-2 text-sm font-medium rounded-full transition-colors ${selectedCategory === cat
                                             ? 'bg-slate-900 text-white'
                                             : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                                         }`}
@@ -58,10 +98,14 @@ export default function ProductsPage() {
 
                         {/* Sort */}
                         <div className="flex items-center gap-4">
-                            <span className="text-sm text-gray-500">{allProducts.length} products</span>
-                            <select className="px-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-rose-500">
+                            <span className="text-sm text-gray-500">{filteredAndSortedProducts.length} products</span>
+                            <select 
+                                value={sortOption}
+                                onChange={(e) => setSortOption(e.target.value)}
+                                className="px-4 py-2 border border-gray-200 rounded-lg text-sm text-black bg-white focus:outline-none focus:ring-2 focus:ring-rose-500"
+                            >
                                 {sortOptions.map((option) => (
-                                    <option key={option}>{option}</option>
+                                    <option key={option} value={option} className="text-black">{option}</option>
                                 ))}
                             </select>
                         </div>
@@ -69,7 +113,7 @@ export default function ProductsPage() {
 
                     {/* Products Grid */}
                     <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-x-4 gap-y-8 sm:gap-x-6 sm:gap-y-10">
-                        {allProducts.map((product) => (
+                        {filteredAndSortedProducts.map((product) => (
                             <ProductCard
                                 key={product.id}
                                 id={product.id}
