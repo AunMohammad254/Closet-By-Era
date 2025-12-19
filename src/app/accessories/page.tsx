@@ -8,18 +8,18 @@ import CustomDropdown from '@/components/CustomDropdown';
 
 // Mock data for accessories products
 const accessoriesProducts = [
-    { id: 'acc-1', name: 'Signature Leather Tote Bag', price: 9990, originalPrice: 12990, image: '/products/w6.jpg', category: 'Bags', isNew: true },
-    { id: 'acc-2', name: 'Classic Gold Watch', price: 15990, image: '/products/m6.jpg', category: 'Watches' },
-    { id: 'acc-3', name: 'Pearl Drop Earrings', price: 3490, image: '/products/w1.jpg', category: 'Jewelry', isNew: true },
-    { id: 'acc-4', name: 'Silk Printed Scarf', price: 2990, originalPrice: 3990, image: '/products/w4.jpg', category: 'Scarves', isSale: true },
-    { id: 'acc-5', name: 'Premium Leather Belt', price: 3990, image: '/products/m2.jpg', category: 'Belts' },
-    { id: 'acc-6', name: 'Designer Sunglasses', price: 6990, originalPrice: 8990, image: '/products/m3.jpg', category: 'Eyewear', isSale: true },
-    { id: 'acc-7', name: 'Minimalist Chain Necklace', price: 4490, image: '/products/w3.jpg', category: 'Jewelry', isNew: true },
-    { id: 'acc-8', name: 'Canvas Weekend Bag', price: 7990, image: '/products/m1.jpg', category: 'Bags' },
-    { id: 'acc-9', name: 'Cashmere Wool Scarf', price: 5490, image: '/products/w5.jpg', category: 'Scarves' },
-    { id: 'acc-10', name: 'Silver Cuff Bracelet', price: 2990, originalPrice: 4490, image: '/products/w7.jpg', category: 'Jewelry', isSale: true },
-    { id: 'acc-11', name: 'Leather Card Holder', price: 1990, image: '/products/m4.jpg', category: 'Wallets', isNew: true },
-    { id: 'acc-12', name: 'Statement Ring Set', price: 3990, image: '/products/w8.jpg', category: 'Jewelry' },
+    { id: 'acc-1', name: 'Signature Leather Tote Bag', price: 9990, originalPrice: 12990, image: '/products/leather-bag.png', category: 'Bags', isNew: true },
+    { id: 'acc-2', name: 'Classic Gold Watch', price: 15990, image: '/products/leather-bag.png', category: 'Watches' },
+    { id: 'acc-3', name: 'Pearl Drop Earrings', price: 3490, image: '/products/silk-blouse.png', category: 'Jewelry', isNew: true },
+    { id: 'acc-4', name: 'Silk Printed Scarf', price: 2990, originalPrice: 3990, image: '/products/silk-blouse.png', category: 'Scarves', isSale: true },
+    { id: 'acc-5', name: 'Premium Leather Belt', price: 3990, image: '/products/leather-bag.png', category: 'Belts' },
+    { id: 'acc-6', name: 'Designer Sunglasses', price: 6990, originalPrice: 8990, image: '/products/tailored-blazer.png', category: 'Eyewear', isSale: true },
+    { id: 'acc-7', name: 'Minimalist Chain Necklace', price: 4490, image: '/products/linen-dress.png', category: 'Jewelry', isNew: true },
+    { id: 'acc-8', name: 'Canvas Weekend Bag', price: 7990, image: '/products/leather-bag.png', category: 'Bags' },
+    { id: 'acc-9', name: 'Cashmere Wool Scarf', price: 5490, image: '/products/cashmere-sweater.png', category: 'Scarves' },
+    { id: 'acc-10', name: 'Silver Cuff Bracelet', price: 2990, originalPrice: 4490, image: '/products/silk-blouse.png', category: 'Jewelry', isSale: true },
+    { id: 'acc-11', name: 'Leather Card Holder', price: 1990, image: '/products/leather-bag.png', category: 'Wallets', isNew: true },
+    { id: 'acc-12', name: 'Statement Ring Set', price: 3990, image: '/products/silk-blouse.png', category: 'Jewelry' },
 ];
 
 const categories = ['All', 'Bags', 'Jewelry', 'Watches', 'Scarves', 'Belts', 'Eyewear', 'Wallets'];

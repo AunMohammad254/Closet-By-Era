@@ -22,10 +22,10 @@ const mockProduct = {
     category: 'Outerwear',
     categorySlug: 'women-outerwear',
     images: [
-        '/products/overcoat-1.jpg',
-        '/products/overcoat-2.jpg',
-        '/products/overcoat-3.jpg',
-        '/products/overcoat-4.jpg',
+        '/products/overcoat.png',
+        '/products/overcoat.png',
+        '/products/overcoat.png',
+        '/products/overcoat.png',
     ],
     sizes: ['XS', 'S', 'M', 'L', 'XL'],
     colors: [
@@ -47,10 +47,10 @@ const mockProduct = {
 };
 
 const relatedProducts = [
-    { id: '2', name: 'Cashmere Blend Sweater', price: 8990, image: '/products/2.jpg', category: 'Knitwear' },
-    { id: '3', name: 'Silk Blouse', price: 7490, originalPrice: 8990, image: '/products/3.jpg', category: 'Tops', isSale: true },
-    { id: '4', name: 'High-Waisted Wide Leg Pants', price: 5990, image: '/products/4.jpg', category: 'Pants' },
-    { id: '5', name: 'Linen Summer Dress', price: 6990, image: '/products/5.jpg', category: 'Dresses', isNew: true },
+    { id: '2', name: 'Cashmere Blend Sweater', price: 8990, image: '/products/cashmere-sweater.png', category: 'Knitwear' },
+    { id: '3', name: 'Silk Blouse', price: 7490, originalPrice: 8990, image: '/products/silk-blouse.png', category: 'Tops', isSale: true },
+    { id: '4', name: 'High-Waisted Wide Leg Pants', price: 5990, image: '/products/denim-jeans.png', category: 'Pants' },
+    { id: '5', name: 'Linen Summer Dress', price: 6990, image: '/products/linen-dress.png', category: 'Dresses', isNew: true },
 ];
 
 export default function ProductPage() {
@@ -134,14 +134,13 @@ export default function ProductPage() {
                         <div className="space-y-4">
                             {/* Main Image */}
                             <div className="relative aspect-[3/4] bg-gray-100 rounded-2xl overflow-hidden">
-                                <div className="absolute inset-0 flex items-center justify-center">
-                                    <div className="text-center text-gray-400">
-                                        <svg className="w-20 h-20 mx-auto opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                                        </svg>
-                                        <p className="mt-2 text-sm">Product Image</p>
-                                    </div>
-                                </div>
+                                <Image
+                                    src={mockProduct.images[selectedImage]}
+                                    alt={mockProduct.name}
+                                    fill
+                                    className="object-cover"
+                                    priority
+                                />
 
                                 {/* Badges */}
                                 <div className="absolute top-4 left-4 flex flex-col gap-2 z-10">
@@ -174,8 +173,13 @@ export default function ProductPage() {
                                         className={`aspect-square bg-gray-100 rounded-lg overflow-hidden transition-all ${selectedImage === index ? 'ring-2 ring-slate-900' : 'hover:opacity-80'
                                             }`}
                                     >
-                                        <div className="w-full h-full flex items-center justify-center text-gray-400">
-                                            <span className="text-xs">{index + 1}</span>
+                                        <div className="relative w-full h-full">
+                                            <Image
+                                                src={img}
+                                                alt={`${mockProduct.name} view ${index + 1}`}
+                                                fill
+                                                className="object-cover"
+                                            />
                                         </div>
                                     </button>
                                 ))}
@@ -238,8 +242,8 @@ export default function ProductPage() {
                                                 key={size}
                                                 onClick={() => setSelectedSize(size)}
                                                 className={`px-4 py-2 text-sm font-medium rounded-lg border transition-all ${selectedSize === size
-                                                        ? 'border-slate-900 bg-slate-900 text-white'
-                                                        : 'border-gray-200 text-gray-700 hover:border-gray-400'
+                                                    ? 'border-slate-900 bg-slate-900 text-white'
+                                                    : 'border-gray-200 text-gray-700 hover:border-gray-400'
                                                     }`}
                                             >
                                                 {size}
@@ -322,8 +326,8 @@ export default function ProductPage() {
                                 key={tab}
                                 onClick={() => setActiveTab(tab)}
                                 className={`pb-4 text-sm font-medium capitalize transition-colors ${activeTab === tab
-                                        ? 'text-gray-900 border-b-2 border-gray-900'
-                                        : 'text-gray-500 hover:text-gray-700'
+                                    ? 'text-gray-900 border-b-2 border-gray-900'
+                                    : 'text-gray-500 hover:text-gray-700'
                                     }`}
                             >
                                 {tab}

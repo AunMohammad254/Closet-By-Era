@@ -8,18 +8,18 @@ import CustomDropdown from '@/components/CustomDropdown';
 
 // Mock products - will be replaced with Supabase data
 const allProducts = [
-    { id: '1', name: 'Signature Wool Blend Overcoat', price: 12990, originalPrice: 16990, image: '/products/1.jpg', category: 'Outerwear', isNew: true, createdAt: new Date('2024-01-15') },
-    { id: '2', name: 'Premium Cotton Oxford Shirt', price: 4490, image: '/products/2.jpg', category: 'Shirts', isNew: true, createdAt: new Date('2024-01-14') },
-    { id: '3', name: 'Slim Fit Stretch Chinos', price: 5990, originalPrice: 7490, image: '/products/3.jpg', category: 'Pants', isSale: true, createdAt: new Date('2024-01-10') },
-    { id: '4', name: 'Cashmere Blend Sweater', price: 8990, image: '/products/4.jpg', category: 'Knitwear', createdAt: new Date('2024-01-08') },
-    { id: '5', name: 'Classic Leather Belt', price: 2990, originalPrice: 3990, image: '/products/5.jpg', category: 'Accessories', isSale: true, createdAt: new Date('2024-01-05') },
-    { id: '6', name: 'Tailored Blazer', price: 14990, image: '/products/6.jpg', category: 'Outerwear', isNew: true, createdAt: new Date('2024-01-16') },
-    { id: '7', name: 'Relaxed Fit Denim Jeans', price: 6490, image: '/products/7.jpg', category: 'Denim', createdAt: new Date('2024-01-03') },
-    { id: '8', name: 'Merino Wool Scarf', price: 3490, originalPrice: 4490, image: '/products/8.jpg', category: 'Accessories', isSale: true, createdAt: new Date('2024-01-02') },
-    { id: '9', name: 'Cotton Polo Shirt', price: 3990, image: '/products/9.jpg', category: 'Shirts', createdAt: new Date('2024-01-01') },
-    { id: '10', name: 'Leather Crossbody Bag', price: 7990, originalPrice: 9990, image: '/products/10.jpg', category: 'Accessories', isSale: true, createdAt: new Date('2023-12-28') },
-    { id: '11', name: 'Linen Summer Dress', price: 6990, image: '/products/11.jpg', category: 'Dresses', isNew: true, createdAt: new Date('2024-01-12') },
-    { id: '12', name: 'Classic Watch Silver', price: 12990, image: '/products/12.jpg', category: 'Accessories', createdAt: new Date('2023-12-20') },
+    { id: '1', name: 'Signature Wool Blend Overcoat', price: 12990, originalPrice: 16990, image: '/products/overcoat.png', category: 'Outerwear', isNew: true, createdAt: new Date('2024-01-15') },
+    { id: '2', name: 'Premium Cotton Oxford Shirt', price: 4490, image: '/products/oxford-shirt.png', category: 'Shirts', isNew: true, createdAt: new Date('2024-01-14') },
+    { id: '3', name: 'Slim Fit Stretch Chinos', price: 5990, originalPrice: 7490, image: '/products/denim-jeans.png', category: 'Pants', isSale: true, createdAt: new Date('2024-01-10') },
+    { id: '4', name: 'Cashmere Blend Sweater', price: 8990, image: '/products/cashmere-sweater.png', category: 'Knitwear', createdAt: new Date('2024-01-08') },
+    { id: '5', name: 'Classic Leather Belt', price: 2990, originalPrice: 3990, image: '/products/leather-bag.png', category: 'Accessories', isSale: true, createdAt: new Date('2024-01-05') },
+    { id: '6', name: 'Tailored Blazer', price: 14990, image: '/products/tailored-blazer.png', category: 'Outerwear', isNew: true, createdAt: new Date('2024-01-16') },
+    { id: '7', name: 'Relaxed Fit Denim Jeans', price: 6490, image: '/products/denim-jeans.png', category: 'Denim', createdAt: new Date('2024-01-03') },
+    { id: '8', name: 'Merino Wool Scarf', price: 3490, originalPrice: 4490, image: '/products/silk-blouse.png', category: 'Accessories', isSale: true, createdAt: new Date('2024-01-02') },
+    { id: '9', name: 'Cotton Polo Shirt', price: 3990, image: '/products/oxford-shirt.png', category: 'Shirts', createdAt: new Date('2024-01-01') },
+    { id: '10', name: 'Leather Crossbody Bag', price: 7990, originalPrice: 9990, image: '/products/leather-bag.png', category: 'Accessories', isSale: true, createdAt: new Date('2023-12-28') },
+    { id: '11', name: 'Linen Summer Dress', price: 6990, image: '/products/linen-dress.png', category: 'Dresses', isNew: true, createdAt: new Date('2024-01-12') },
+    { id: '12', name: 'Classic Watch Silver', price: 12990, image: '/products/tailored-blazer.png', category: 'Accessories', createdAt: new Date('2023-12-20') },
 ];
 
 const categories = ['All', 'Outerwear', 'Shirts', 'Pants', 'Knitwear', 'Dresses', 'Denim', 'Accessories'];

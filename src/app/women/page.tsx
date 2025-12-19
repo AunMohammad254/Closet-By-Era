@@ -8,14 +8,14 @@ import CustomDropdown from '@/components/CustomDropdown';
 
 // Mock data for women's products
 const womenProducts = [
-    { id: '1', name: 'Signature Wool Blend Overcoat', price: 12990, originalPrice: 16990, image: '/products/w1.jpg', category: 'Outerwear', isNew: true },
-    { id: '2', name: 'Cashmere Blend Sweater', price: 8990, image: '/products/w2.jpg', category: 'Knitwear' },
-    { id: '3', name: 'Linen Summer Dress', price: 6990, image: '/products/w3.jpg', category: 'Dresses', isNew: true },
-    { id: '4', name: 'Silk Blouse', price: 7490, originalPrice: 8990, image: '/products/w4.jpg', category: 'Tops', isSale: true },
-    { id: '5', name: 'High-Waisted Wide Leg Pants', price: 5990, image: '/products/w5.jpg', category: 'Pants' },
-    { id: '6', name: 'Leather Crossbody Bag', price: 7990, originalPrice: 9990, image: '/products/w6.jpg', category: 'Accessories', isSale: true },
-    { id: '7', name: 'Midi Pleated Skirt', price: 4990, image: '/products/w7.jpg', category: 'Skirts', isNew: true },
-    { id: '8', name: 'Cotton Cardigan', price: 5490, image: '/products/w8.jpg', category: 'Knitwear' },
+    { id: '1', name: 'Signature Wool Blend Overcoat', price: 12990, originalPrice: 16990, image: '/products/overcoat.png', category: 'Outerwear', isNew: true },
+    { id: '2', name: 'Cashmere Blend Sweater', price: 8990, image: '/products/cashmere-sweater.png', category: 'Knitwear' },
+    { id: '3', name: 'Linen Summer Dress', price: 6990, image: '/products/linen-dress.png', category: 'Dresses', isNew: true },
+    { id: '4', name: 'Silk Blouse', price: 7490, originalPrice: 8990, image: '/products/silk-blouse.png', category: 'Tops', isSale: true },
+    { id: '5', name: 'High-Waisted Wide Leg Pants', price: 5990, image: '/products/denim-jeans.png', category: 'Pants' },
+    { id: '6', name: 'Leather Crossbody Bag', price: 7990, originalPrice: 9990, image: '/products/leather-bag.png', category: 'Accessories', isSale: true },
+    { id: '7', name: 'Midi Pleated Skirt', price: 4990, image: '/products/linen-dress.png', category: 'Skirts', isNew: true },
+    { id: '8', name: 'Cotton Cardigan', price: 5490, image: '/products/cashmere-sweater.png', category: 'Knitwear' },
 ];
 
 const categories = ['All', 'Outerwear', 'Dresses', 'Tops', 'Pants', 'Knitwear', 'Skirts', 'Accessories'];

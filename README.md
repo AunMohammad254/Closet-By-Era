@@ -2,7 +2,21 @@
 
 A premium fashion e-commerce website built with **Next.js 16**, **TypeScript**, **Tailwind CSS 4**, and **Supabase**.
 
-![Closet By Era](https://via.placeholder.com/1200x600/1e293b/ffffff?text=Closet+By+Era)
+<div align="center">
+  <a href="https://closet-by-era-two.vercel.app/">
+    <img src="./src/app/icon.png" alt="Closet By Era Logo" width="100" />
+  </a>
+
+  <h3 align="center">Live Demo</h3>
+
+  <a href="https://closet-by-era-two.vercel.app/">
+    <img src="https://img.shields.io/badge/Visit_Live_Site-Closet_By_Era-e11d48?style=for-the-badge&logo=vercel&logoColor=white" alt="Visit Live Site" />
+  </a>
+  
+  <p align="center">
+    <strong>Premium Fashion • Modern Design • Seamless Shopping</strong>
+  </p>
+</div>
 
 ## ✨ Features
 

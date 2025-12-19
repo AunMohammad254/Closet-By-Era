@@ -8,14 +8,14 @@ import CustomDropdown from '@/components/CustomDropdown';
 
 // Mock data for men's products
 const menProducts = [
-    { id: '1', name: 'Premium Cotton Oxford Shirt', price: 4490, image: '/products/m1.jpg', category: 'Shirts', isNew: true },
-    { id: '2', name: 'Slim Fit Stretch Chinos', price: 5990, originalPrice: 7490, image: '/products/m2.jpg', category: 'Pants', isSale: true },
-    { id: '3', name: 'Tailored Blazer', price: 14990, image: '/products/m3.jpg', category: 'Outerwear', isNew: true },
-    { id: '4', name: 'Relaxed Fit Denim Jeans', price: 6490, image: '/products/m4.jpg', category: 'Denim' },
-    { id: '5', name: 'Cotton Polo Shirt', price: 3990, image: '/products/m5.jpg', category: 'Shirts' },
-    { id: '6', name: 'Classic Leather Belt', price: 2990, originalPrice: 3990, image: '/products/m6.jpg', category: 'Accessories', isSale: true },
-    { id: '7', name: 'Wool Blend Pullover', price: 7990, image: '/products/m7.jpg', category: 'Knitwear' },
-    { id: '8', name: 'Casual Linen Shirt', price: 4990, image: '/products/m8.jpg', category: 'Shirts', isNew: true },
+    { id: '1', name: 'Premium Cotton Oxford Shirt', price: 4490, image: '/products/oxford-shirt.png', category: 'Shirts', isNew: true },
+    { id: '2', name: 'Slim Fit Stretch Chinos', price: 5990, originalPrice: 7490, image: '/products/denim-jeans.png', category: 'Pants', isSale: true },
+    { id: '3', name: 'Tailored Blazer', price: 14990, image: '/products/tailored-blazer.png', category: 'Outerwear', isNew: true },
+    { id: '4', name: 'Relaxed Fit Denim Jeans', price: 6490, image: '/products/denim-jeans.png', category: 'Denim' },
+    { id: '5', name: 'Cotton Polo Shirt', price: 3990, image: '/products/oxford-shirt.png', category: 'Shirts' },
+    { id: '6', name: 'Classic Leather Belt', price: 2990, originalPrice: 3990, image: '/products/leather-bag.png', category: 'Accessories', isSale: true },
+    { id: '7', name: 'Wool Blend Pullover', price: 7990, image: '/products/cashmere-sweater.png', category: 'Knitwear' },
+    { id: '8', name: 'Casual Linen Shirt', price: 4990, image: '/products/oxford-shirt.png', category: 'Shirts', isNew: true },
 ];
 
 const categories = ['All', 'Shirts', 'Pants', 'Denim', 'Outerwear', 'Knitwear', 'Accessories'];

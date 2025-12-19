@@ -8,14 +8,14 @@ import CustomDropdown from '@/components/CustomDropdown';
 
 // Mock data for sale products
 const saleProducts = [
-    { id: '1', name: 'Signature Wool Blend Overcoat', price: 12990, originalPrice: 16990, image: '/products/s1.jpg', category: 'Outerwear', isSale: true },
-    { id: '2', name: 'Slim Fit Stretch Chinos', price: 5990, originalPrice: 7490, image: '/products/s2.jpg', category: 'Pants', isSale: true },
-    { id: '3', name: 'Classic Leather Belt', price: 2990, originalPrice: 3990, image: '/products/s3.jpg', category: 'Accessories', isSale: true },
-    { id: '4', name: 'Merino Wool Scarf', price: 3490, originalPrice: 4490, image: '/products/s4.jpg', category: 'Accessories', isSale: true },
-    { id: '5', name: 'Leather Crossbody Bag', price: 7990, originalPrice: 9990, image: '/products/s5.jpg', category: 'Accessories', isSale: true },
-    { id: '6', name: 'Silk Blouse', price: 7490, originalPrice: 8990, image: '/products/s6.jpg', category: 'Tops', isSale: true },
-    { id: '7', name: 'Cashmere Sweater', price: 9990, originalPrice: 14990, image: '/products/s7.jpg', category: 'Knitwear', isSale: true },
-    { id: '8', name: 'Premium Leather Loafers', price: 8990, originalPrice: 12990, image: '/products/s8.jpg', category: 'Footwear', isSale: true },
+    { id: '1', name: 'Signature Wool Blend Overcoat', price: 12990, originalPrice: 16990, image: '/products/overcoat.png', category: 'Outerwear', isSale: true },
+    { id: '2', name: 'Slim Fit Stretch Chinos', price: 5990, originalPrice: 7490, image: '/products/denim-jeans.png', category: 'Pants', isSale: true },
+    { id: '3', name: 'Classic Leather Belt', price: 2990, originalPrice: 3990, image: '/products/leather-bag.png', category: 'Accessories', isSale: true },
+    { id: '4', name: 'Merino Wool Scarf', price: 3490, originalPrice: 4490, image: '/products/silk-blouse.png', category: 'Accessories', isSale: true },
+    { id: '5', name: 'Leather Crossbody Bag', price: 7990, originalPrice: 9990, image: '/products/leather-bag.png', category: 'Accessories', isSale: true },
+    { id: '6', name: 'Silk Blouse', price: 7490, originalPrice: 8990, image: '/products/silk-blouse.png', category: 'Tops', isSale: true },
+    { id: '7', name: 'Cashmere Sweater', price: 9990, originalPrice: 14990, image: '/products/cashmere-sweater.png', category: 'Knitwear', isSale: true },
+    { id: '8', name: 'Premium Leather Loafers', price: 8990, originalPrice: 12990, image: '/products/leather-bag.png', category: 'Footwear', isSale: true },
 ];
 
 const categories = ['All', 'Outerwear', 'Tops', 'Pants', 'Knitwear', 'Footwear', 'Accessories'];
