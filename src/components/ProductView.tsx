@@ -6,6 +6,9 @@ import Link from 'next/link';
 import ProductCard from '@/components/ProductCard';
 import { useCart } from '@/context/CartContext';
 import { useWishlist } from '@/context/WishlistContext';
+import ReviewList from './reviews/ReviewList';
+import ReviewForm from './reviews/ReviewForm';
+import { Review } from '@/actions/reviews';
 
 export interface ProductColor {
     name: string;
@@ -34,9 +37,10 @@ export interface ProductDetails {
 interface ProductViewProps {
     product: ProductDetails;
     relatedProducts: any[];
+    reviews?: Review[];
 }
 
-export default function ProductView({ product, relatedProducts }: ProductViewProps) {
+export default function ProductView({ product, relatedProducts, reviews = [] }: ProductViewProps) {
     const { addItem } = useCart();
     const { addItem: addToWishlist, removeItem: removeFromWishlist, isInWishlist } = useWishlist();
 
@@ -354,29 +358,50 @@ export default function ProductView({ product, relatedProducts }: ProductViewPro
                 </div>
             </section>
 
-            {/* Related Products */}
-            {relatedProducts.length > 0 && (
-                <section className="py-16">
-                    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                        <h2 className="text-2xl font-bold text-gray-900 mb-8">You May Also Like</h2>
-                        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-x-4 gap-y-8 sm:gap-x-6">
-                            {relatedProducts.map((product) => (
-                                <ProductCard
-                                    key={product.id}
-                                    id={product.id}
-                                    name={product.name}
-                                    price={product.price}
-                                    originalPrice={product.originalPrice}
-                                    image={product.image}
-                                    category={product.category}
-                                    isNew={product.isNew}
-                                    isSale={product.isSale}
-                                />
-                            ))}
+            {/* User Reviews */}
+            <section className="py-16 border-t border-gray-100 bg-white" id="reviews">
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                    <h2 className="text-2xl font-bold text-gray-900 mb-8">Customer Reviews</h2>
+                    <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
+                        <div className="lg:col-span-4 space-y-6">
+                            <div className="bg-slate-50 p-6 rounded-2xl">
+                                <h3 className="font-semibold text-slate-900 mb-2">Have you bought this?</h3>
+                                <p className="text-sm text-slate-600 mb-6">Share your thoughts with other customers.</p>
+                                <ReviewForm productId={product.id} />
+                            </div>
+                        </div>
+                        <div className="lg:col-span-8">
+                            <ReviewList reviews={reviews} />
                         </div>
                     </div>
-                </section>
-            )}
+                </div>
+            </section>
+
+            {/* Related Products */}
+            {
+                relatedProducts.length > 0 && (
+                    <section className="py-16">
+                        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                            <h2 className="text-2xl font-bold text-gray-900 mb-8">You May Also Like</h2>
+                            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-x-4 gap-y-8 sm:gap-x-6">
+                                {relatedProducts.map((product) => (
+                                    <ProductCard
+                                        key={product.id}
+                                        id={product.id}
+                                        name={product.name}
+                                        price={product.price}
+                                        originalPrice={product.originalPrice}
+                                        image={product.image}
+                                        category={product.category}
+                                        isNew={product.isNew}
+                                        isSale={product.isSale}
+                                    />
+                                ))}
+                            </div>
+                        </div>
+                    </section>
+                )
+            }
 
             {/* Added to Cart Toast */}
             <div
@@ -393,6 +418,6 @@ export default function ProductView({ product, relatedProducts }: ProductViewPro
                     </Link>
                 </div>
             </div>
-        </main>
+        </main >
     );
 }

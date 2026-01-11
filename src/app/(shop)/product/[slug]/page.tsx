@@ -109,6 +109,9 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
     };
 }
 
+import { getProductReviews } from '@/actions/reviews';
+import AnalyticsTracker from '@/components/AnalyticsTracker';
+
 export default async function Page({ params }: { params: Promise<{ slug: string }> }) {
     const { slug } = await params;
     const product = await getProduct(slug);
@@ -117,14 +120,17 @@ export default async function Page({ params }: { params: Promise<{ slug: string 
         notFound();
     }
 
-    // Simplification: just fetch 4 random/recent products
-    const { data: relatedDataSimple } = await supabase
-        .from('products')
-        .select('*')
-        .neq('id', product.id)
-        .limit(4);
+    // Parallel fetching for performance
+    const [relatedDataSimple, reviews] = await Promise.all([
+        supabase
+            .from('products')
+            .select('*')
+            .neq('id', product.id)
+            .limit(4),
+        getProductReviews(product.id)
+    ]);
 
-    const relatedProducts = (relatedDataSimple || []).map((p: any) => ({
+    const relatedProducts = (relatedDataSimple.data || []).map((p: any) => ({
         id: p.id,
         name: p.name,
         price: p.price,
@@ -135,6 +141,11 @@ export default async function Page({ params }: { params: Promise<{ slug: string 
         isSale: p.is_sale,
     }));
 
-    return <ProductView product={product} relatedProducts={relatedProducts} />;
+    return (
+        <>
+            <AnalyticsTracker productId={product.id} productName={product.name} />
+            <ProductView product={product} relatedProducts={relatedProducts} reviews={reviews} />
+        </>
+    );
 }
 

@@ -4,10 +4,12 @@ import Link from 'next/link';
 import { useState } from 'react';
 import { useCart } from '@/context/CartContext';
 import { useAuth } from '@/context/AuthContext';
+import AIStylistModal from './AIStylistModal';
 
 export default function Navbar() {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const [isSearchOpen, setIsSearchOpen] = useState(false);
+    const [isStylistOpen, setIsStylistOpen] = useState(false);
     const { itemCount } = useCart();
     const { user } = useAuth();
 
@@ -64,6 +66,15 @@ export default function Navbar() {
                             </Link>
                         ))}
                     </div>
+
+
+                    {/* AI Stylist Button (Desktop) */}
+                    <button
+                        onClick={() => setIsStylistOpen(true)}
+                        className="hidden lg:flex items-center gap-2 px-4 py-2 ml-4 bg-gradient-to-r from-violet-600 to-indigo-600 text-white text-sm font-medium rounded-full hover:shadow-lg hover:scale-105 transition-all duration-300 animate-pulse-subtle"
+                    >
+                        <span>✨</span> AI Stylist
+                    </button>
 
                     {/* Right Icons */}
                     <div className="flex items-center space-x-4">
@@ -137,6 +148,12 @@ export default function Navbar() {
                             {category.name}
                         </Link>
                     ))}
+                    <button
+                        onClick={() => { setIsStylistOpen(true); setIsMenuOpen(false); }}
+                        className="w-full text-left py-2 text-base font-medium text-violet-600 hover:text-violet-700 transition-colors flex items-center gap-2"
+                    >
+                        <span>✨</span> AI Stylist
+                    </button>
                     <div className="pt-4 border-t border-gray-100">
                         <Link
                             href="/profile"
@@ -155,6 +172,9 @@ export default function Navbar() {
                     </div>
                 </div>
             </div>
-        </header>
+
+
+            <AIStylistModal isOpen={isStylistOpen} onClose={() => setIsStylistOpen(false)} />
+        </header >
     );
 }

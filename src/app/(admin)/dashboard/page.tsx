@@ -1,5 +1,7 @@
 'use client';
 
+import AnalyticsCharts from '@/components/admin/AnalyticsCharts';
+
 export default function DashboardPage() {
   return (
     <div className="dashboard-page">

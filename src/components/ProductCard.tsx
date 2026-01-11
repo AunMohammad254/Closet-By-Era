@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useWishlist } from '@/context/WishlistContext';
 import { useCart } from '@/context/CartContext';
 import { useState } from 'react';
+import { shimmerPlaceholder } from '@/lib/imageUtils';
 
 interface ProductCardProps {
     id: string;
@@ -80,6 +81,8 @@ export default function ProductCard({
                         fill
                         className="object-cover transition-transform duration-500 group-hover:scale-105"
                         sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
+                        placeholder="blur"
+                        blurDataURL={shimmerPlaceholder(500, 600)}
                     />
                 ) : (
                     <div className="absolute inset-0 bg-gradient-to-br from-gray-100 via-gray-50 to-gray-100 flex items-center justify-center">
