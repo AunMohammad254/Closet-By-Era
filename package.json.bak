@@ -12,11 +12,9 @@
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.87.1",
-    "lucide-react": "^0.562.0",
     "next": "16.0.10",
     "react": "19.2.1",
-    "react-dom": "19.2.1",
-    "recharts": "^3.6.0"
+    "react-dom": "19.2.1"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
@@ -35,9 +33,5 @@
     "tailwindcss": "^4",
     "ts-node": "^10.9.2",
     "typescript": "^5"
-  },
-  "overrides": {
-    "test-exclude": "^7.0.1",
-    "jsdom": "^27.3.0"
   }
 }

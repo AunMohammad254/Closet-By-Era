@@ -8,6 +8,7 @@ import { useState } from 'react';
 
 interface ProductCardProps {
     id: string;
+    slug?: string;
     name: string;
     price: number;
     originalPrice?: number;
@@ -19,6 +20,7 @@ interface ProductCardProps {
 
 export default function ProductCard({
     id,
+    slug,
     name,
     price,
     originalPrice,
@@ -30,6 +32,9 @@ export default function ProductCard({
     const { addItem: addToWishlist, removeItem: removeFromWishlist, isInWishlist } = useWishlist();
     const { addItem: addToCart } = useCart();
     const [showToast, setShowToast] = useState(false);
+
+    // Fallback: use id if slug is not provided (legacy support, though we should migrate all)
+    const productLink = slug ? `/product/${slug}` : `/product/${id}`;
 
     const discount = originalPrice ? Math.round(((originalPrice - price) / originalPrice) * 100) : 0;
     const isWishlisted = isInWishlist(id);
@@ -66,7 +71,7 @@ export default function ProductCard({
     return (
         <article className="group relative">
             {/* Image Container */}
-            <Link href={`/product/${id}`} className="block relative aspect-[3/4] overflow-hidden rounded-xl bg-gray-100">
+            <Link href={productLink} className="block relative aspect-[3/4] overflow-hidden rounded-xl bg-gray-100">
                 {/* Product Image */}
                 {image && image.startsWith('/products/') ? (
                     <Image
@@ -98,8 +103,8 @@ export default function ProductCard({
                     <button
                         onClick={handleWishlistToggle}
                         className={`p-3 rounded-lg shadow-lg transition-colors ${isWishlisted
-                                ? 'bg-rose-100 text-rose-600'
-                                : 'bg-white text-slate-900 hover:bg-rose-50'
+                            ? 'bg-rose-100 text-rose-600'
+                            : 'bg-white text-slate-900 hover:bg-rose-50'
                             }`}
                     >
                         <svg className="w-5 h-5" fill={isWishlisted ? 'currentColor' : 'none'} stroke="currentColor" viewBox="0 0 24 24">
@@ -127,7 +132,7 @@ export default function ProductCard({
             <div className="mt-4 space-y-2">
                 <p className="text-xs text-gray-500 uppercase tracking-wider">{category}</p>
                 <h3 className="font-medium text-gray-900 group-hover:text-rose-600 transition-colors line-clamp-2">
-                    <Link href={`/product/${id}`}>{name}</Link>
+                    <Link href={productLink}>{name}</Link>
                 </h3>
                 <div className="flex items-center gap-2">
                     <span className="text-lg font-semibold text-gray-900">

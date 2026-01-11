@@ -80,7 +80,7 @@ export default function Navbar() {
 
                         {/* Account */}
                         <Link
-                            href={user ? "/account" : "/auth/login"}
+                            href="/profile"
                             className="p-2 text-gray-600 hover:text-gray-900 transition-colors"
                         >
                             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -139,7 +139,7 @@ export default function Navbar() {
                     ))}
                     <div className="pt-4 border-t border-gray-100">
                         <Link
-                            href={user ? "/account" : "/auth/login"}
+                            href="/profile"
                             className="block py-2 text-base font-medium text-gray-700 hover:text-rose-600 transition-colors"
                             onClick={() => setIsMenuOpen(false)}
                         >

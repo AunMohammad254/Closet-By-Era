@@ -1,0 +1,140 @@
+import { Metadata } from 'next';
+import { notFound } from 'next/navigation';
+import ProductView, { ProductDetails } from '@/components/ProductView';
+import { supabase } from '@/lib/supabase';
+
+// Helper to map colors
+const getColorHex = (name: string) => {
+    const colors: Record<string, string> = {
+        'Black': '#1a1a1a',
+        'White': '#ffffff',
+        'Navy': '#1e3a5f',
+        'Camel': '#c19a6b',
+        'Beige': '#f5f5dc',
+        'Grey': '#808080',
+        'Brown': '#8b4513',
+        'Blue': '#0000ff',
+        'Red': '#ff0000',
+        'Green': '#008000',
+    };
+    return colors[name] || '#cccccc';
+};
+
+async function getProduct(slug: string) {
+    console.log(`Fetching product with slug: ${slug}`);
+
+    // First, try to fetch product with category join
+    const { data, error } = await supabase
+        .from('products')
+        .select(`
+            *,
+            category:categories(name, slug)
+        `)
+        .eq('slug', slug)
+        .single();
+
+    if (error) {
+        console.error(`Error fetching product with join (slug: ${slug}):`, error);
+
+        // Fallback: Fetch product without join
+        const { data: productData, error: productError } = await supabase
+            .from('products')
+            .select('*')
+            .eq('slug', slug)
+            .single();
+
+        if (productError || !productData) {
+            console.error(`Fallback fetch failed for slug: ${slug}`, productError);
+            return null;
+        }
+
+        // Fetch category separately if needed
+        let categoryData = null;
+        if (productData.category_id) {
+            const { data: cat } = await supabase
+                .from('categories')
+                .select('name, slug')
+                .eq('id', productData.category_id)
+                .single();
+            categoryData = cat;
+        }
+
+        // Construct result manually
+        return mapDBToProduct(productData, categoryData);
+    }
+
+    if (!data) return null;
+    return mapDBToProduct(data, data.category);
+}
+
+function mapDBToProduct(data: any, categoryData: any): ProductDetails {
+    return {
+        id: data.id,
+        name: data.name,
+        price: data.price,
+        originalPrice: data.original_price,
+        description: data.description || '',
+        shortDescription: data.short_description,
+        category: categoryData?.name || 'Uncategorized',
+        categorySlug: categoryData?.slug || 'all',
+        images: data.images || (data.image_url ? [data.image_url] : ['/products/placeholder.png']),
+        sizes: data.sizes || [],
+        colors: (data.colors || []).map((c: string) => ({ name: c, hex: getColorHex(c) })),
+        inStock: data.in_stock,
+        isNew: data.is_new,
+        isSale: data.is_sale,
+        features: [],
+        sku: data.id.substring(0, 8).toUpperCase(),
+    };
+}
+
+export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
+    const { slug } = await params;
+    const product = await getProduct(slug);
+
+    if (!product) {
+        return {
+            title: 'Product Not Found | Closet By Era',
+        };
+    }
+
+    return {
+        title: `${product.name} | Closet By Era`,
+        description: product.description,
+        openGraph: {
+            title: product.name,
+            description: product.description,
+            images: product.images,
+        },
+    };
+}
+
+export default async function Page({ params }: { params: Promise<{ slug: string }> }) {
+    const { slug } = await params;
+    const product = await getProduct(slug);
+
+    if (!product) {
+        notFound();
+    }
+
+    // Simplification: just fetch 4 random/recent products
+    const { data: relatedDataSimple } = await supabase
+        .from('products')
+        .select('*')
+        .neq('id', product.id)
+        .limit(4);
+
+    const relatedProducts = (relatedDataSimple || []).map((p: any) => ({
+        id: p.id,
+        name: p.name,
+        price: p.price,
+        originalPrice: p.original_price,
+        image: p.image_url || (p.images && p.images[0]),
+        category: 'View Details', // Placeholder
+        isNew: p.is_new,
+        isSale: p.is_sale,
+    }));
+
+    return <ProductView product={product} relatedProducts={relatedProducts} />;
+}
+
