@@ -1,223 +1,260 @@
 'use server';
 
+import { supabaseServer } from '@/lib/supabase-server';
 import { revalidatePath } from 'next/cache';
-import { supabaseServer as supabase } from '@/lib/supabase-server';
-import type { Product, ProductFormData, ActionResponse } from '@/types/database';
+import { redirect } from 'next/navigation';
 
-// ============================================================================
-// Get all products
-// ============================================================================
+// --- Fetching ---
 
-export async function getProducts(): Promise<ActionResponse<Product[]>> {
-    try {
-        const { data, error } = await supabase
-            .from('products')
-            .select('*')
-            .order('created_at', { ascending: false });
+export async function getProductsByIds(ids: string[]) {
+    if (!ids || ids.length === 0) return [];
 
-        if (error) {
-            return { success: false, error: error.message };
-        }
+    const { data, error } = await supabaseServer
+        .from('products')
+        .select('id, name, slug, price, stock, images, is_active, in_stock')
+        .in('id', ids)
+        .eq('in_stock', true);
 
-        return { success: true, data: data as Product[] };
-    } catch (err) {
-        return { success: false, error: 'Failed to fetch products' };
+    if (error) {
+        console.error('Error fetching products by ids:', error);
+        return [];
     }
+
+    // Maintain order
+    return ids
+        .map(id => data.find(p => p.id === id))
+        .filter(Boolean);
 }
 
-// ============================================================================
-// Get single product by ID
-// ============================================================================
+export async function getLowStockProducts(threshold = 5) {
+    const { data, error } = await supabaseServer
+        .from('products')
+        .select('id, name, stock, slug, price, images')
+        .lt('stock', threshold)
+        .eq('is_active', true)
+        .order('stock', { ascending: true })
+        .limit(5);
 
-export async function getProductById(id: string): Promise<ActionResponse<Product>> {
-    try {
-        const { data, error } = await supabase
-            .from('products')
-            .select('*')
-            .eq('id', id)
-            .single();
-
-        if (error) {
-            return { success: false, error: error.message };
-        }
-
-        return { success: true, data: data as Product };
-    } catch (err) {
-        return { success: false, error: 'Failed to fetch product' };
+    if (error) {
+        console.error('Error fetching low stock products:', error);
+        return [];
     }
+
+    return data;
 }
 
-// ============================================================================
-// Create product
-// ============================================================================
+// Update signature to accept options object for better extensibility check
+export async function getProducts(
+    page = 1,
+    pageSize = 10,
+    search = '',
+    filters: {
+        categories?: string[];
+        minPrice?: number;
+        maxPrice?: number;
+        sort?: string;
+    } = {}
+) {
+    const from = (page - 1) * pageSize;
+    const to = from + pageSize - 1;
 
-export async function createProduct(formData: ProductFormData): Promise<ActionResponse<Product>> {
-    try {
-        // Validation
-        if (!formData.name || formData.name.trim() === '') {
-            return { success: false, error: 'Product name is required' };
-        }
+    // We need to use !inner join to filter products based on category name if categories are selected
+    // Otherwise standard left join is fine
+    const categoryJoinValues = filters.categories && filters.categories.length > 0
+        ? 'categories!inner(name)'
+        : 'categories(name)';
 
-        if (formData.price < 0) {
-            return { success: false, error: 'Price cannot be negative' };
-        }
+    let query = supabaseServer
+        .from('products')
+        .select(`id, name, slug, price, stock, images, is_active, in_stock, created_at, category:${categoryJoinValues}`, { count: 'exact' });
 
-        if (formData.stock < 0) {
-            return { success: false, error: 'Stock cannot be negative' };
-        }
+    if (search) {
+        query = query.ilike('name', `%${search}%`);
+    }
 
-        if (!formData.category || formData.category.trim() === '') {
-            return { success: false, error: 'Category is required' };
-        }
+    // Apply Filters
+    if (filters.categories && filters.categories.length > 0) {
+        query = query.in('categories.name', filters.categories);
+    }
 
-        const { data, error } = await supabase
-            .from('products')
-            .insert({
-                name: formData.name.trim(),
-                description: formData.description?.trim() || null,
-                price: formData.price,
-                stock: formData.stock,
-                category: formData.category,
-                images: formData.images || [],
-                is_active: formData.is_active ?? true,
-            })
-            .select()
-            .single();
+    if (filters.minPrice !== undefined) {
+        query = query.gte('price', filters.minPrice);
+    }
 
-        if (error) {
-            return { success: false, error: error.message };
-        }
+    if (filters.maxPrice !== undefined) {
+        query = query.lte('price', filters.maxPrice);
+    }
 
-        revalidatePath('/dashboard/products');
-        return { success: true, data: data as Product };
-    } catch (err) {
+    // Apply Sorting
+    switch (filters.sort) {
+        case 'price_asc':
+            query = query.order('price', { ascending: true });
+            break;
+        case 'price_desc':
+            query = query.order('price', { ascending: false });
+            break;
+        case 'newest':
+        default:
+            query = query.order('created_at', { ascending: false });
+            break;
+    }
+
+    const { data, error, count } = await query
+        .range(from, to);
+
+    if (error) {
+        console.error('Error fetching products:', error);
+        return { data: [], count: 0 };
+    }
+
+    return { data, count };
+}
+
+export async function getProductById(id: string) {
+    const { data, error } = await supabaseServer
+        .from('products')
+        .select('*')
+        .eq('id', id)
+        .single();
+
+    if (error) {
+        console.error('Error fetching product:', error);
+        return null;
+    }
+
+    return data;
+}
+
+export async function getCategories() {
+    const { data, error } = await supabaseServer
+        .from('categories')
+        .select('id, name')
+        .order('name');
+
+    if (error) {
+        console.error('Error fetching categories:', error);
+        return [];
+    }
+
+    return data;
+}
+
+// --- mutations ---
+
+import type { ProductFormData } from '@/types/database';
+
+// Audit logging is now handled automatically by database trigger (log_product_changes)
+
+
+export async function createProduct(data: ProductFormData): Promise<{ success: boolean; error?: string }> {
+    const slug = data.name.toLowerCase().replace(/ /g, '-').replace(/[^\w-]+/g, '');
+
+    const { data: newProduct, error } = await supabaseServer
+        .from('products')
+        .insert({
+            name: data.name,
+            slug,
+            description: data.description,
+            price: data.price,
+            stock: data.stock,
+            images: data.images,
+            is_active: data.is_active,
+            in_stock: data.stock > 0,
+        })
+        .select()
+        .single();
+
+    if (error) {
+        console.error('Error creating product:', error);
         return { success: false, error: 'Failed to create product' };
     }
+
+    revalidatePath('/admin/products');
+    revalidatePath('/dashboard/products');
+    return { success: true };
 }
 
-// ============================================================================
-// Update product
-// ============================================================================
+export async function updateProduct(id: string, data: ProductFormData): Promise<{ success: boolean; error?: string }> {
+    const { error } = await supabaseServer
+        .from('products')
+        .update({
+            name: data.name,
+            description: data.description,
+            price: data.price,
+            stock: data.stock,
+            images: data.images,
+            is_active: data.is_active,
+            in_stock: data.stock > 0,
+        })
+        .eq('id', id);
 
-export async function updateProduct(
-    id: string,
-    formData: Partial<ProductFormData>
-): Promise<ActionResponse<Product>> {
-    try {
-        // Validation
-        if (formData.price !== undefined && formData.price < 0) {
-            return { success: false, error: 'Price cannot be negative' };
-        }
-
-        if (formData.stock !== undefined && formData.stock < 0) {
-            return { success: false, error: 'Stock cannot be negative' };
-        }
-
-        const updateData: Record<string, unknown> = {};
-
-        if (formData.name !== undefined) updateData.name = formData.name.trim();
-        if (formData.description !== undefined) updateData.description = formData.description?.trim() || null;
-        if (formData.price !== undefined) updateData.price = formData.price;
-        if (formData.stock !== undefined) updateData.stock = formData.stock;
-        if (formData.category !== undefined) updateData.category = formData.category;
-        if (formData.images !== undefined) updateData.images = formData.images;
-        if (formData.is_active !== undefined) updateData.is_active = formData.is_active;
-
-        const { data, error } = await supabase
-            .from('products')
-            .update(updateData)
-            .eq('id', id)
-            .select()
-            .single();
-
-        if (error) {
-            return { success: false, error: error.message };
-        }
-
-        revalidatePath('/dashboard/products');
-        revalidatePath(`/dashboard/products/${id}`);
-        return { success: true, data: data as Product };
-    } catch (err) {
+    if (error) {
+        console.error('Error updating product:', error);
         return { success: false, error: 'Failed to update product' };
     }
+
+    revalidatePath('/admin/products');
+    revalidatePath('/dashboard/products');
+    revalidatePath(`/admin/products/${id}`);
+    revalidatePath(`/dashboard/products/${id}`);
+    return { success: true };
 }
 
-// ============================================================================
-// Delete product
-// ============================================================================
+export async function deleteProduct(id: string): Promise<{ success: boolean; error?: string }> {
+    const { error } = await supabaseServer
+        .from('products')
+        .delete()
+        .eq('id', id);
 
-export async function deleteProduct(id: string): Promise<ActionResponse<void>> {
-    try {
-        const { error } = await supabase
-            .from('products')
-            .delete()
-            .eq('id', id);
-
-        if (error) {
-            return { success: false, error: error.message };
-        }
-
-        revalidatePath('/dashboard/products');
-        return { success: true, data: undefined };
-    } catch (err) {
+    if (error) {
+        console.error('Error deleting product:', error);
         return { success: false, error: 'Failed to delete product' };
     }
+
+    revalidatePath('/admin/products');
+    return { success: true };
 }
 
-// ============================================================================
-// Toggle product active status
-// ============================================================================
+export async function toggleProductStatus(id: string, inStock: boolean): Promise<{ success: boolean; error?: string }> {
+    const { error } = await supabaseServer
+        .from('products')
+        .update({ in_stock: inStock })
+        .eq('id', id);
 
-export async function toggleProductStatus(id: string, isActive: boolean): Promise<ActionResponse<void>> {
-    try {
-        const { error } = await supabase
-            .from('products')
-            .update({ is_active: isActive })
-            .eq('id', id);
-
-        if (error) {
-            return { success: false, error: error.message };
-        }
-
-        revalidatePath('/dashboard/products');
-        return { success: true, data: undefined };
-    } catch (err) {
-        return { success: false, error: 'Failed to update product status' };
+    if (error) {
+        console.error('Error toggling product status:', error);
+        return { success: false, error: 'Failed to toggle product status' };
     }
+
+    revalidatePath('/admin/products');
+    return { success: true };
 }
 
-// ============================================================================
-// Upload image to Supabase Storage
-// ============================================================================
+export async function uploadProductImage(formData: FormData): Promise<{ success: boolean; url?: string; error?: string }> {
+    const file = formData.get('file') as File;
 
-export async function uploadProductImage(
-    formData: FormData
-): Promise<ActionResponse<string>> {
-    try {
-        const file = formData.get('file') as File;
+    if (!file) {
+        return { success: false, error: 'No file provided' };
+    }
 
-        if (!file) {
-            return { success: false, error: 'No file provided' };
-        }
+    const fileExt = file.name.split('.').pop();
+    const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
+    const filePath = `products/${fileName}`;
 
-        const fileExt = file.name.split('.').pop();
-        const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`;
-        const filePath = `products/${fileName}`;
+    const { error: uploadError } = await supabaseServer.storage
+        .from('product-images')
+        .upload(filePath, file);
 
-        const { error: uploadError } = await supabase.storage
-            .from('products')
-            .upload(filePath, file);
-
-        if (uploadError) {
-            return { success: false, error: uploadError.message };
-        }
-
-        const { data: { publicUrl } } = supabase.storage
-            .from('products')
-            .getPublicUrl(filePath);
-
-        return { success: true, data: publicUrl };
-    } catch (err) {
+    if (uploadError) {
+        console.error('Error uploading image:', uploadError);
         return { success: false, error: 'Failed to upload image' };
     }
+
+    const { data: { publicUrl } } = supabaseServer.storage
+        .from('product-images')
+        .getPublicUrl(filePath);
+
+    return { success: true, url: publicUrl };
 }
+
+

@@ -175,6 +175,11 @@ export default function CartPage() {
                                             <span className="font-medium text-gray-900">Total</span>
                                             <span className="text-lg font-bold text-gray-900">PKR {total.toLocaleString()}</span>
                                         </div>
+                                        <div className="mt-2 text-right">
+                                            <span className="text-xs text-rose-600 font-medium">
+                                                You will earn {Math.floor(total / 100)} loyalty points
+                                            </span>
+                                        </div>
                                     </div>
                                 </div>
 

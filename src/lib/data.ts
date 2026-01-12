@@ -301,8 +301,8 @@ export async function createOrder(orderData: {
             discount: orderData.discount || 0,
             shipping_cost: orderData.shippingCost || 0,
             total: orderData.total,
-            shipping_address: orderData.shippingAddress,
-            billing_address: orderData.billingAddress || orderData.shippingAddress,
+            shipping_address: orderData.shippingAddress as any,
+            billing_address: (orderData.billingAddress || orderData.shippingAddress) as any,
             notes: orderData.notes,
         })
         .select()
@@ -358,50 +358,5 @@ export async function getCustomerOrders(customerId: string) {
 // Coupon Functions
 // =============================================
 
-export async function validateCoupon(code: string, orderAmount: number) {
-    const { data, error } = await supabase
-        .from('coupons')
-        .select('*')
-        .eq('code', code.toUpperCase())
-        .eq('is_active', true)
-        .single();
-
-    if (error || !data) {
-        return { valid: false, message: 'Invalid coupon code' };
-    }
-
-    // Check expiry
-    if (data.ends_at && new Date(data.ends_at) < new Date()) {
-        return { valid: false, message: 'This coupon has expired' };
-    }
-
-    // Check start date
-    if (data.starts_at && new Date(data.starts_at) > new Date()) {
-        return { valid: false, message: 'This coupon is not yet active' };
-    }
-
-    // Check minimum order
-    if (data.min_order_amount && orderAmount < data.min_order_amount) {
-        return { valid: false, message: `Minimum order amount is PKR ${data.min_order_amount}` };
-    }
-
-    // Check usage limit
-    if (data.max_uses && data.uses_count >= data.max_uses) {
-        return { valid: false, message: 'This coupon has reached its usage limit' };
-    }
-
-    // Calculate discount
-    let discount = 0;
-    if (data.discount_type === 'percentage') {
-        discount = (orderAmount * data.discount_value) / 100;
-    } else {
-        discount = data.discount_value;
-    }
-
-    return {
-        valid: true,
-        discount,
-        coupon: data,
-        message: `Discount of PKR ${discount.toFixed(0)} applied!`,
-    };
-}
+// Moved to src/actions/coupons.ts
+// Use validateCoupon from actions instead.

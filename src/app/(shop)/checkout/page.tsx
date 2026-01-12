@@ -8,6 +8,9 @@ import { useAuth } from '@/context/AuthContext';
 import { sendOrderConfirmationEmail, formatOrderForEmail } from '@/lib/email';
 import { supabase, getOrCreateCustomer } from '@/lib/supabase';
 import { revalidateAccountPage } from '@/app/actions';
+import { validateCoupon } from '@/actions/coupons';
+import { awardLoyaltyPoints } from '@/actions/loyalty';
+import { validateGiftCard, redeemGiftCard, GiftCard } from '@/actions/gift-cards';
 
 type CheckoutStep = 'information' | 'shipping' | 'payment';
 
@@ -21,6 +24,14 @@ export default function CheckoutPage() {
     const [orderComplete, setOrderComplete] = useState(false);
     const [orderNumber, setOrderNumber] = useState('');
     const [orderError, setOrderError] = useState<string | null>(null);
+
+    // Coupon & Gift Card State
+    const [couponCode, setCouponCode] = useState('');
+    const [couponMessage, setCouponMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
+    const [discount, setDiscount] = useState(0);
+    const [isValidatingCoupon, setIsValidatingCoupon] = useState(false);
+    const [giftCard, setGiftCard] = useState<GiftCard | null>(null);
+    const [giftCardAmount, setGiftCardAmount] = useState(0);
 
     // Form state
     const [formData, setFormData] = useState({
@@ -46,7 +57,27 @@ export default function CheckoutPage() {
 
     const shipping = subtotal >= 5000 ? 0 : 500;
     const shippingMethodCost = formData.shippingMethod === 'express' ? 300 : 0;
-    const total = subtotal + shipping + shippingMethodCost;
+    const totalBeforeDiscount = subtotal + shipping + shippingMethodCost;
+    const totalAfterCoupon = Math.max(0, totalBeforeDiscount - discount);
+
+    // Calculate how much gift card balance to use
+    // It cannot exceed the total to pay
+    const potentialGiftCardUsage = giftCard ? Math.min(giftCard.balance, totalAfterCoupon) : 0;
+
+    // Update the state if it changed (use effect would be better but direct calculation here works if we are careful)
+    // Actually we should set this when applying or whenever dependencies change.
+    // For React render cycle, we should calculate 'total' derived from state.
+
+    const quantityToPay = Math.max(0, totalAfterCoupon - potentialGiftCardUsage);
+    const total = quantityToPay;
+
+    // We need to keep track of the *actual* amount we correspond to using for the redeem call later
+    // So we'll update the state validation function
+
+    // Sync giftCardAmount effect
+    if (giftCard && giftCardAmount !== potentialGiftCardUsage) {
+        // This is a side effect in render, bad practice but fine for quick logic if we use useEffect
+    }
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
         const { name, value } = e.target;
@@ -69,7 +100,7 @@ export default function CheckoutPage() {
             if (!formData.city) newErrors.city = 'City is required';
         }
 
-        if (currentStep === 'payment' && formData.paymentMethod === 'card') {
+        if (currentStep === 'payment' && formData.paymentMethod === 'card' && total > 0) {
             if (!formData.cardNumber) newErrors.cardNumber = 'Card number is required';
             if (!formData.cardExpiry) newErrors.cardExpiry = 'Expiry date is required';
             if (!formData.cardCvc) newErrors.cardCvc = 'CVC is required';
@@ -89,6 +120,55 @@ export default function CheckoutPage() {
     const handleBack = () => {
         if (step === 'payment') setStep('shipping');
         else if (step === 'shipping') setStep('information');
+    };
+
+    const handleApplyCoupon = async () => {
+        if (!couponCode.trim()) return;
+        setIsValidatingCoupon(true);
+        setCouponMessage(null);
+
+        // Reset
+        setDiscount(0);
+        setGiftCard(null);
+        setGiftCardAmount(0);
+
+        try {
+            // 1. Try Coupon
+            const couponResult = await validateCoupon(couponCode, subtotal);
+
+            if (couponResult.valid) {
+                setDiscount(couponResult.discount || 0);
+                setCouponMessage({ type: 'success', text: couponResult.message || 'Coupon applied!' });
+            } else {
+                // 2. Try Gift Card
+                const giftCardResult = await validateGiftCard(couponCode);
+
+                if (giftCardResult.valid && giftCardResult.id) {
+                    setGiftCard({
+                        id: giftCardResult.id,
+                        code: giftCardResult.code!,
+                        balance: giftCardResult.balance!,
+                        initial_value: giftCardResult.initial_value!,
+                        is_active: true,
+                        expires_at: null,
+                        created_at: ''
+                    });
+                    // We need to calculate amount but we do that in render or just here
+                    // But we can't fully know final total here easily without duplicating logic
+                    setCouponMessage({ type: 'success', text: `Gift Card applied! Balance: PKR ${giftCardResult.balance?.toLocaleString()}` });
+                    setGiftCardAmount(giftCardResult.balance!); // This is just a flag, actual usage is calculated in render/placeOrder
+                } else {
+                    // Both invalid
+                    setDiscount(0);
+                    setGiftCard(null);
+                    setCouponMessage({ type: 'error', text: 'Invalid code' });
+                }
+            }
+        } catch (error) {
+            setCouponMessage({ type: 'error', text: 'Error validating code' });
+        } finally {
+            setIsValidatingCoupon(false);
+        }
     };
 
     const handlePlaceOrder = async () => {
@@ -136,11 +216,11 @@ export default function CheckoutPage() {
                     customer_id: customerId,
                     status: 'pending',
                     subtotal: subtotal,
-                    discount: 0,
+                    discount: discount,
                     shipping_cost: shipping + shippingMethodCost,
-                    total: total,
+                    total: total, // This is expected to be the final amount paid by user (e.g. 0 if gift card covers all)
                     shipping_address: shippingAddress,
-                    payment_method: formData.paymentMethod,
+                    payment_method: total === 0 ? 'gift_card' : formData.paymentMethod, // Override method if free
                     notes: formData.notes || null,
                 })
                 .select()
@@ -148,7 +228,7 @@ export default function CheckoutPage() {
 
             if (orderError) {
                 console.error('Error creating order:', orderError);
-                // Continue with order even if database fails
+                throw new Error(orderError.message || 'Failed to create order');
             }
 
             // Create order items in database
@@ -191,7 +271,7 @@ export default function CheckoutPage() {
                     order_number: newOrderNumber,
                     subtotal: subtotal,
                     shipping_cost: shipping + shippingMethodCost,
-                    discount: 0,
+                    discount: discount,
                     total: total,
                 },
                 emailOrderItems,
@@ -210,6 +290,23 @@ export default function CheckoutPage() {
 
             // Revalidate account page cache so orders appear immediately
             await revalidateAccountPage();
+
+            // Award Loyalty Points
+            if (user) {
+                // We import this dynamically or at top. best to add import.
+                // Assuming imported awardLoyaltyPoints from '@/actions/loyalty'
+                await awardLoyaltyPoints(total);
+            }
+
+            // Redeem Gift Card if used
+            if (giftCard) {
+                const finalTotalBeforeGiftCard = Math.max(0, subtotal + shipping + shippingMethodCost - discount);
+                const amountToRedeem = Math.min(giftCard.balance, finalTotalBeforeGiftCard);
+
+                if (amountToRedeem > 0) {
+                    await redeemGiftCard(giftCard.code, amountToRedeem, orderData!.id);
+                }
+            }
 
             // Clear cart and show success
             clearCart();
@@ -691,9 +788,52 @@ export default function CheckoutPage() {
                                             {shipping === 0 ? 'Free' : `PKR ${(shipping + shippingMethodCost).toLocaleString()}`}
                                         </span>
                                     </div>
+
+                                    {/* Discount Line */}
+                                    {discount > 0 && (
+                                        <div className="flex justify-between text-green-600">
+                                            <span className="font-medium">Discount</span>
+                                            <span className="font-medium">- PKR {discount.toLocaleString()}</span>
+                                        </div>
+                                    )}
+
+                                    {/* Gift Card Line */}
+                                    {giftCard && potentialGiftCardUsage > 0 && (
+                                        <div className="flex justify-between text-emerald-600">
+                                            <span className="font-medium">Gift Card ({giftCard.code})</span>
+                                            <span className="font-medium">- PKR {potentialGiftCardUsage.toLocaleString()}</span>
+                                        </div>
+                                    )}
+
                                     <div className="flex justify-between pt-2 border-t border-gray-200">
-                                        <span className="font-bold text-gray-900">Total</span>
+                                        <span className="font-bold text-gray-900">Total to Pay</span>
                                         <span className="text-lg font-bold text-gray-900">PKR {total.toLocaleString()}</span>
+                                    </div>
+
+                                    {/* Coupon Input */}
+                                    <div className="pt-4 border-t border-gray-200 mt-4">
+                                        <label className="block text-xs font-medium text-gray-700 mb-2">Discount Code</label>
+                                        <div className="flex gap-2">
+                                            <input
+                                                type="text"
+                                                value={couponCode}
+                                                onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
+                                                placeholder="Enter code"
+                                                className="flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-slate-900 uppercase"
+                                            />
+                                            <button
+                                                onClick={handleApplyCoupon}
+                                                disabled={isValidatingCoupon || !couponCode}
+                                                className="px-4 py-2 bg-gray-200 text-gray-800 text-sm font-medium rounded-md hover:bg-gray-300 disabled:opacity-50"
+                                            >
+                                                {isValidatingCoupon ? '...' : 'Apply'}
+                                            </button>
+                                        </div>
+                                        {couponMessage && (
+                                            <p className={`text-xs mt-2 ${couponMessage.type === 'success' ? 'text-green-600' : 'text-red-500'}`}>
+                                                {couponMessage.text}
+                                            </p>
+                                        )}
                                     </div>
                                 </div>
                             </div>

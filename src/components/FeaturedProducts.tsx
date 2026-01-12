@@ -2,14 +2,22 @@
 
 import { useEffect, useState } from 'react';
 import ProductCard from './ProductCard';
-import { supabase, Product as ProductDB } from '@/lib/supabase';
+import { supabase } from '@/lib/supabase';
 import Link from 'next/link';
 
-interface Product extends Omit<ProductDB, 'created_at'> {
+interface Product {
+    id: string;
+    name: string;
+    slug: string;
+    description: string;
+    price: number;
     originalPrice?: number;
     category: string;
-    createdAt: Date;
+    category_id: string;
     image: string;
+    createdAt: Date;
+    in_stock: boolean;
+    is_featured: boolean;
     isNew?: boolean;
     isSale?: boolean;
 }

@@ -21,30 +21,48 @@ const getColorHex = (name: string) => {
 };
 
 async function getProduct(slug: string) {
-    console.log(`Fetching product with slug: ${slug}`);
+    // console.log(`Fetching product with slug: ${slug}`);
 
-    // First, try to fetch product with category join
-    const { data, error } = await supabase
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(slug);
+
+    let query = supabase
         .from('products')
         .select(`
             *,
             category:categories(name, slug)
-        `)
-        .eq('slug', slug)
-        .single();
+        `);
+
+    if (isUuid) {
+        query = query.or(`slug.eq.${slug},id.eq.${slug}`);
+    } else {
+        query = query.eq('slug', slug);
+    }
+
+    const { data, error } = await query.single();
 
     if (error) {
-        console.error(`Error fetching product with join (slug: ${slug}):`, error);
+        // Only log actual errors, not "not found" (PGRST116)
+        if (error.code !== 'PGRST116') {
+            console.error(`Error fetching product with join (slug: ${slug}):`, JSON.stringify(error, null, 2));
+        }
 
         // Fallback: Fetch product without join
-        const { data: productData, error: productError } = await supabase
+        let fallbackQuery = supabase
             .from('products')
-            .select('*')
-            .eq('slug', slug)
-            .single();
+            .select('*');
+
+        if (isUuid) {
+            fallbackQuery = fallbackQuery.or(`slug.eq.${slug},id.eq.${slug}`);
+        } else {
+            fallbackQuery = fallbackQuery.eq('slug', slug);
+        }
+
+        const { data: productData, error: productError } = await fallbackQuery.single();
 
         if (productError || !productData) {
-            console.error(`Fallback fetch failed for slug: ${slug}`, productError);
+            if (productError?.code !== 'PGRST116') {
+                console.error(`Fallback fetch failed for slug: ${slug}`, JSON.stringify(productError, null, 2));
+            }
             return null;
         }
 

@@ -1,150 +1,133 @@
 'use server';
 
+import { supabaseServer } from '@/lib/supabase-server';
 import { revalidatePath } from 'next/cache';
-import { supabaseServer as supabase } from '@/lib/supabase-server';
-import type { Order, OrderWithItems, OrderStatus, ActionResponse } from '@/types/database';
 
-// ============================================================================
-// Get all orders
-// ============================================================================
+export async function getRecentOrders(limit = 5) {
+    const { data, error } = await supabaseServer
+        .from('orders')
+        .select(`
+            *,
+            items:order_items(*)
+        `)
+        .order('created_at', { ascending: false })
+        .limit(limit);
 
-export async function getOrders(): Promise<ActionResponse<Order[]>> {
-    try {
-        const { data, error } = await supabase
-            .from('orders')
-            .select('*')
-            .order('created_at', { ascending: false });
-
-        if (error) {
-            return { success: false, error: error.message };
-        }
-
-        return { success: true, data: data as Order[] };
-    } catch (err) {
-        return { success: false, error: 'Failed to fetch orders' };
+    if (error) {
+        console.error('Error fetching recent orders:', error);
+        return [];
     }
+
+    return data;
 }
 
-// ============================================================================
-// Get single order with items
-// ============================================================================
+export async function getOrders(page = 1, pageSize = 10, status?: string) {
+    const from = (page - 1) * pageSize;
+    const to = from + pageSize - 1;
 
-export async function getOrderById(id: string): Promise<ActionResponse<OrderWithItems>> {
-    try {
-        const { data: order, error: orderError } = await supabase
-            .from('orders')
-            .select('*')
-            .eq('id', id)
-            .single();
+    let query = supabaseServer
+        .from('orders')
+        .select('*', { count: 'exact' });
 
-        if (orderError) {
-            return { success: false, error: orderError.message };
-        }
-
-        const { data: items, error: itemsError } = await supabase
-            .from('order_items')
-            .select(`
-        *,
-        product:products (*)
-      `)
-            .eq('order_id', id);
-
-        if (itemsError) {
-            return { success: false, error: itemsError.message };
-        }
-
-        return {
-            success: true,
-            data: {
-                ...order,
-                order_items: items || [],
-            } as OrderWithItems,
-        };
-    } catch (err) {
-        return { success: false, error: 'Failed to fetch order' };
+    if (status && status !== 'All') {
+        query = query.eq('status', status.toLowerCase());
     }
+
+    const { data, error, count } = await query
+        .order('created_at', { ascending: false })
+        .range(from, to);
+
+    if (error) {
+        console.error('Error fetching orders:', error);
+        return { data: [], count: 0 };
+    }
+
+    return { data, count };
 }
 
-// ============================================================================
-// Update order status
-// ============================================================================
+export async function getOrderById(id: string) {
+    const { data, error } = await supabaseServer
+        .from('orders')
+        .select(`
+            *,
+            items:order_items(*)
+        `)
+        .eq('id', id)
+        .single();
 
-export async function updateOrderStatus(
-    id: string,
-    status: OrderStatus
-): Promise<ActionResponse<void>> {
-    try {
-        const { error } = await supabase
-            .from('orders')
-            .update({ status })
-            .eq('id', id);
+    if (error) {
+        console.error('Error fetching order:', error);
+        return null;
+    }
 
-        if (error) {
-            return { success: false, error: error.message };
-        }
+    return data;
+}
 
-        revalidatePath('/dashboard/orders');
-        return { success: true, data: undefined };
-    } catch (err) {
+import { generateStatusEmailHtml, sendEmail } from '@/lib/email';
+
+export async function updateOrderStatus(id: string, newStatus: string): Promise<{ success: boolean; error?: string }> {
+    // 1. Update the status
+    const { data: order, error } = await supabaseServer
+        .from('orders')
+        .update({ status: newStatus.toLowerCase() })
+        .eq('id', id)
+        .select(`
+            *,
+            customer:customers(first_name, email)
+        `)
+        .single();
+
+    if (error) {
+        console.error('Error updating order status:', error);
         return { success: false, error: 'Failed to update order status' };
     }
+
+    // 2. Send Notification Email
+    // We do this asynchronously/independently so we don't block the UI if it fails
+    // In a real production app, this might go to a queue.
+    if (order && order.customer && order.customer.email) {
+        try {
+            const html = generateStatusEmailHtml(
+                order.customer.first_name || 'Customer',
+                order.order_number,
+                newStatus
+            );
+
+            // Fire and forget (or await if critical)
+            // Note: Since this is server-side, we might not have the same supabase client with 'functions' invoke capability if using supabase-ssr client in certain ways,
+            // but the client-side/generic supabase client typically works. 
+            // However, 'src/lib/email' uses the client-side 'supabase' export which might need anon key.
+            // Let's verify imports in email.ts. It uses '@/lib/supabase'.
+
+            await sendEmail(
+                order.customer.email,
+                `Order Update - ${order.order_number}`,
+                html
+            );
+        } catch (emailErr) {
+            console.error('Failed to send status update email:', emailErr);
+        }
+    }
+
+    revalidatePath('/admin/orders');
+    revalidatePath(`/admin/orders/${id}`);
+    revalidatePath('/admin');
+    return { success: true };
 }
 
-// ============================================================================
-// Update payment status
-// ============================================================================
+export async function updatePaymentStatus(id: string, newStatus: string): Promise<{ success: boolean; error?: string }> {
+    const { error } = await supabaseServer
+        .from('orders')
+        .update({ payment_status: newStatus.toLowerCase() })
+        .eq('id', id);
 
-export async function updatePaymentStatus(
-    id: string,
-    paymentStatus: 'pending' | 'paid' | 'failed' | 'refunded'
-): Promise<ActionResponse<void>> {
-    try {
-        const { error } = await supabase
-            .from('orders')
-            .update({ payment_status: paymentStatus })
-            .eq('id', id);
-
-        if (error) {
-            return { success: false, error: error.message };
-        }
-
-        revalidatePath('/dashboard/orders');
-        return { success: true, data: undefined };
-    } catch (err) {
+    if (error) {
+        console.error('Error updating payment status:', error);
         return { success: false, error: 'Failed to update payment status' };
     }
+
+    revalidatePath('/admin/orders');
+    revalidatePath(`/admin/orders/${id}`);
+    return { success: true };
 }
 
-// ============================================================================
-// Get order statistics
-// ============================================================================
-
-export async function getOrderStats(): Promise<ActionResponse<{
-    total: number;
-    pending: number;
-    delivered: number;
-    revenue: number;
-}>> {
-    try {
-        const { data: orders, error } = await supabase
-            .from('orders')
-            .select('status, total_amount, payment_status');
-
-        if (error) {
-            return { success: false, error: error.message };
-        }
-
-        const stats = {
-            total: orders?.length || 0,
-            pending: orders?.filter(o => o.status === 'pending').length || 0,
-            delivered: orders?.filter(o => o.status === 'delivered').length || 0,
-            revenue: orders
-                ?.filter(o => o.payment_status === 'paid')
-                .reduce((sum, o) => sum + Number(o.total_amount), 0) || 0,
-        };
-
-        return { success: true, data: stats };
-    } catch (err) {
-        return { success: false, error: 'Failed to fetch order stats' };
-    }
-}

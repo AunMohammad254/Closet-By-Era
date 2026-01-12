@@ -18,7 +18,7 @@ export async function middleware(request: NextRequest) {
                     return request.cookies.getAll()
                 },
                 setAll(cookiesToSet) {
-                    cookiesToSet.forEach(({ name, value, options }) => request.cookies.set(name, value))
+                    cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value))
                     response = NextResponse.next({
                         request: {
                             headers: request.headers,
@@ -39,18 +39,48 @@ export async function middleware(request: NextRequest) {
 
     // Define protected routes
     const isAdminRoute = request.nextUrl.pathname.startsWith('/admin') ||
-        request.nextUrl.pathname.startsWith('/(admin)')
+        request.nextUrl.pathname.startsWith('/dashboard')
 
-    // If trying to access admin route without session
-    if (isAdminRoute && !session) {
+    const isProtectedRoute = request.nextUrl.pathname.startsWith('/account') ||
+        request.nextUrl.pathname.startsWith('/profile') ||
+        request.nextUrl.pathname.startsWith('/checkout')
+
+    // Redirect to login if accessing protected route without session
+    if ((isAdminRoute || isProtectedRoute) && !session) {
         const redirectUrl = request.nextUrl.clone()
         redirectUrl.pathname = '/auth/login'
         redirectUrl.searchParams.set('redirectedFrom', request.nextUrl.pathname)
         return NextResponse.redirect(redirectUrl)
     }
 
-    // Optional: Check for admin access via database/custom claims if needed later
-    // Currently just checking for valid session.
+    // If trying to access admin route, check for admin role
+    if (isAdminRoute && session) {
+        // Optimization: Check metadata first (0ms latency)
+        const metadataRole = session.user.app_metadata?.role || session.user.user_metadata?.role
+
+        let isAdmin = false
+
+        if (metadataRole !== undefined) {
+            isAdmin = metadataRole === 'admin'
+        } else {
+            // Fallback: Fetch customer role from database (Slower, handles legacy sessions)
+            const { data: customer } = await supabase
+                .from('customers')
+                .select('role')
+                .eq('auth_id', session.user.id)
+                .single()
+
+            isAdmin = customer?.role === 'admin'
+        }
+
+        if (!isAdmin) {
+            // User is not an admin, redirect to home with error
+            const redirectUrl = request.nextUrl.clone()
+            redirectUrl.pathname = '/'
+            redirectUrl.searchParams.set('error', 'unauthorized')
+            return NextResponse.redirect(redirectUrl)
+        }
+    }
 
     return response
 }

@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Inter, Outfit } from "next/font/google";
 import "./globals.css";
 import { Providers } from "./providers";
@@ -13,7 +13,12 @@ const outfit = Outfit({
   subsets: ["latin"],
 });
 
+export const viewport: Viewport = {
+  themeColor: '#e11d48',
+};
+
 export const metadata: Metadata = {
+  manifest: "/manifest.json",
   title: "Closet By Era | Premium Fashion & Style",
   description: "Discover timeless elegance with our curated collection of premium fashion. Shop the latest trends in women's and men's clothing, accessories, and more.",
   keywords: ["fashion", "clothing", "premium", "style", "women", "men", "accessories", "Pakistani fashion"],

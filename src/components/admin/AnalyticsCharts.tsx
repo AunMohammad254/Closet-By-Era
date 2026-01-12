@@ -29,9 +29,9 @@ export default function AnalyticsCharts() {
 
     if (loading) {
         return (
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 animate-pulse">
-                <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 h-80"></div>
-                <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 h-80"></div>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 animate-pulse">
+                <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 h-80"></div>
+                <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 h-80"></div>
             </div>
         );
     }
@@ -39,54 +39,61 @@ export default function AnalyticsCharts() {
     if (!data) return null;
 
     return (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             {/* Views Timeline */}
-            <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-                <h3 className="text-lg font-semibold text-gray-800 mb-4">Traffic Overview (Last 7 Days)</h3>
-                <div className="h-64">
+            <div className="bg-white p-8 rounded-2xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow duration-300">
+                <h3 className="text-lg font-bold text-gray-900 mb-6 flex items-center gap-2">
+                    <span className="w-1 h-5 bg-rose-500 rounded-full"></span>
+                    Traffic Overview <span className="text-gray-400 font-normal text-sm ml-auto">Last 7 Days</span>
+                </h3>
+                <div className="h-72">
                     <ResponsiveContainer width="100%" height="100%">
                         <AreaChart data={data.timeline}>
                             <defs>
                                 <linearGradient id="colorViews" x1="0" y1="0" x2="0" y2="1">
-                                    <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.8} />
-                                    <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0} />
+                                    <stop offset="5%" stopColor="#f43f5e" stopOpacity={0.15} />
+                                    <stop offset="95%" stopColor="#f43f5e" stopOpacity={0} />
                                 </linearGradient>
                             </defs>
                             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E5E7EB" />
-                            <XAxis dataKey="name" tick={{ fontSize: 12, fill: '#6B7280' }} axisLine={false} tickLine={false} />
-                            <YAxis tick={{ fontSize: 12, fill: '#6B7280' }} axisLine={false} tickLine={false} />
+                            <XAxis dataKey="name" tick={{ fontSize: 12, fill: '#6B7280' }} axisLine={false} tickLine={false} dy={10} />
+                            <YAxis tick={{ fontSize: 12, fill: '#6B7280' }} axisLine={false} tickLine={false} dx={-10} />
                             <Tooltip
-                                contentStyle={{ backgroundColor: '#fff', borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                                contentStyle={{ backgroundColor: '#fff', borderRadius: '12px', border: '1px solid #e5e7eb', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                                itemStyle={{ color: '#111827', fontWeight: 600 }}
                             />
-                            <Area type="monotone" dataKey="views" stroke="#8b5cf6" fillOpacity={1} fill="url(#colorViews)" strokeWidth={2} />
+                            <Area type="monotone" dataKey="views" stroke="#f43f5e" fillOpacity={1} fill="url(#colorViews)" strokeWidth={3} />
                         </AreaChart>
                     </ResponsiveContainer>
                 </div>
             </div>
 
             {/* Top Products */}
-            <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-                <h3 className="text-lg font-semibold text-gray-800 mb-4">Most View Products</h3>
-                <div className="h-64">
+            <div className="bg-white p-8 rounded-2xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow duration-300">
+                <h3 className="text-lg font-bold text-gray-900 mb-6 flex items-center gap-2">
+                    <span className="w-1 h-5 bg-rose-500 rounded-full"></span>
+                    Most Viewed Products
+                </h3>
+                <div className="h-72">
                     <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={data.topProducts} layout="vertical" margin={{ left: 0 }}>
+                        <BarChart data={data.topProducts} layout="vertical" margin={{ left: 0, right: 0 }}>
                             <CartesianGrid strokeDasharray="3 3" horizontal={true} vertical={false} stroke="#E5E7EB" />
                             <XAxis type="number" hide />
                             <YAxis
                                 dataKey="name"
                                 type="category"
-                                width={120}
-                                tick={{ fontSize: 11, fill: '#374151' }}
+                                width={140}
+                                tick={{ fontSize: 12, fill: '#4B5563', fontWeight: 500 }}
                                 axisLine={false}
                                 tickLine={false}
                             />
                             <Tooltip
-                                cursor={{ fill: '#F3F4F6' }}
-                                contentStyle={{ backgroundColor: '#fff', borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                                cursor={{ fill: '#F3F4F6', radius: 4 }}
+                                contentStyle={{ backgroundColor: '#fff', borderRadius: '12px', border: '1px solid #e5e7eb', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
                             />
-                            <Bar dataKey="views" radius={[0, 4, 4, 0]} barSize={20}>
+                            <Bar dataKey="views" radius={[0, 6, 6, 0]} barSize={24}>
                                 {data.topProducts.map((entry, index) => (
-                                    <Cell key={`cell-${index}`} fill={['#f43f5e', '#ec4899', '#d946ef', '#a855f7', '#8b5cf6'][index % 5]} />
+                                    <Cell key={`cell-${index}`} fill={['#e11d48', '#f43f5e', '#fb7185', '#fda4af', '#fecdd3'][index % 5]} />
                                 ))}
                             </Bar>
                         </BarChart>

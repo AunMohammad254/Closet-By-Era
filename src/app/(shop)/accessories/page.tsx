@@ -3,13 +3,21 @@
 import { useState, useMemo, useEffect } from 'react';
 import ProductCard from '@/components/ProductCard';
 import CustomDropdown from '@/components/CustomDropdown';
-import { supabase, Product as ProductDB } from '@/lib/supabase';
+import { supabase } from '@/lib/supabase';
 
-interface Product extends Omit<ProductDB, 'created_at'> {
+interface Product {
+    id: string;
+    name: string;
+    slug: string;
+    description: string;
+    price: number;
     originalPrice?: number;
     category: string;
-    createdAt: Date;
+    category_id: string;
     image: string;
+    createdAt: Date;
+    in_stock: boolean;
+    is_featured: boolean;
     isNew?: boolean;
     isSale?: boolean;
 }
@@ -35,7 +43,7 @@ export default function AccessoriesPage() {
                     .order('display_order');
 
                 if (categoriesData) {
-                    setCategories(['All', ...categoriesData.map(c => c.name)]);
+                    setCategories(Array.from(new Set(['All', ...categoriesData.map(c => c.name)])));
                 }
 
                 // Fetch Products

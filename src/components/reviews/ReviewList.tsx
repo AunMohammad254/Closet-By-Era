@@ -42,6 +42,17 @@ export default function ReviewList({ reviews }: ReviewListProps) {
                     <p className="text-gray-600 text-sm leading-relaxed mt-2">
                         {review.comment}
                     </p>
+
+                    {/* Review Images */}
+                    {review.images && review.images.length > 0 && (
+                        <div className="flex gap-2 mt-3">
+                            {review.images.map((img, idx) => (
+                                <div key={idx} className="relative w-16 h-16 rounded-lg overflow-hidden border border-gray-100">
+                                    <img src={img} alt="Review attachment" className="w-full h-full object-cover" />
+                                </div>
+                            ))}
+                        </div>
+                    )}
                 </div>
             ))}
         </div>

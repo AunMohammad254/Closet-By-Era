@@ -1,14 +1,22 @@
 'use client';
 
-import { useState } from 'react';
-import Image from 'next/image';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import ProductCard from '@/components/ProductCard';
 import { useCart } from '@/context/CartContext';
 import { useWishlist } from '@/context/WishlistContext';
+import { useCurrency } from '@/context/CurrencyContext';
+import { Review } from '@/actions/reviews';
+
+// Extracted components
+import ProductGallery from './product/ProductGallery';
+import ProductTabs from './product/ProductTabs';
+import AddToCartToast from './product/AddToCartToast';
+import RelatedProducts from './product/RelatedProducts';
 import ReviewList from './reviews/ReviewList';
 import ReviewForm from './reviews/ReviewForm';
-import { Review } from '@/actions/reviews';
+import SizeGuideModal from './product/SizeGuideModal';
+import RecentlyViewed from './product/RecentlyViewed';
+import AddToCompareButton from './product/AddToCompareButton';
 
 export interface ProductColor {
     name: string;
@@ -43,19 +51,33 @@ interface ProductViewProps {
 export default function ProductView({ product, relatedProducts, reviews = [] }: ProductViewProps) {
     const { addItem } = useCart();
     const { addItem: addToWishlist, removeItem: removeFromWishlist, isInWishlist } = useWishlist();
+    const { formatPrice } = useCurrency();
 
-    const [selectedImage, setSelectedImage] = useState(0);
     const [selectedSize, setSelectedSize] = useState('');
     const [selectedColor, setSelectedColor] = useState<ProductColor>(product.colors[0] || { name: 'Default', hex: '#000000' });
     const [quantity, setQuantity] = useState(1);
     const [showAddedToast, setShowAddedToast] = useState(false);
-    const [activeTab, setActiveTab] = useState<'description' | 'features' | 'shipping'>('description');
+    const [isSizeGuideOpen, setIsSizeGuideOpen] = useState(false);
 
     const discount = product.originalPrice
         ? Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100)
         : 0;
 
     const isWishlisted = isInWishlist(product.id);
+
+    // Track Recently Viewed
+    useEffect(() => {
+        try {
+            const stored = localStorage.getItem('recently_viewed');
+            let ids: string[] = stored ? JSON.parse(stored) : [];
+            ids = ids.filter(id => id !== product.id);
+            ids.unshift(product.id);
+            ids = ids.slice(0, 10);
+            localStorage.setItem('recently_viewed', JSON.stringify(ids));
+        } catch (e) {
+            console.error('Error saving recent view', e);
+        }
+    }, [product.id]);
 
     const handleAddToCart = () => {
         if (!selectedSize && product.sizes.length > 0) {
@@ -115,62 +137,15 @@ export default function ProductView({ product, relatedProducts, reviews = [] }: 
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12">
                         {/* Image Gallery */}
-                        <div className="space-y-4">
-                            {/* Main Image */}
-                            <div className="relative aspect-[3/4] bg-gray-100 rounded-2xl overflow-hidden">
-                                {product.images.length > 0 && (
-                                    <Image
-                                        src={product.images[selectedImage]}
-                                        alt={product.name}
-                                        fill
-                                        className="object-cover"
-                                        priority
-                                    />
-                                )}
-
-                                {/* Badges */}
-                                <div className="absolute top-4 left-4 flex flex-col gap-2 z-10">
-                                    {product.isNew && (
-                                        <span className="px-3 py-1 bg-slate-900 text-white text-xs font-medium rounded-full">NEW</span>
-                                    )}
-                                    {product.isSale && discount > 0 && (
-                                        <span className="px-3 py-1 bg-rose-600 text-white text-xs font-medium rounded-full">-{discount}%</span>
-                                    )}
-                                </div>
-
-                                {/* Wishlist Button */}
-                                <button
-                                    onClick={handleWishlistToggle}
-                                    className={`absolute top-4 right-4 w-10 h-10 rounded-full flex items-center justify-center z-10 transition-all ${isWishlisted ? 'bg-rose-100 text-rose-600' : 'bg-white text-gray-600 hover:text-rose-600'
-                                        }`}
-                                >
-                                    <svg className="w-5 h-5" fill={isWishlisted ? 'currentColor' : 'none'} stroke="currentColor" viewBox="0 0 24 24">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
-                                    </svg>
-                                </button>
-                            </div>
-
-                            {/* Thumbnail Images */}
-                            <div className="grid grid-cols-4 gap-4">
-                                {product.images.map((img, index) => (
-                                    <button
-                                        key={index}
-                                        onClick={() => setSelectedImage(index)}
-                                        className={`aspect-square bg-gray-100 rounded-lg overflow-hidden transition-all ${selectedImage === index ? 'ring-2 ring-slate-900' : 'hover:opacity-80'
-                                            }`}
-                                    >
-                                        <div className="relative w-full h-full">
-                                            <Image
-                                                src={img}
-                                                alt={`${product.name} view ${index + 1}`}
-                                                fill
-                                                className="object-cover"
-                                            />
-                                        </div>
-                                    </button>
-                                ))}
-                            </div>
-                        </div>
+                        <ProductGallery
+                            images={product.images}
+                            productName={product.name}
+                            isNew={product.isNew}
+                            isSale={product.isSale}
+                            discount={discount}
+                            isWishlisted={isWishlisted}
+                            onWishlistToggle={handleWishlistToggle}
+                        />
 
                         {/* Product Info */}
                         <div className="lg:py-4">
@@ -185,10 +160,10 @@ export default function ProductView({ product, relatedProducts, reviews = [] }: 
 
                                 {/* Price */}
                                 <div className="mt-4 flex items-baseline gap-3">
-                                    <span className="text-2xl font-bold text-gray-900">PKR {product.price.toLocaleString()}</span>
+                                    <span className="text-2xl font-bold text-gray-900">{formatPrice(product.price)}</span>
                                     {product.originalPrice && (
                                         <>
-                                            <span className="text-lg text-gray-400 line-through">PKR {product.originalPrice.toLocaleString()}</span>
+                                            <span className="text-lg text-gray-400 line-through">{formatPrice(product.originalPrice)}</span>
                                             <span className="px-2 py-0.5 bg-rose-100 text-rose-600 text-sm font-medium rounded">Save {discount}%</span>
                                         </>
                                     )}
@@ -223,7 +198,15 @@ export default function ProductView({ product, relatedProducts, reviews = [] }: 
                                     <div className="mt-8">
                                         <div className="flex items-center justify-between">
                                             <span className="text-sm font-medium text-gray-900">Size</span>
-                                            <button className="text-sm text-gray-500 underline hover:text-gray-900 transition-colors">Size Guide</button>
+                                            <button
+                                                onClick={() => setIsSizeGuideOpen(true)}
+                                                className="text-sm text-gray-500 underline hover:text-gray-900 transition-colors flex items-center gap-1"
+                                            >
+                                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 6l3 1m0 0l-3 9a5.002 5.002 0 006.001 0M6 7l3 9M6 7l6-2m6 2l3-1m-3 1l-3 9a5.002 5.002 0 006.001 0M18 7l3 9m-3-9l-6-2m0-2v2m0 16V5m0 16H9m3 0h3" />
+                                                </svg>
+                                                Size Guide
+                                            </button>
                                         </div>
                                         <div className="mt-3 flex flex-wrap gap-2">
                                             {product.sizes.map((size) => (
@@ -272,8 +255,20 @@ export default function ProductView({ product, relatedProducts, reviews = [] }: 
                                         onClick={handleAddToCart}
                                         className="flex-1 py-4 bg-slate-900 text-white font-medium rounded-full hover:bg-slate-800 transition-colors"
                                     >
-                                        Add to Cart — PKR {(product.price * quantity).toLocaleString()}
+                                        Add to Cart — {formatPrice(product.price * quantity)}
                                     </button>
+                                    <AddToCompareButton
+                                        product={{
+                                            id: product.id,
+                                            name: product.name,
+                                            price: product.price,
+                                            image: product.images[0],
+                                            category: product.category,
+                                            slug: product.categorySlug,
+                                        }}
+                                        iconOnly={true}
+                                        className="w-14 h-14 !rounded-full !bg-white !text-gray-600 !border !border-gray-200 hover:!bg-gray-50 flex-shrink-0"
+                                    />
                                 </div>
 
                                 {/* Features Icons */}
@@ -307,56 +302,7 @@ export default function ProductView({ product, relatedProducts, reviews = [] }: 
             </section>
 
             {/* Product Details Tabs */}
-            <section className="py-12 bg-gray-50">
-                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                    {/* Tabs */}
-                    <div className="flex gap-8 border-b border-gray-200">
-                        {(['description', 'features', 'shipping'] as const).map((tab) => (
-                            <button
-                                key={tab}
-                                onClick={() => setActiveTab(tab)}
-                                className={`pb-4 text-sm font-medium capitalize transition-colors ${activeTab === tab
-                                    ? 'text-gray-900 border-b-2 border-gray-900'
-                                    : 'text-gray-500 hover:text-gray-700'
-                                    }`}
-                            >
-                                {tab}
-                            </button>
-                        ))}
-                    </div>
-
-                    {/* Tab Content */}
-                    <div className="mt-8">
-                        {activeTab === 'description' && (
-                            <div className="prose prose-gray max-w-none">
-                                <p className="text-gray-600 leading-relaxed">{product.description}</p>
-                            </div>
-                        )}
-
-                        {activeTab === 'features' && product.features && (
-                            <ul className="space-y-3">
-                                {product.features.map((feature, index) => (
-                                    <li key={index} className="flex items-center text-gray-600">
-                                        <svg className="w-5 h-5 mr-3 text-rose-500" fill="currentColor" viewBox="0 0 20 20">
-                                            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                                        </svg>
-                                        {feature}
-                                    </li>
-                                ))}
-                            </ul>
-                        )}
-
-                        {activeTab === 'shipping' && (
-                            <div className="space-y-4 text-gray-600">
-                                <p><strong>Delivery:</strong> 3-5 business days within Pakistan</p>
-                                <p><strong>Free Shipping:</strong> On orders above PKR 5,000</p>
-                                <p><strong>Returns:</strong> Easy 30-day return policy</p>
-                                <p><strong>International:</strong> Contact us for international shipping rates</p>
-                            </div>
-                        )}
-                    </div>
-                </div>
-            </section>
+            <ProductTabs description={product.description} features={product.features} />
 
             {/* User Reviews */}
             <section className="py-16 border-t border-gray-100 bg-white" id="reviews">
@@ -378,46 +324,21 @@ export default function ProductView({ product, relatedProducts, reviews = [] }: 
             </section>
 
             {/* Related Products */}
-            {
-                relatedProducts.length > 0 && (
-                    <section className="py-16">
-                        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                            <h2 className="text-2xl font-bold text-gray-900 mb-8">You May Also Like</h2>
-                            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-x-4 gap-y-8 sm:gap-x-6">
-                                {relatedProducts.map((product) => (
-                                    <ProductCard
-                                        key={product.id}
-                                        id={product.id}
-                                        name={product.name}
-                                        price={product.price}
-                                        originalPrice={product.originalPrice}
-                                        image={product.image}
-                                        category={product.category}
-                                        isNew={product.isNew}
-                                        isSale={product.isSale}
-                                    />
-                                ))}
-                            </div>
-                        </div>
-                    </section>
-                )
-            }
+            <RelatedProducts products={relatedProducts} />
 
             {/* Added to Cart Toast */}
-            <div
-                className={`fixed bottom-8 left-1/2 -translate-x-1/2 z-50 transition-all duration-300 ${showAddedToast ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4 pointer-events-none'
-                    }`}
-            >
-                <div className="flex items-center gap-3 px-6 py-4 bg-slate-900 text-white rounded-full shadow-xl">
-                    <svg className="w-5 h-5 text-emerald-400" fill="currentColor" viewBox="0 0 20 20">
-                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                    </svg>
-                    Added to cart!
-                    <Link href="/cart" className="ml-2 text-rose-400 hover:text-rose-300 transition-colors">
-                        View Cart
-                    </Link>
-                </div>
-            </div>
-        </main >
+            <AddToCartToast isVisible={showAddedToast} />
+
+            <SizeGuideModal
+                isOpen={isSizeGuideOpen}
+                onClose={() => setIsSizeGuideOpen(false)}
+                defaultCategory={
+                    product.category.toLowerCase().includes('men') ? 'mens-tops' :
+                        product.category.toLowerCase().includes('women') ? 'womens-tops' : 'mens-tops'
+                }
+            />
+
+            <RecentlyViewed />
+        </main>
     );
 }

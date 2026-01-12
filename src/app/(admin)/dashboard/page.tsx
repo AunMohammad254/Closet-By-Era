@@ -1,8 +1,17 @@
 'use client';
 
 import AnalyticsCharts from '@/components/admin/AnalyticsCharts';
+import LowStockAlert from '@/components/admin/dashboard/LowStockAlert';
+import { getLowStockProducts } from '@/actions/products';
+import { useEffect, useState } from 'react';
 
 export default function DashboardPage() {
+  const [lowStockProducts, setLowStockProducts] = useState<any[]>([]);
+
+  useEffect(() => {
+    getLowStockProducts().then(setLowStockProducts);
+  }, []);
+
   return (
     <div className="dashboard-page">
       <header className="page-header">
@@ -60,6 +69,15 @@ export default function DashboardPage() {
             <span className="stat-label">Revenue</span>
             <span className="stat-value">—</span>
           </div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-8">
+        <div className="lg:col-span-2">
+          <AnalyticsCharts />
+        </div>
+        <div>
+          <LowStockAlert products={lowStockProducts} />
         </div>
       </div>
 

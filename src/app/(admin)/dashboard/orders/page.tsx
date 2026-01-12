@@ -6,12 +6,13 @@ import OrdersTableClient from './OrdersTableClient';
 export default async function OrdersPage() {
   const result = await getOrders();
 
-  const orders: Order[] = result.success ? result.data : [];
-  const error = !result.success ? result.error : null;
+  // getOrders returns { data, count } - data is empty array on error
+  const orders: Order[] = (result.data as Order[]) || [];
 
   return (
-    <OrdersPageUI orders={orders} error={error}>
+    <OrdersPageUI orders={orders} error={null}>
       <OrdersTableClient initialOrders={orders} />
     </OrdersPageUI>
   );
 }
+

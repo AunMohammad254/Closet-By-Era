@@ -40,47 +40,95 @@ interface OrderEmailData {
 }
 
 /**
- * Send order confirmation email via Supabase Edge Function
- * 
- * @param emailData - Order details for the confirmation email
- * @returns Promise with success status and message
+ * Generic function to send an email via Supabase Edge Function
  */
-export async function sendOrderConfirmationEmail(emailData: OrderEmailData): Promise<{
-    success: boolean;
-    message: string;
-    error?: string;
-}> {
+export async function sendEmail(to: string, subject: string, html: string): Promise<{ success: boolean; message: string; error?: string }> {
     try {
-        // Call Supabase Edge Function to send email
         const { data, error } = await supabase.functions.invoke('Confirmation-Email', {
-            body: {
-                to: emailData.customerEmail,
-                subject: `Order Confirmation - ${emailData.orderNumber}`,
-                orderData: emailData,
-            },
+            body: { to, subject, html },
         });
 
         if (error) {
-            console.error('Error sending order email:', error);
-            return {
-                success: false,
-                message: 'Failed to send confirmation email',
-                error: error.message,
-            };
+            console.error('Error sending email:', error);
+            return { success: false, message: 'Failed to send email', error: error.message };
         }
 
-        return {
-            success: true,
-            message: 'Order confirmation email sent successfully',
-        };
+        return { success: true, message: 'Email sent successfully' };
     } catch (err) {
-        console.error('Email sending error:', err);
-        return {
-            success: false,
-            message: 'An error occurred while sending the email',
-            error: err instanceof Error ? err.message : 'Unknown error',
-        };
+        console.error('Email sending exception:', err);
+        return { success: false, message: 'An error occurred', error: err instanceof Error ? err.message : 'Unknown error' };
     }
+}
+
+/**
+ * Send order confirmation email
+ */
+export async function sendOrderConfirmationEmail(emailData: OrderEmailData): Promise<{ success: boolean; message: string; error?: string }> {
+    const html = generateOrderEmailHtml(emailData);
+    return sendEmail(
+        emailData.customerEmail,
+        `Order Confirmation - ${emailData.orderNumber}`,
+        html
+    );
+}
+
+/**
+ * Generate HTML for Order Status Updates
+ */
+export function generateStatusEmailHtml(
+    customerName: string,
+    orderNumber: string,
+    status: string,
+    message?: string
+): string {
+    const statusColor =
+        status === 'shipped' ? '#3b82f6' :
+            status === 'delivered' ? '#10b981' :
+                status === 'cancelled' ? '#ef4444' : '#6b7280';
+
+    return `
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Order Update - ${orderNumber}</title>
+</head>
+<body style="margin: 0; padding: 0; font-family: 'Segoe UI', sans-serif; background-color: #f3f4f6;">
+    <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
+        <div style="background: linear-gradient(135deg, #1e293b 0%, #334155 100%); padding: 30px; text-align: center; border-radius: 12px 12px 0 0;">
+            <h1 style="color: #ffffff; margin: 0; font-size: 24px; letter-spacing: 2px;">CLOSET<span style="color: #e11d48;">BY</span>ERA</h1>
+        </div>
+        <div style="background-color: #ffffff; padding: 40px 30px; border-radius: 0 0 12px 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+            <h2 style="color: #1f2937; text-align: center; margin-bottom: 20px;">Order Update</h2>
+            <p style="color: #4b5563; text-align: center; font-size: 16px;">
+                Hi ${customerName},<br>
+                The status of your order <strong>${orderNumber}</strong> has been updated to:
+            </p>
+            <div style="text-align: center; margin: 30px 0;">
+                <span style="
+                    display: inline-block; 
+                    padding: 10px 24px; 
+                    background-color: ${statusColor}; 
+                    color: white; 
+                    font-weight: bold; 
+                    border-radius: 50px; 
+                    text-transform: capitalize;
+                ">
+                    ${status}
+                </span>
+            </div>
+            ${message ? `<p style="color: #6b7280; text-align: center; margin-bottom: 30px; font-style: italic;">"${message}"</p>` : ''}
+            <div style="text-align: center;">
+                <a href="https://closetbyera.com/account/orders" style="display: inline-block; padding: 12px 24px; background-color: #1f2937; color: white; text-decoration: none; border-radius: 6px; font-size: 14px;">Track Order</a>
+            </div>
+        </div>
+        <div style="text-align: center; padding: 20px; color: #9ca3af; font-size: 12px;">
+            <p>© 2024 Closet By Era. All rights reserved.</p>
+        </div>
+    </div>
+</body>
+</html>
+    `;
 }
 
 /**
@@ -107,7 +155,7 @@ export function formatOrderForEmail(
         shippingAddress,
         subtotal: order.subtotal || 0,
         shippingCost: order.shipping_cost || 0,
-        discount: order.discount,
+        discount: order.discount || 0,
         total: order.total || 0,
         paymentMethod,
         orderDate: new Date().toLocaleDateString('en-PK', {

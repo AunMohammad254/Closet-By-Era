@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
+import { createContext, useContext, useState, useEffect, ReactNode, useCallback, useMemo } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from './AuthContext';
 
@@ -88,16 +88,8 @@ export function CartProvider({ children }: { children: ReactNode }) {
             }
 
             if (data && data.length > 0) {
-                const cartItems: CartItem[] = data.map((item: {
-                    id: string;
-                    product_id: string;
-                    product_name: string;
-                    product_price: number;
-                    product_image: string;
-                    size?: string;
-                    color?: string;
-                    quantity: number;
-                }) => ({
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                const cartItems: CartItem[] = data.map((item: any) => ({
                     id: item.id,
                     productId: item.product_id,
                     name: item.product_name,
@@ -153,16 +145,8 @@ export function CartProvider({ children }: { children: ReactNode }) {
                     const mergedCart: CartItem[] = [...localCart];
 
                     if (dbCartData && dbCartData.length > 0) {
-                        dbCartData.forEach((dbItem: {
-                            id: string;
-                            product_id: string;
-                            product_name: string;
-                            product_price: number;
-                            product_image: string;
-                            size?: string;
-                            color?: string;
-                            quantity: number;
-                        }) => {
+                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                        dbCartData.forEach((dbItem: any) => {
                             const existingIndex = mergedCart.findIndex(
                                 item => item.productId === dbItem.product_id &&
                                     item.size === dbItem.size &&
@@ -268,20 +252,21 @@ export function CartProvider({ children }: { children: ReactNode }) {
     const itemCount = items.reduce((sum, item) => sum + item.quantity, 0);
     const subtotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
 
+    // Memoize context value to prevent unnecessary re-renders
+    const contextValue = useMemo(() => ({
+        items,
+        addItem,
+        removeItem,
+        updateQuantity,
+        clearCart,
+        itemCount,
+        subtotal,
+        isLoading,
+        syncCartFromDB
+    }), [items, addItem, removeItem, updateQuantity, clearCart, itemCount, subtotal, isLoading, syncCartFromDB]);
+
     return (
-        <CartContext.Provider
-            value={{
-                items,
-                addItem,
-                removeItem,
-                updateQuantity,
-                clearCart,
-                itemCount,
-                subtotal,
-                isLoading,
-                syncCartFromDB
-            }}
-        >
+        <CartContext.Provider value={contextValue}>
             {children}
         </CartContext.Provider>
     );

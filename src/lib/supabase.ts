@@ -1,4 +1,29 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import type { Database } from '@/types/supabase';
+
+// Re-export types from generated file for convenience
+export type {
+    Product,
+    Category,
+    Customer,
+    Order,
+    OrderItem,
+    CartItem,
+    Wishlist,
+    Review,
+    Banner,
+    Coupon,
+    Address,
+    AnalyticsEvent,
+    Database,
+    Tables,
+    InsertTables,
+    UpdateTables,
+    Enums
+} from '@/types/supabase';
+
+// Import Customer type for use in helper functions
+import type { Customer } from '@/types/supabase';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
@@ -7,10 +32,10 @@ const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
 const isClient = typeof window !== 'undefined';
 
 // Create a mock client if env vars are not set (for build time)
-let supabase: SupabaseClient;
+let supabase: SupabaseClient<Database>;
 
 if (supabaseUrl && supabaseAnonKey) {
-    supabase = createClient(supabaseUrl, supabaseAnonKey, {
+    supabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
         auth: {
             persistSession: isClient,
             autoRefreshToken: isClient,
@@ -71,7 +96,7 @@ if (supabaseUrl && supabaseAnonKey) {
                     then: (resolve: (value: { data: never[]; error: null }) => void) => resolve({ data: [], error: null }),
                 }),
             }),
-            insert: (data: unknown) => ({
+            insert: () => ({
                 select: () => ({
                     single: async () => ({ data: null, error: null }),
                 }),
@@ -79,92 +104,25 @@ if (supabaseUrl && supabaseAnonKey) {
             }),
             upsert: async () => ({ data: null, error: null }),
             update: () => ({
-                eq: (column: string, value: unknown) => ({
+                eq: () => ({
                     eq: async () => ({ data: null, error: null }),
                     then: (resolve: (value: { data: null; error: null }) => void) => resolve({ data: null, error: null }),
                 }),
             }),
             delete: () => ({
-                eq: (column: string, value: unknown) => ({
+                eq: () => ({
                     eq: async () => ({ data: null, error: null }),
                     then: (resolve: (value: { data: null; error: null }) => void) => resolve({ data: null, error: null }),
                 }),
             }),
         }),
-    } as unknown as SupabaseClient;
+        rpc: async () => ({ data: null, error: null }),
+    } as unknown as SupabaseClient<Database>;
 }
 
 export { supabase };
 
-// Database types
-export interface Product {
-    id: string;
-    name: string;
-    slug: string;
-    description: string;
-    short_description?: string;
-    price: number;
-    original_price?: number;
-    category_id: string;
-    image_url?: string;
-    images?: string[];
-    sizes?: string[];
-    colors?: string[];
-    in_stock: boolean;
-    is_featured: boolean;
-    is_new?: boolean;
-    is_sale?: boolean;
-    created_at: string;
-}
-
-export interface Category {
-    id: string;
-    name: string;
-    slug: string;
-    image_url?: string;
-    description?: string;
-    parent_id?: string;
-    display_order?: number;
-    is_active: boolean;
-}
-
-export interface Banner {
-    id: string;
-    title: string;
-    subtitle?: string;
-    image_url?: string;
-    link_url?: string;
-    position?: string;
-    is_active: boolean;
-}
-
-export interface Customer {
-    id: string;
-    auth_id: string;
-    email: string;
-    first_name?: string;
-    last_name?: string;
-    phone?: string;
-    avatar_url?: string;
-    created_at: string;
-}
-
-export interface Order {
-    id: string;
-    order_number: string;
-    customer_id?: string;
-    status: string;
-    subtotal: number;
-    discount: number;
-    shipping_cost: number;
-    total: number;
-    shipping_address: ShippingAddress;
-    billing_address?: object;
-    payment_method?: string;
-    notes?: string;
-    created_at: string;
-}
-
+// Shipping Address type (used in orders JSON field)
 export interface ShippingAddress {
     firstName: string;
     lastName: string;
@@ -177,33 +135,6 @@ export interface ShippingAddress {
     phone: string;
 }
 
-export interface OrderItem {
-    id: string;
-    order_id: string;
-    product_id?: string;
-    product_name: string;
-    size?: string;
-    color?: string;
-    quantity: number;
-    unit_price: number;
-    total_price: number;
-    created_at: string;
-}
-
-export interface CartItemDB {
-    id: string;
-    user_id: string;
-    product_id: string;
-    product_name: string;
-    product_price: number;
-    product_image?: string;
-    size?: string;
-    color?: string;
-    quantity: number;
-    created_at: string;
-    updated_at: string;
-}
-
 // Helper function to get customer by auth_id
 export async function getCustomerByAuthId(authId: string): Promise<Customer | null> {
     const { data, error } = await supabase
@@ -213,7 +144,7 @@ export async function getCustomerByAuthId(authId: string): Promise<Customer | nu
         .single();
 
     if (error || !data) return null;
-    return data as Customer;
+    return data;
 }
 
 // Helper function to create or get customer
@@ -238,7 +169,7 @@ export async function getOrCreateCustomer(authId: string, email: string, firstNa
             console.error('Error creating customer:', error);
             return null;
         }
-        customer = data as Customer;
+        customer = data;
     }
 
     return customer;

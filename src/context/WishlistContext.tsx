@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
+import { createContext, useContext, useState, useEffect, ReactNode, useCallback, useMemo } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from './AuthContext';
 
@@ -224,17 +224,20 @@ export function WishlistProvider({ children }: { children: ReactNode }) {
 
     const itemCount = items.length;
 
+    // Memoize context value to prevent unnecessary re-renders
+    const contextValue = useMemo(() => ({
+        items,
+        addItem,
+        removeItem,
+        isInWishlist,
+        clearWishlist,
+        itemCount,
+        isLoading,
+        syncWishlistFromDB
+    }), [items, addItem, removeItem, isInWishlist, clearWishlist, itemCount, isLoading, syncWishlistFromDB]);
+
     return (
-        <WishlistContext.Provider value={{ 
-            items, 
-            addItem, 
-            removeItem, 
-            isInWishlist, 
-            clearWishlist, 
-            itemCount,
-            isLoading,
-            syncWishlistFromDB
-        }}>
+        <WishlistContext.Provider value={contextValue}>
             {children}
         </WishlistContext.Provider>
     );

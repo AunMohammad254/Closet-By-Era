@@ -3,12 +3,14 @@
 import { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
+import OrderTracking from '@/components/OrderTracking';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { supabase, Order, OrderItem, Customer, getCustomerByAuthId } from '@/lib/supabase';
+import { getLoyaltyBalance, getLoyaltyHistory, LoyaltyHistory } from '@/actions/loyalty';
 
-type AccountTab = 'profile' | 'orders' | 'addresses' | 'wishlist';
+type AccountTab = 'profile' | 'orders' | 'addresses' | 'wishlist' | 'loyalty';
 
-const VALID_TABS: AccountTab[] = ['profile', 'orders', 'addresses', 'wishlist'];
+const VALID_TABS: AccountTab[] = ['profile', 'orders', 'addresses', 'wishlist', 'loyalty'];
 
 interface OrderWithItems extends Order {
     items: OrderItem[];
@@ -46,6 +48,9 @@ function AccountPageContent() {
     const [customer, setCustomer] = useState<Customer | null>(null);
     const [customerLoaded, setCustomerLoaded] = useState(false);
     const [addresses, setAddresses] = useState<Address[]>([]);
+    const [loyaltyPoints, setLoyaltyPoints] = useState(0);
+    const [loyaltyHistory, setLoyaltyHistory] = useState<LoyaltyHistory[]>([]);
+    const [loyaltyLoading, setLoyaltyLoading] = useState(false);
 
     const [profile, setProfile] = useState({
         firstName: '',
@@ -120,7 +125,32 @@ function AccountPageContent() {
         };
 
         fetchOrCreateCustomer();
+        fetchOrCreateCustomer();
     }, [user]);
+
+    // Fetch Loyalty Data
+    useEffect(() => {
+        if (!user) return;
+
+        const fetchLoyalty = async () => {
+            setLoyaltyLoading(true);
+            try {
+                const points = await getLoyaltyBalance();
+                setLoyaltyPoints(points);
+
+                const history = await getLoyaltyHistory();
+                setLoyaltyHistory(history);
+            } catch (err) {
+                console.error('Error fetching loyalty:', err);
+            } finally {
+                setLoyaltyLoading(false);
+            }
+        };
+
+        if (activeTab === 'loyalty') {
+            fetchLoyalty();
+        }
+    }, [user, activeTab]);
 
     // Fetch orders from database
     useEffect(() => {
@@ -189,22 +219,34 @@ function AccountPageContent() {
             const addressMap = new Map<string, Address>();
 
             orders.forEach((order, index) => {
-                const addr = order.shipping_address;
-                if (addr) {
-                    const key = `${addr.address}-${addr.city}-${addr.postalCode}`;
+                let addr = order.shipping_address;
+
+                // Parse shipping_address if it's a JSON string
+                if (typeof addr === 'string') {
+                    try {
+                        addr = JSON.parse(addr);
+                    } catch {
+                        return; // Skip if parsing fails
+                    }
+                }
+
+                // Type guard: ensure addr is an object with address property
+                if (addr && typeof addr === 'object' && 'address' in addr) {
+                    const addrObj = addr as Record<string, string | undefined>;
+                    const key = `${addrObj.address}-${addrObj.city}-${addrObj.postalCode}`;
                     if (!addressMap.has(key)) {
                         addressMap.set(key, {
                             id: `addr-${index}`,
                             label: index === 0 ? 'Home' : `Address ${index + 1}`,
-                            firstName: addr.firstName || '',
-                            lastName: addr.lastName || '',
-                            address: addr.address || '',
-                            apartment: addr.apartment,
-                            city: addr.city || '',
-                            state: addr.state,
-                            postalCode: addr.postalCode || '',
-                            country: addr.country || 'Pakistan',
-                            phone: addr.phone || '',
+                            firstName: addrObj.firstName || '',
+                            lastName: addrObj.lastName || '',
+                            address: addrObj.address || '',
+                            apartment: addrObj.apartment,
+                            city: addrObj.city || '',
+                            state: addrObj.state,
+                            postalCode: addrObj.postalCode || '',
+                            country: addrObj.country || 'Pakistan',
+                            phone: addrObj.phone || '',
                             isDefault: index === 0,
                         });
                     }
@@ -347,6 +389,7 @@ function AccountPageContent() {
                                         { id: 'orders', label: 'Orders', icon: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2' },
                                         { id: 'addresses', label: 'Addresses', icon: 'M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z M15 11a3 3 0 11-6 0 3 3 0 016 0z' },
                                         { id: 'wishlist', label: 'Wishlist', icon: 'M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z' },
+                                        { id: 'loyalty', label: 'Loyalty Points', icon: 'M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z' },
                                     ].map((item) => (
                                         <button
                                             key={item.id}
@@ -488,10 +531,16 @@ function AccountPageContent() {
                                                         <p className="font-semibold text-gray-900">Order {order.order_number}</p>
                                                         <p className="text-sm text-gray-500">{new Date(order.created_at).toLocaleDateString('en-US', { dateStyle: 'long' })}</p>
                                                     </div>
-                                                    <span className={`mt-2 sm:mt-0 inline-flex px-3 py-1 rounded-full text-xs font-medium capitalize ${getStatusBadge(order.status)}`}>
-                                                        {order.status}
+                                                    <span className={`mt-2 sm:mt-0 inline-flex px-3 py-1 rounded-full text-xs font-medium capitalize ${getStatusBadge(order.status || 'pending')}`}>
+                                                        {order.status || 'pending'}
                                                     </span>
                                                 </div>
+
+                                                <OrderTracking
+                                                    orderId={order.id}
+                                                    currentStatus={order.status || 'pending'}
+                                                    createdAt={order.created_at}
+                                                />
 
                                                 <div className="space-y-3 mb-4">
                                                     {order.items.map((item, index) => (
@@ -574,12 +623,61 @@ function AccountPageContent() {
                                     </div>
                                 </div>
                             )}
+
+                            {/* Loyalty Tab */}
+                            {activeTab === 'loyalty' && (
+                                <div className="space-y-6">
+                                    {/* Balance Card */}
+                                    <div className="bg-gradient-to-br from-slate-900 to-slate-800 rounded-2xl p-8 text-white shadow-lg overflow-hidden relative">
+                                        <div className="absolute top-0 right-0 -mt-4 -mr-4 w-32 h-32 bg-white/10 rounded-full blur-2xl"></div>
+                                        <div className="relative z-10">
+                                            <h2 className="text-lg font-medium text-slate-300 mb-2">My Loyalty Points</h2>
+                                            <div className="flex items-baseline gap-2">
+                                                <span className="text-5xl font-bold">{loyaltyPoints}</span>
+                                                <span className="text-xl text-slate-400">pts</span>
+                                            </div>
+                                            <p className="mt-4 text-sm text-slate-400 max-w-sm">
+                                                Earn 1 point for every 100 PKR spent. Redeem your points for exclusive discounts on your next purchase.
+                                            </p>
+                                        </div>
+                                    </div>
+
+                                    {/* History */}
+                                    <div className="bg-white rounded-2xl p-6 sm:p-8 shadow-sm">
+                                        <h3 className="text-xl font-bold text-gray-900 mb-6">Points History</h3>
+
+                                        {loyaltyLoading ? (
+                                            <div className="text-center py-8">
+                                                <div className="animate-spin w-6 h-6 border-2 border-gray-200 border-t-rose-600 rounded-full mx-auto"></div>
+                                            </div>
+                                        ) : loyaltyHistory.length === 0 ? (
+                                            <div className="text-center py-12 text-gray-500">
+                                                No history yet. Start shopping to earn points!
+                                            </div>
+                                        ) : (
+                                            <div className="divide-y divide-gray-100">
+                                                {loyaltyHistory.map((item) => (
+                                                    <div key={item.id} className="py-4 flex items-center justify-between">
+                                                        <div>
+                                                            <p className="font-medium text-gray-900">{item.reason}</p>
+                                                            <p className="text-sm text-gray-500">{new Date(item.created_at).toLocaleDateString()}</p>
+                                                        </div>
+                                                        <span className={`font-medium ${item.points > 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+                                                            {item.points > 0 ? '+' : ''}{item.points} pts
+                                                        </span>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     </div>
                 </div>
             </section>
 
-        </main>
+        </main >
     );
 }
 

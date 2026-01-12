@@ -16,76 +16,53 @@ export async function trackEvent(eventType: string, data: { pagePath?: string, p
     }
 }
 
-export async function getAnalyticsSummary() {
-    // 1. Get total views (last 30 days)
-    // 2. Get top 5 viewed products
-    // 3. Get generic timeline data (views per day)
-
-    // Note: Complex aggregation is better done via RPC or raw SQL, 
-    // but for simplicity/universality we'll fetch and aggregate small datasets or use simplified queries.
-    // For production scaling, move this to a Supabase Database Function (RPC).
-
-    // Fetch Last 7 Days Views
-    const sevenDaysAgo = new Date();
-    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-
-    const { data: recentEvents } = await supabaseServer
-        .from('analytics_events')
-        .select('created_at, event_type')
-        .eq('event_type', 'view_product')
-        .gte('created_at', sevenDaysAgo.toISOString())
-        .order('created_at', { ascending: true });
-
-    // Aggregate Views Per Day
-    const viewsPerDay: Record<string, number> = {};
-    recentEvents?.forEach(e => {
-        const date = new Date(e.created_at).toLocaleDateString('en-US', { weekday: 'short' });
-        viewsPerDay[date] = (viewsPerDay[date] || 0) + 1;
+export async function getAnalyticsSummary(daysBack: number = 7) {
+    // Optimized: Use RPC function for database-side aggregation
+    const { data, error } = await supabaseServer.rpc('get_analytics_summary', {
+        days_back: daysBack
     });
 
-    const timelineData = Object.entries(viewsPerDay).map(([name, views]) => ({ name, views }));
-
-    // Fetch Top Products
-    // Using a "primitive" group by approach since JS SDK doesn't support complex groupBy easily without RPC
-    // We will just fetch the last 100 'view_product' events and see who wins (Sampled approach for MVP)
-    const { data: topEvents } = await supabaseServer
-        .from('analytics_events')
-        .select('product_id, created_at')
-        .eq('event_type', 'view_product')
-        .limit(200);
-
-    const productCounts: Record<string, number> = {};
-    topEvents?.forEach(e => {
-        if (e.product_id) {
-            productCounts[e.product_id] = (productCounts[e.product_id] || 0) + 1;
-        }
-    });
-
-    // Sort and get top IDs
-    const topProductIds = Object.entries(productCounts)
-        .sort(([, a], [, b]) => b - a)
-        .slice(0, 5)
-        .map(([id]) => id);
-
-    // Fetch Product Names for these IDs
-    let topProducts: { name: string; views: number }[] = [];
-    if (topProductIds.length > 0) {
-        const { data: products } = await supabaseServer
-            .from('products')
-            .select('id, name')
-            .in('id', topProductIds);
-
-        topProducts = topProductIds.map(id => {
-            const p = products?.find(prod => prod.id === id);
-            return {
-                name: p?.name || 'Unknown Product',
-                views: productCounts[id]
-            };
-        });
+    if (error) {
+        console.error('Failed to fetch analytics summary:', error);
+        return {
+            timeline: [],
+            topProducts: [],
+            totalViews: 0
+        };
     }
 
     return {
-        timeline: timelineData,
-        topProducts: topProducts
+        timeline: data?.timeline || [],
+        topProducts: data?.topProducts || [],
+        totalViews: data?.totalViews || 0
+    };
+}
+
+export async function getDashboardStats() {
+    // Optimization: Use SQL RPC to calculate stats on the database side
+    // This avoids fetching all orders to the server-side logic
+    const { data, error } = await supabaseServer.rpc('get_admin_stats');
+
+    if (error) {
+        // console.error('Failed to fetch admin stats via RPC:', error);
+        // Fallback to zeros (silent fail preferred in production unless debugging)
+        return {
+            totalRevenue: 0,
+            activeOrders: 0,
+            totalProducts: 0,
+            totalCustomers: 0
+        };
+    }
+
+    // RPC returns a JSON object (or single row)
+    // The RPC we defined returns json_build_object. 
+    // Supabase .rpc() with no parameters returns 'data' as the JSON directly if it's a scalar/json return?
+    // Let's verify return structure. If it returns 'json', data is the object.
+
+    return {
+        totalRevenue: Number(data.totalRevenue) || 0,
+        activeOrders: Number(data.activeOrders) || 0,
+        totalProducts: Number(data.totalProducts) || 0,
+        totalCustomers: Number(data.totalCustomers) || 0
     };
 }
