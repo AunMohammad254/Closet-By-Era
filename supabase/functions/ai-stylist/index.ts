@@ -1,7 +1,9 @@
-import "jsr:@supabase/functions-js/edge-runtime.d.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-const GEMINI_API_KEY = Deno.env.get('GeminiAPIKey');
+import "jsr:@supabase/functions-js/edge-runtime.d.ts";
+import { createClient } from "@supabase/supabase-js";
+import { Database } from "../database.types.ts";
+
+const GEMINI_API_KEY = Deno.env.get('GeminiAPIKey') || Deno.env.get('GemeniAPIKey');
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL');
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
 
@@ -52,7 +54,7 @@ Deno.serve(async (req: Request) => {
         }
 
         // Initialize Supabase client
-        const supabase = createClient(SUPABASE_URL!, SUPABASE_SERVICE_ROLE_KEY!);
+        const supabase = createClient<Database>(SUPABASE_URL!, SUPABASE_SERVICE_ROLE_KEY!);
 
         // Fetch available categories for context
         const { data: allCategories } = await supabase
@@ -60,7 +62,7 @@ Deno.serve(async (req: Request) => {
             .select('id, name, slug')
             .eq('is_active', true);
 
-        const categoryNames = allCategories?.map(c => c.name).join(', ') || '';
+        const categoryNames = allCategories?.map((c) => c.name).join(', ') || '';
 
         // Create prompt for Gemini
         const systemPrompt = `You are a fashion stylist AI for "Closet By Era", a Pakistani fashion e-commerce store specializing in women's clothing.
@@ -143,11 +145,11 @@ Be warm, helpful, and fashion-forward in your advice. Use occasional Urdu words 
         // Filter by categories if AI suggested some
         if (aiResponse.categories.length > 0 && allCategories) {
             const matchingCategoryIds = allCategories
-                .filter(c => aiResponse.categories.some(
-                    ac => c.name.toLowerCase().includes(ac.toLowerCase()) ||
+                .filter((c) => aiResponse.categories.some(
+                    (ac) => c.name.toLowerCase().includes(ac.toLowerCase()) ||
                         ac.toLowerCase().includes(c.name.toLowerCase())
                 ))
-                .map(c => c.id);
+                .map((c) => c.id);
 
             if (matchingCategoryIds.length > 0) {
                 productsQuery = productsQuery.in('category_id', matchingCategoryIds);

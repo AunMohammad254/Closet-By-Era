@@ -1,9 +1,20 @@
 'use client';
 
-import AnalyticsCharts from '@/components/admin/AnalyticsCharts';
+import dynamic from 'next/dynamic';
 import LowStockAlert from '@/components/admin/dashboard/LowStockAlert';
 import { getLowStockProducts } from '@/actions/products';
 import { useEffect, useState } from 'react';
+
+// Dynamic import to reduce initial bundle size (~75KB for Recharts)
+const AnalyticsCharts = dynamic(() => import('@/components/admin/AnalyticsCharts'), {
+  ssr: false,
+  loading: () => (
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 animate-pulse">
+      <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 h-80"></div>
+      <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 h-80"></div>
+    </div>
+  )
+});
 
 export default function DashboardPage() {
   const [lowStockProducts, setLowStockProducts] = useState<any[]>([]);

@@ -2,10 +2,16 @@
 
 import Link from 'next/link';
 import { useState } from 'react';
+import dynamic from 'next/dynamic';
 import { useCart } from '@/context/CartContext';
 import { useAuth } from '@/context/AuthContext';
-import AIStylistModal from './AIStylistModal';
 import CurrencySwitcher from './CurrencySwitcher';
+
+// Dynamic import to reduce initial bundle size (~9KB saved)
+const AIStylistModal = dynamic(() => import('./AIStylistModal'), {
+    ssr: false,
+    loading: () => null
+});
 
 export default function Navbar() {
     const [isMenuOpen, setIsMenuOpen] = useState(false);

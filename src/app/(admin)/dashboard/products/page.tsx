@@ -7,7 +7,7 @@ export default async function ProductsPage() {
   const result = await getProducts();
 
   // getProducts returns { data, count } - data is empty array on error
-  const products: Product[] = (result.data as Product[]) || [];
+  const products: Product[] = (result.data as unknown as Product[]) || [];
 
   return (
     <ProductsPageUI products={products} error={null}>

@@ -1,22 +1,25 @@
 'use server';
 
-import { supabaseServer } from '@/lib/supabase-server';
+import { createClient } from '@/lib/supabase/server';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
+import { ProductFormSchema } from '@/lib/validations';
+import { logger } from '@/lib/logger';
 
 // --- Fetching ---
 
 export async function getProductsByIds(ids: string[]) {
     if (!ids || ids.length === 0) return [];
 
-    const { data, error } = await supabaseServer
+    const supabase = await createClient();
+    const { data, error } = await supabase
         .from('products')
         .select('id, name, slug, price, stock, images, is_active, in_stock')
         .in('id', ids)
         .eq('in_stock', true);
 
     if (error) {
-        console.error('Error fetching products by ids:', error);
+        logger.error('Error fetching products by ids', error, { action: 'getProductsByIds' });
         return [];
     }
 
@@ -27,7 +30,8 @@ export async function getProductsByIds(ids: string[]) {
 }
 
 export async function getLowStockProducts(threshold = 5) {
-    const { data, error } = await supabaseServer
+    const supabase = await createClient();
+    const { data, error } = await supabase
         .from('products')
         .select('id, name, stock, slug, price, images')
         .lt('stock', threshold)
@@ -36,7 +40,7 @@ export async function getLowStockProducts(threshold = 5) {
         .limit(5);
 
     if (error) {
-        console.error('Error fetching low stock products:', error);
+        logger.error('Error fetching low stock products', error, { action: 'getLowStockProducts' });
         return [];
     }
 
@@ -55,6 +59,7 @@ export async function getProducts(
         sort?: string;
     } = {}
 ) {
+    const supabase = await createClient();
     const from = (page - 1) * pageSize;
     const to = from + pageSize - 1;
 
@@ -64,7 +69,7 @@ export async function getProducts(
         ? 'categories!inner(name)'
         : 'categories(name)';
 
-    let query = supabaseServer
+    let query = supabase
         .from('products')
         .select(`id, name, slug, price, stock, images, is_active, in_stock, created_at, category:${categoryJoinValues}`, { count: 'exact' });
 
@@ -103,7 +108,7 @@ export async function getProducts(
         .range(from, to);
 
     if (error) {
-        console.error('Error fetching products:', error);
+        logger.error('Error fetching products', error, { action: 'getProducts', page, search });
         return { data: [], count: 0 };
     }
 
@@ -111,14 +116,15 @@ export async function getProducts(
 }
 
 export async function getProductById(id: string) {
-    const { data, error } = await supabaseServer
+    const supabase = await createClient();
+    const { data, error } = await supabase
         .from('products')
         .select('*')
         .eq('id', id)
         .single();
 
     if (error) {
-        console.error('Error fetching product:', error);
+        logger.error('Error fetching product', error, { action: 'getProductById', productId: id });
         return null;
     }
 
@@ -126,13 +132,14 @@ export async function getProductById(id: string) {
 }
 
 export async function getCategories() {
-    const { data, error } = await supabaseServer
+    const supabase = await createClient();
+    const { data, error } = await supabase
         .from('categories')
         .select('id, name')
         .order('name');
 
     if (error) {
-        console.error('Error fetching categories:', error);
+        logger.error('Error fetching categories', error, { action: 'getCategories' });
         return [];
     }
 
@@ -147,25 +154,35 @@ import type { ProductFormData } from '@/types/database';
 
 
 export async function createProduct(data: ProductFormData): Promise<{ success: boolean; error?: string }> {
-    const slug = data.name.toLowerCase().replace(/ /g, '-').replace(/[^\w-]+/g, '');
+    // Validate input with Zod
+    const validation = ProductFormSchema.safeParse(data);
+    if (!validation.success) {
+        const errorMessage = validation.error.issues.map(e => e.message).join(', ');
+        logger.warn('Product validation failed', { action: 'createProduct', errors: errorMessage });
+        return { success: false, error: errorMessage };
+    }
 
-    const { data: newProduct, error } = await supabaseServer
+    const supabase = await createClient();
+    const validData = validation.data;
+    const slug = validData.name.toLowerCase().replace(/ /g, '-').replace(/[^\w-]+/g, '');
+
+    const { data: newProduct, error } = await supabase
         .from('products')
         .insert({
-            name: data.name,
+            name: validData.name,
             slug,
-            description: data.description,
-            price: data.price,
-            stock: data.stock,
-            images: data.images,
-            is_active: data.is_active,
-            in_stock: data.stock > 0,
+            description: validData.description || null,
+            price: validData.price,
+            stock: validData.stock,
+            images: validData.images,
+            is_active: validData.is_active,
+            in_stock: validData.stock > 0,
         })
         .select()
         .single();
 
     if (error) {
-        console.error('Error creating product:', error);
+        logger.error('Error creating product', error, { action: 'createProduct' });
         return { success: false, error: 'Failed to create product' };
     }
 
@@ -175,21 +192,31 @@ export async function createProduct(data: ProductFormData): Promise<{ success: b
 }
 
 export async function updateProduct(id: string, data: ProductFormData): Promise<{ success: boolean; error?: string }> {
-    const { error } = await supabaseServer
+    // Validate input with Zod
+    const validation = ProductFormSchema.safeParse(data);
+    if (!validation.success) {
+        const errorMessage = validation.error.issues.map(e => e.message).join(', ');
+        logger.warn('Product validation failed', { action: 'updateProduct', productId: id, errors: errorMessage });
+        return { success: false, error: errorMessage };
+    }
+
+    const supabase = await createClient();
+    const validData = validation.data;
+    const { error } = await supabase
         .from('products')
         .update({
-            name: data.name,
-            description: data.description,
-            price: data.price,
-            stock: data.stock,
-            images: data.images,
-            is_active: data.is_active,
-            in_stock: data.stock > 0,
+            name: validData.name,
+            description: validData.description || null,
+            price: validData.price,
+            stock: validData.stock,
+            images: validData.images,
+            is_active: validData.is_active,
+            in_stock: validData.stock > 0,
         })
         .eq('id', id);
 
     if (error) {
-        console.error('Error updating product:', error);
+        logger.error('Error updating product', error, { action: 'updateProduct', productId: id });
         return { success: false, error: 'Failed to update product' };
     }
 
@@ -201,13 +228,14 @@ export async function updateProduct(id: string, data: ProductFormData): Promise<
 }
 
 export async function deleteProduct(id: string): Promise<{ success: boolean; error?: string }> {
-    const { error } = await supabaseServer
+    const supabase = await createClient();
+    const { error } = await supabase
         .from('products')
         .delete()
         .eq('id', id);
 
     if (error) {
-        console.error('Error deleting product:', error);
+        logger.error('Error deleting product', error, { action: 'deleteProduct', productId: id });
         return { success: false, error: 'Failed to delete product' };
     }
 
@@ -216,13 +244,14 @@ export async function deleteProduct(id: string): Promise<{ success: boolean; err
 }
 
 export async function toggleProductStatus(id: string, inStock: boolean): Promise<{ success: boolean; error?: string }> {
-    const { error } = await supabaseServer
+    const supabase = await createClient();
+    const { error } = await supabase
         .from('products')
         .update({ in_stock: inStock })
         .eq('id', id);
 
     if (error) {
-        console.error('Error toggling product status:', error);
+        logger.error('Error toggling product status', error, { action: 'toggleProductStatus', productId: id });
         return { success: false, error: 'Failed to toggle product status' };
     }
 
@@ -237,24 +266,23 @@ export async function uploadProductImage(formData: FormData): Promise<{ success:
         return { success: false, error: 'No file provided' };
     }
 
+    const supabase = await createClient();
     const fileExt = file.name.split('.').pop();
     const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
     const filePath = `products/${fileName}`;
 
-    const { error: uploadError } = await supabaseServer.storage
-        .from('product-images')
+    const { error: uploadError } = await supabase.storage
+        .from('products')
         .upload(filePath, file);
 
     if (uploadError) {
-        console.error('Error uploading image:', uploadError);
+        logger.error('Error uploading image', uploadError, { action: 'uploadProductImage' });
         return { success: false, error: 'Failed to upload image' };
     }
 
-    const { data: { publicUrl } } = supabaseServer.storage
-        .from('product-images')
+    const { data: { publicUrl } } = supabase.storage
+        .from('products')
         .getPublicUrl(filePath);
 
     return { success: true, url: publicUrl };
 }
-
-

@@ -91,7 +91,7 @@ function AccountPageContent() {
                     .from('customers')
                     .insert({
                         auth_id: user.id,
-                        email: user.email,
+                        email: user.email ?? '',
                         first_name: user.user_metadata?.first_name || '',
                         last_name: user.user_metadata?.last_name || '',
                     })

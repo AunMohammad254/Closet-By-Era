@@ -1,12 +1,61 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
+// Security headers to apply to all responses
+const securityHeaders = {
+    'X-DNS-Prefetch-Control': 'on',
+    'X-Frame-Options': 'SAMEORIGIN',
+    'X-Content-Type-Options': 'nosniff',
+    'Referrer-Policy': 'strict-origin-when-cross-origin',
+    'Permissions-Policy': 'camera=(), microphone=(), geolocation=()',
+    // HSTS - only in production
+    ...(process.env.NODE_ENV === 'production' && {
+        'Strict-Transport-Security': 'max-age=31536000; includeSubDomains'
+    })
+};
+
+/**
+ * Validate request origin for server actions (CSRF-like protection)
+ */
+function validateOrigin(request: NextRequest): boolean {
+    const origin = request.headers.get('origin');
+    const host = request.headers.get('host');
+
+    // Skip validation for GET requests and non-action requests
+    if (request.method === 'GET') return true;
+
+    // In development, allow localhost
+    if (process.env.NODE_ENV === 'development') {
+        if (origin?.includes('localhost') || origin?.includes('127.0.0.1')) {
+            return true;
+        }
+    }
+
+    // Validate origin matches host
+    if (origin && host) {
+        const originHost = new URL(origin).host;
+        return originHost === host;
+    }
+
+    return true; // Allow if origin header missing (same-origin requests)
+}
+
 export async function middleware(request: NextRequest) {
+    // Validate origin for mutations
+    if (!validateOrigin(request)) {
+        return new NextResponse('Invalid origin', { status: 403 });
+    }
+
     let response = NextResponse.next({
         request: {
             headers: request.headers,
         },
     })
+
+    // Apply security headers
+    Object.entries(securityHeaders).forEach(([key, value]) => {
+        if (value) response.headers.set(key, value);
+    });
 
     // Create an authenticated Supabase client
     const supabase = createServerClient(
@@ -24,6 +73,10 @@ export async function middleware(request: NextRequest) {
                             headers: request.headers,
                         },
                     })
+                    // Re-apply security headers after response recreation
+                    Object.entries(securityHeaders).forEach(([key, value]) => {
+                        if (value) response.headers.set(key, value);
+                    });
                     cookiesToSet.forEach(({ name, value, options }) =>
                         response.cookies.set(name, value, options)
                     )

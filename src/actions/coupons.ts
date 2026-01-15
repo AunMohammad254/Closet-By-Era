@@ -1,6 +1,6 @@
 'use server';
 
-import { supabaseServer } from '@/lib/supabase-server';
+import { createClient } from '@/lib/supabase/server';
 import { revalidatePath } from 'next/cache';
 
 export interface Coupon {
@@ -20,7 +20,8 @@ export type CouponFormData = Omit<Coupon, 'id' | 'usage_count' | 'created_at'>;
 
 export async function createCoupon(data: CouponFormData) {
     try {
-        const { error } = await supabaseServer
+        const supabase = await createClient();
+        const { error } = await supabase
             .from('coupons')
             .insert(data);
 
@@ -39,7 +40,8 @@ export async function createCoupon(data: CouponFormData) {
 
 export async function updateCoupon(id: string, data: Partial<CouponFormData>) {
     try {
-        const { error } = await supabaseServer
+        const supabase = await createClient();
+        const { error } = await supabase
             .from('coupons')
             .update(data)
             .eq('id', id);
@@ -58,7 +60,8 @@ export async function updateCoupon(id: string, data: Partial<CouponFormData>) {
 
 export async function deleteCoupon(id: string) {
     try {
-        const { error } = await supabaseServer
+        const supabase = await createClient();
+        const { error } = await supabase
             .from('coupons')
             .delete()
             .eq('id', id);
@@ -73,7 +76,8 @@ export async function deleteCoupon(id: string) {
 }
 
 export async function getCoupons() {
-    const { data, error } = await supabaseServer
+    const supabase = await createClient();
+    const { data, error } = await supabase
         .from('coupons')
         .select('*')
         .order('created_at', { ascending: false });
@@ -87,11 +91,12 @@ export async function getCoupons() {
 
 export async function validateCoupon(code: string, cartTotal: number) {
     try {
-        const { data: coupon, error } = await supabaseServer
+        const supabase = await createClient();
+        const { data: coupon, error } = await supabase
             .from('coupons')
             .select('*')
             .eq('code', code)
-            .eq('is_active', true)
+            .eq('is_active', true) // Redundant with RLS but fine
             .single();
 
         if (error || !coupon) {

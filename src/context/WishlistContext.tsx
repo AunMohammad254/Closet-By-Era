@@ -31,29 +31,57 @@ export function WishlistProvider({ children }: { children: ReactNode }) {
     const [isInitialized, setIsInitialized] = useState(false);
     const { user } = useAuth();
 
-    // Sync wishlist to database
+    // Sync wishlist to database - Optimized with upsert instead of delete+insert
     const syncWishlistToDB = useCallback(async (wishlistItems: WishlistItem[]) => {
         if (!user) return;
 
         try {
-            // Delete existing wishlist items for this user
-            await supabase
+            if (wishlistItems.length === 0) {
+                // Only delete if wishlist is empty
+                await supabase
+                    .from('wishlist_items')
+                    .delete()
+                    .eq('user_id', user.id);
+                return;
+            }
+
+            // Get current wishlist item IDs from DB
+            const { data: existingItems } = await supabase
                 .from('wishlist_items')
-                .delete()
+                .select('id, product_id')
                 .eq('user_id', user.id);
 
-            // Insert new wishlist items
-            if (wishlistItems.length > 0) {
-                const dbItems = wishlistItems.map(item => ({
-                    user_id: user.id,
-                    product_id: item.id,
-                    product_name: item.name,
-                    product_price: item.price,
-                    product_image: item.image,
-                    category: item.category,
-                }));
+            // Build list of items to upsert
+            const dbItems = wishlistItems.map(item => ({
+                user_id: user.id,
+                product_id: item.id,
+                product_name: item.name,
+                product_price: item.price,
+                product_image: item.image,
+                category: item.category,
+            }));
 
-                await supabase.from('wishlist_items').insert(dbItems);
+            // Upsert all items (insert or update on conflict)
+            await supabase
+                .from('wishlist_items')
+                .upsert(dbItems, {
+                    onConflict: 'user_id,product_id',
+                    ignoreDuplicates: false
+                });
+
+            // Remove items that are no longer in wishlist
+            if (existingItems && existingItems.length > 0) {
+                const currentProductIds = new Set(wishlistItems.map(item => item.id));
+                const idsToDelete = existingItems
+                    .filter(item => !currentProductIds.has(item.product_id))
+                    .map(item => item.id);
+
+                if (idsToDelete.length > 0) {
+                    await supabase
+                        .from('wishlist_items')
+                        .delete()
+                        .in('id', idsToDelete);
+                }
             }
         } catch (error) {
             console.error('Error syncing wishlist to database:', error);

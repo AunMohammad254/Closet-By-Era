@@ -4,7 +4,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { useWishlist } from '@/context/WishlistContext';
 import { useCart } from '@/context/CartContext';
-import { useState } from 'react';
+import { useState, memo } from 'react';
 import { shimmerPlaceholder } from '@/lib/imageUtils';
 
 interface ProductCardProps {
@@ -19,7 +19,7 @@ interface ProductCardProps {
     isSale?: boolean;
 }
 
-export default function ProductCard({
+function ProductCard({
     id,
     slug,
     name,
@@ -158,3 +158,6 @@ export default function ProductCard({
         </article>
     );
 }
+
+// Memoize to prevent re-renders when props haven't changed
+export default memo(ProductCard);

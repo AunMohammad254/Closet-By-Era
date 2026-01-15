@@ -8,9 +8,28 @@ import Link from 'next/link';
 import AddToCompareButton from '@/components/product/AddToCompareButton';
 import { useCart } from '@/context/CartContext';
 
+// Type for products returned from getProductsByIds
+interface CompareProduct {
+    id: string;
+    name: string;
+    slug: string | null;
+    price: number;
+    stock: number;
+    images: string[] | null;
+    is_active: boolean;
+    in_stock: boolean | null;
+    image?: string;
+    category?: { name: string } | string;
+    sizes?: string[] | null;
+    colors?: { name: string }[] | null;
+    description?: string | null;
+    shortDescription?: string | null;
+    features?: string[];
+}
+
 export default function ComparePage() {
     const { items, removeFromCompare } = useCompare();
-    const [products, setProducts] = useState<any[]>([]);
+    const [products, setProducts] = useState<CompareProduct[]>([]);
     const [loading, setLoading] = useState(true);
     const { addItem } = useCart();
 
@@ -25,7 +44,7 @@ export default function ComparePage() {
             try {
                 const ids = items.map(i => i.id);
                 const data = await getProductsByIds(ids);
-                setProducts(data);
+                setProducts(data as CompareProduct[]);
             } catch (error) {
                 console.error('Error fetching compare products:', error);
             } finally {
@@ -58,12 +77,12 @@ export default function ComparePage() {
         );
     }
 
-    const handleAddToCart = (product: any) => {
+    const handleAddToCart = (product: CompareProduct) => {
         addItem({
             productId: product.id,
             name: product.name,
             price: product.price,
-            image: product.image || product.images?.[0],
+            image: product.image || product.images?.[0] || '',
             quantity: 1,
             size: product.sizes?.[0], // Default to first size if available
             color: product.colors?.[0]?.name, // Default to first color

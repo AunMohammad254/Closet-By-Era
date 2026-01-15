@@ -3,5 +3,6 @@
     "deno.enablePaths": [
         "supabase"
     ],
+    "deno.config": "supabase/deno.json",
     "deno.unstable": true
 }

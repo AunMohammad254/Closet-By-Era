@@ -1,6 +1,6 @@
 'use server';
 
-import { supabaseServer } from '@/lib/supabase-server';
+import { createClient } from '@/lib/supabase/server';
 import { revalidatePath } from 'next/cache';
 
 export async function importProductsFromCSV(formData: FormData): Promise<{ success: boolean; count?: number; errors?: string[] }> {
@@ -27,8 +27,10 @@ export async function importProductsFromCSV(formData: FormData): Promise<{ succe
         const errors = [];
         const categoriesMap = new Map<string, string>(); // Name -> ID
 
+        const supabase = await createClient();
+
         // 1. Fetch existing categories to map names to IDs
-        const { data: categories } = await supabaseServer.from('categories').select('id, name');
+        const { data: categories } = await supabase.from('categories').select('id, name');
         if (categories) {
             categories.forEach(c => categoriesMap.set(c.name.toLowerCase(), c.id));
         }
@@ -68,7 +70,7 @@ export async function importProductsFromCSV(formData: FormData): Promise<{ succe
             // For now, if not found, we'll try to create it or skip. Let's create it.
             if (!categoryId) {
                 const slug = row.category.toLowerCase().replace(/[^a-z0-9]+/g, '-');
-                const { data: newCat, error: catError } = await supabaseServer
+                const { data: newCat, error: catError } = await supabase
                     .from('categories')
                     .insert({ name: row.category, slug, description: 'Imported' })
                     .select('id')
@@ -103,7 +105,7 @@ export async function importProductsFromCSV(formData: FormData): Promise<{ succe
         }
 
         // 3. Batch Insert
-        const { error: insertError } = await supabaseServer
+        const { error: insertError } = await supabase
             .from('products')
             .insert(productsToInsert);
 

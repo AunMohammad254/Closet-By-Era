@@ -1,8 +1,10 @@
+import { Suspense } from 'react';
 import { DollarSign, ShoppingBag, Package, Users } from 'lucide-react';
 import StatsCard from '@/components/admin/StatsCard';
 import RecentOrdersTable from '@/components/admin/RecentOrdersTable';
-import AnalyticsCharts from '@/components/admin/AnalyticsCharts';
 import { getDashboardStats } from '@/actions/analytics';
+import AnalyticsChartsWrapper from '@/components/admin/AnalyticsChartsWrapper';
+
 
 export default async function AdminDashboardPage() {
     const stats = await getDashboardStats();
@@ -47,7 +49,7 @@ export default async function AdminDashboardPage() {
 
             {/* Charts & Tables Grid */}
             <div>
-                <AnalyticsCharts />
+                <AnalyticsChartsWrapper />
             </div>
 
             {/* Recent Orders Section */}

@@ -1,6 +1,6 @@
 'use server';
 
-import { supabaseServer } from '@/lib/supabase-server';
+import { createClient } from '@/lib/supabase/server';
 import { revalidatePath } from 'next/cache';
 
 export interface Review {
@@ -20,13 +20,14 @@ export interface Review {
 
 export async function submitReview(productId: string, rating: number, comment: string, images: string[] = []) {
     try {
-        const { data: { user } } = await supabaseServer.auth.getUser();
+        const supabase = await createClient();
+        const { data: { user } } = await supabase.auth.getUser();
 
         if (!user) {
             return { error: "You must be logged in to submit a review." };
         }
 
-        const { error } = await supabaseServer
+        const { error } = await supabase
             .from('reviews')
             .insert({
                 product_id: productId,
@@ -50,7 +51,8 @@ export async function submitReview(productId: string, rating: number, comment: s
 }
 
 export async function getProductReviews(productId: string): Promise<Review[]> {
-    const { data: reviews, error } = await supabaseServer
+    const supabase = await createClient();
+    const { data: reviews, error } = await supabase
         .from('reviews')
         .select(`
             *

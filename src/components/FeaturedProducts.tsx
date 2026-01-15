@@ -1,79 +1,22 @@
-'use client';
-
-import { useEffect, useState } from 'react';
-import ProductCard from './ProductCard';
-import { supabase } from '@/lib/supabase';
+import { Suspense } from 'react';
 import Link from 'next/link';
+import { getFeaturedProducts } from '@/actions/homepage';
+import FeaturedProductsGrid from './FeaturedProductsGrid';
+import FeaturedProductsSkeleton from './FeaturedProductsSkeleton';
 
-interface Product {
-    id: string;
-    name: string;
-    slug: string;
-    description: string;
-    price: number;
-    originalPrice?: number;
-    category: string;
-    category_id: string;
-    image: string;
-    createdAt: Date;
-    in_stock: boolean;
-    is_featured: boolean;
-    isNew?: boolean;
-    isSale?: boolean;
+/**
+ * Server Component that fetches featured products at build/request time
+ * This is much faster than client-side fetching as:
+ * 1. No JavaScript bundle required for data fetching
+ * 2. Data is fetched on the server (closer to DB)
+ * 3. HTML is streamed with data already included
+ */
+async function FeaturedProductsContent() {
+    const products = await getFeaturedProducts(8);
+    return <FeaturedProductsGrid products={products} />;
 }
 
 export default function FeaturedProducts() {
-    const [products, setProducts] = useState<Product[]>([]);
-    const [loading, setLoading] = useState(true);
-
-    useEffect(() => {
-        async function fetchFeaturedProducts() {
-            try {
-                // Fetch featured products from Supabase
-                const { data: productsData, error } = await supabase
-                    .from('products')
-                    .select(`
-                        *,
-                        categories (
-                            name
-                        )
-                    `)
-                    .eq('in_stock', true)
-                    .eq('is_featured', true)
-                    .limit(8);
-
-                if (error) throw error;
-
-                if (productsData) {
-                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                    const mappedProducts: Product[] = productsData.map((p: any) => ({
-                        id: p.id,
-                        name: p.name,
-                        price: p.price,
-                        originalPrice: p.original_price,
-                        image: p.image_url || (p.images && p.images[0]) || '/products/placeholder.png',
-                        category: p.categories?.name || 'Uncategorized',
-                        isNew: p.is_new,
-                        isSale: p.is_sale,
-                        createdAt: new Date(p.created_at),
-                        slug: p.slug,
-                        description: p.description,
-                        category_id: p.category_id,
-                        in_stock: p.in_stock,
-                        is_featured: p.is_featured
-                    }));
-                    setProducts(mappedProducts);
-                }
-            } catch (error) {
-                console.error('Error fetching featured products:', error);
-            } finally {
-                setLoading(false);
-            }
-        }
-
-        fetchFeaturedProducts();
-    }, []);
-
     return (
         <section className="py-20 bg-gray-50">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -97,36 +40,11 @@ export default function FeaturedProducts() {
                     </Link>
                 </div>
 
-                {/* Products Grid */}
+                {/* Products Grid with Suspense */}
                 <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-x-4 gap-y-8 sm:gap-x-6 sm:gap-y-10">
-                    {loading ? (
-                        [...Array(4)].map((_, i) => (
-                            <div key={i} className="animate-pulse">
-                                <div className="aspect-[3/4] bg-gray-200 rounded-xl mb-4"></div>
-                                <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
-                                <div className="h-4 bg-gray-200 rounded w-1/2"></div>
-                            </div>
-                        ))
-                    ) : products.length > 0 ? (
-                        products.map((product) => (
-                            <ProductCard
-                                key={product.id}
-                                id={product.id}
-                                slug={product.slug}
-                                name={product.name}
-                                price={product.price}
-                                originalPrice={product.originalPrice}
-                                image={product.image}
-                                category={product.category}
-                                isNew={product.isNew}
-                                isSale={product.isSale}
-                            />
-                        ))
-                    ) : (
-                        <div className="col-span-full text-center py-10 text-gray-500">
-                            No featured products found.
-                        </div>
-                    )}
+                    <Suspense fallback={<FeaturedProductsSkeleton />}>
+                        <FeaturedProductsContent />
+                    </Suspense>
                 </div>
 
                 {/* Load More */}

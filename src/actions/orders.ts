@@ -1,10 +1,15 @@
 'use server';
 
-import { supabaseServer } from '@/lib/supabase-server';
+import { createClient } from '@/lib/supabase/server';
 import { revalidatePath } from 'next/cache';
+import { logger } from '@/lib/logger';
+import { checkRateLimit, RateLimits } from '@/lib/rate-limit';
+import { UpdateOrderStatusSchema, UpdatePaymentStatusSchema } from '@/lib/validations';
+import { generateStatusEmailHtml, sendEmail } from '@/lib/email';
 
 export async function getRecentOrders(limit = 5) {
-    const { data, error } = await supabaseServer
+    const supabase = await createClient();
+    const { data, error } = await supabase
         .from('orders')
         .select(`
             *,
@@ -14,7 +19,7 @@ export async function getRecentOrders(limit = 5) {
         .limit(limit);
 
     if (error) {
-        console.error('Error fetching recent orders:', error);
+        logger.error('Error fetching recent orders', error, { action: 'getRecentOrders' });
         return [];
     }
 
@@ -22,10 +27,11 @@ export async function getRecentOrders(limit = 5) {
 }
 
 export async function getOrders(page = 1, pageSize = 10, status?: string) {
+    const supabase = await createClient();
     const from = (page - 1) * pageSize;
     const to = from + pageSize - 1;
 
-    let query = supabaseServer
+    let query = supabase
         .from('orders')
         .select('*', { count: 'exact' });
 
@@ -38,7 +44,7 @@ export async function getOrders(page = 1, pageSize = 10, status?: string) {
         .range(from, to);
 
     if (error) {
-        console.error('Error fetching orders:', error);
+        logger.error('Error fetching orders', error, { action: 'getOrders', page, status });
         return { data: [], count: 0 };
     }
 
@@ -46,7 +52,8 @@ export async function getOrders(page = 1, pageSize = 10, status?: string) {
 }
 
 export async function getOrderById(id: string) {
-    const { data, error } = await supabaseServer
+    const supabase = await createClient();
+    const { data, error } = await supabase
         .from('orders')
         .select(`
             *,
@@ -56,20 +63,32 @@ export async function getOrderById(id: string) {
         .single();
 
     if (error) {
-        console.error('Error fetching order:', error);
+        logger.error('Error fetching order', error, { action: 'getOrderById', orderId: id });
         return null;
     }
 
     return data;
 }
 
-import { generateStatusEmailHtml, sendEmail } from '@/lib/email';
-
 export async function updateOrderStatus(id: string, newStatus: string): Promise<{ success: boolean; error?: string }> {
-    // 1. Update the status
-    const { data: order, error } = await supabaseServer
+    // Rate limiting (use 'admin' as identifier for now - in production use actual user ID)
+    const rateCheck = checkRateLimit('admin-user', 'updateOrderStatus', RateLimits.mutation);
+    if (!rateCheck.allowed) {
+        return { success: false, error: `Too many requests. Try again in ${rateCheck.resetIn}s` };
+    }
+
+    // Validate input
+    const validation = UpdateOrderStatusSchema.safeParse({ id, status: newStatus.toLowerCase() });
+    if (!validation.success) {
+        logger.warn('Order status validation failed', { action: 'updateOrderStatus', id, errors: validation.error.issues });
+        return { success: false, error: 'Invalid order ID or status' };
+    }
+
+    const supabase = await createClient();
+    // Update the status
+    const { data: order, error } = await supabase
         .from('orders')
-        .update({ status: newStatus.toLowerCase() })
+        .update({ status: validation.data.status })
         .eq('id', id)
         .select(`
             *,
@@ -78,51 +97,46 @@ export async function updateOrderStatus(id: string, newStatus: string): Promise<
         .single();
 
     if (error) {
-        console.error('Error updating order status:', error);
+        logger.error('Error updating order status', error, { action: 'updateOrderStatus', orderId: id });
         return { success: false, error: 'Failed to update order status' };
     }
 
-    // 2. Send Notification Email
-    // We do this asynchronously/independently so we don't block the UI if it fails
-    // In a real production app, this might go to a queue.
-    if (order && order.customer && order.customer.email) {
-        try {
-            const html = generateStatusEmailHtml(
-                order.customer.first_name || 'Customer',
-                order.order_number,
-                newStatus
-            );
-
-            // Fire and forget (or await if critical)
-            // Note: Since this is server-side, we might not have the same supabase client with 'functions' invoke capability if using supabase-ssr client in certain ways,
-            // but the client-side/generic supabase client typically works. 
-            // However, 'src/lib/email' uses the client-side 'supabase' export which might need anon key.
-            // Let's verify imports in email.ts. It uses '@/lib/supabase'.
-
-            await sendEmail(
-                order.customer.email,
-                `Order Update - ${order.order_number}`,
-                html
-            );
-        } catch (emailErr) {
-            console.error('Failed to send status update email:', emailErr);
-        }
+    // Send notification email (fire-and-forget)
+    if (order?.customer?.email) {
+        sendEmail(
+            order.customer.email,
+            `Order Update - ${order.order_number}`,
+            generateStatusEmailHtml(order.customer.first_name || 'Customer', order.order_number, newStatus)
+        ).catch(err => logger.error('Failed to send status email', err, { orderId: id }));
     }
 
     revalidatePath('/admin/orders');
     revalidatePath(`/admin/orders/${id}`);
-    revalidatePath('/admin');
     return { success: true };
 }
 
 export async function updatePaymentStatus(id: string, newStatus: string): Promise<{ success: boolean; error?: string }> {
-    const { error } = await supabaseServer
+    // Rate limiting
+    const rateCheck = checkRateLimit('admin-user', 'updatePaymentStatus', RateLimits.mutation);
+    if (!rateCheck.allowed) {
+        return { success: false, error: `Too many requests. Try again in ${rateCheck.resetIn}s` };
+    }
+
+    // Validate input
+    const validation = UpdatePaymentStatusSchema.safeParse({ id, status: newStatus.toLowerCase() });
+    if (!validation.success) {
+        logger.warn('Payment status validation failed', { action: 'updatePaymentStatus', id });
+        return { success: false, error: 'Invalid order ID or payment status' };
+    }
+
+    const supabase = await createClient();
+    const { error } = await supabase
         .from('orders')
-        .update({ payment_status: newStatus.toLowerCase() })
+        .update({ payment_status: validation.data.status })
         .eq('id', id);
 
     if (error) {
-        console.error('Error updating payment status:', error);
+        logger.error('Error updating payment status', error, { action: 'updatePaymentStatus', orderId: id });
         return { success: false, error: 'Failed to update payment status' };
     }
 
@@ -130,4 +144,3 @@ export async function updatePaymentStatus(id: string, newStatus: string): Promis
     revalidatePath(`/admin/orders/${id}`);
     return { success: true };
 }
-

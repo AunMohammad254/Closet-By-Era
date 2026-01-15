@@ -12,7 +12,20 @@ const withPWA = require("@ducanh2912/next-pwa").default({
 });
 
 const nextConfig: NextConfig = {
+  // Enable Partial Prerendering (renamed from ppr to cacheComponents in Next.js 16.1.2)
+  cacheComponents: true,
+
+  // Empty turbopack config to silence warning about PWA webpack config
+  turbopack: {},
+
   images: {
+    // Enable modern image formats for better compression
+    formats: ['image/avif', 'image/webp'],
+
+    // Optimize for common device sizes
+    deviceSizes: [640, 750, 828, 1080, 1200, 1920, 2048],
+    imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
+
     remotePatterns: [
       {
         protocol: 'https',
@@ -28,6 +41,12 @@ const nextConfig: NextConfig = {
       },
     ],
   },
+
+  // Remove console.logs in production for smaller bundles
+  compiler: {
+    removeConsole: process.env.NODE_ENV === 'production' ? { exclude: ['error', 'warn'] } : false,
+  },
 };
 
 export default withPWA(nextConfig);
+

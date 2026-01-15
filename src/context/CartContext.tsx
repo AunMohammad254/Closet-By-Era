@@ -3,6 +3,10 @@
 import { createContext, useContext, useState, useEffect, ReactNode, useCallback, useMemo } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from './AuthContext';
+import type { Tables } from '@/types/supabase';
+
+// Database cart item type from Supabase
+type DBCartItem = Tables<'cart_items'>;
 
 export interface CartItem {
     id: string;
@@ -40,31 +44,61 @@ export function CartProvider({ children }: { children: ReactNode }) {
         return `${productId}-${size || 'default'}-${color || 'default'}-${Date.now()}`;
     };
 
-    // Sync cart to database
+    // Sync cart to database - Optimized with upsert instead of delete+insert
     const syncCartToDB = useCallback(async (cartItems: CartItem[]) => {
         if (!user) return;
 
         try {
-            // Delete existing cart items for this user
-            await supabase
+            if (cartItems.length === 0) {
+                // Only delete if cart is empty
+                await supabase
+                    .from('cart_items')
+                    .delete()
+                    .eq('user_id', user.id);
+                return;
+            }
+
+            // Get current cart item IDs from DB
+            const { data: existingItems } = await supabase
                 .from('cart_items')
-                .delete()
+                .select('id, product_id, size, color')
                 .eq('user_id', user.id);
 
-            // Insert new cart items
-            if (cartItems.length > 0) {
-                const dbItems = cartItems.map(item => ({
-                    user_id: user.id,
-                    product_id: item.productId,
-                    product_name: item.name,
-                    product_price: item.price,
-                    product_image: item.image,
-                    size: item.size,
-                    color: item.color,
-                    quantity: item.quantity,
-                }));
+            // Build list of items to upsert and IDs to keep
+            const dbItems = cartItems.map(item => ({
+                user_id: user.id,
+                product_id: item.productId,
+                product_name: item.name,
+                product_price: item.price,
+                product_image: item.image,
+                size: item.size || null,
+                color: item.color || null,
+                quantity: item.quantity,
+            }));
 
-                await supabase.from('cart_items').insert(dbItems);
+            // Upsert all items (insert or update on conflict)
+            await supabase
+                .from('cart_items')
+                .upsert(dbItems, {
+                    onConflict: 'user_id,product_id,size,color',
+                    ignoreDuplicates: false
+                });
+
+            // Remove items that are no longer in cart
+            if (existingItems && existingItems.length > 0) {
+                const currentProductKeys = new Set(
+                    cartItems.map(item => `${item.productId}-${item.size || ''}-${item.color || ''}`)
+                );
+                const idsToDelete = existingItems
+                    .filter(item => !currentProductKeys.has(`${item.product_id}-${item.size || ''}-${item.color || ''}`))
+                    .map(item => item.id);
+
+                if (idsToDelete.length > 0) {
+                    await supabase
+                        .from('cart_items')
+                        .delete()
+                        .in('id', idsToDelete);
+                }
             }
         } catch (error) {
             console.error('Error syncing cart to database:', error);
@@ -88,15 +122,14 @@ export function CartProvider({ children }: { children: ReactNode }) {
             }
 
             if (data && data.length > 0) {
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                const cartItems: CartItem[] = data.map((item: any) => ({
+                const cartItems: CartItem[] = data.map((item: DBCartItem) => ({
                     id: item.id,
                     productId: item.product_id,
                     name: item.product_name,
                     price: item.product_price,
-                    image: item.product_image,
-                    size: item.size,
-                    color: item.color,
+                    image: item.product_image || '',
+                    size: item.size ?? undefined,
+                    color: item.color ?? undefined,
                     quantity: item.quantity,
                 }));
                 setItems(cartItems);
@@ -145,8 +178,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
                     const mergedCart: CartItem[] = [...localCart];
 
                     if (dbCartData && dbCartData.length > 0) {
-                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                        dbCartData.forEach((dbItem: any) => {
+                        dbCartData.forEach((dbItem: DBCartItem) => {
                             const existingIndex = mergedCart.findIndex(
                                 item => item.productId === dbItem.product_id &&
                                     item.size === dbItem.size &&
@@ -160,9 +192,9 @@ export function CartProvider({ children }: { children: ReactNode }) {
                                     productId: dbItem.product_id,
                                     name: dbItem.product_name,
                                     price: dbItem.product_price,
-                                    image: dbItem.product_image,
-                                    size: dbItem.size,
-                                    color: dbItem.color,
+                                    image: dbItem.product_image || '',
+                                    size: dbItem.size ?? undefined,
+                                    color: dbItem.color ?? undefined,
                                     quantity: dbItem.quantity,
                                 });
                             }

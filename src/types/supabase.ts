@@ -73,6 +73,69 @@ export type Database = {
           },
         ]
       }
+      analytics_events: {
+        Row: {
+          created_at: string | null
+          event_type: string | null
+          id: string
+          meta: Json | null
+          page_path: string | null
+          product_id: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          event_type?: string | null
+          id?: string
+          meta?: Json | null
+          page_path?: string | null
+          product_id?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          event_type?: string | null
+          id?: string
+          meta?: Json | null
+          page_path?: string | null
+          product_id?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      audit_logs: {
+        Row: {
+          id: string
+          admin_id: string | null
+          action: string
+          entity: string
+          entity_id: string | null
+          details: Json | null
+          ip_address: string | null
+          created_at: string | null
+        }
+        Insert: {
+          id?: string
+          admin_id?: string | null
+          action: string
+          entity: string
+          entity_id?: string | null
+          details?: Json | null
+          ip_address?: string | null
+          created_at?: string | null
+        }
+        Update: {
+          id?: string
+          admin_id?: string | null
+          action?: string
+          entity?: string
+          entity_id?: string | null
+          details?: Json | null
+          ip_address?: string | null
+          created_at?: string | null
+        }
+        Relationships: []
+      }
       banners: {
         Row: {
           created_at: string | null
@@ -332,6 +395,60 @@ export type Database = {
         }
         Relationships: []
       }
+      gift_card_usage: {
+        Row: {
+          amount_used: number
+          created_at: string | null
+          gift_card_id: string | null
+          id: string
+          order_id: string | null
+        }
+        Insert: {
+          amount_used: number
+          created_at?: string | null
+          gift_card_id?: string | null
+          id?: string
+          order_id?: string | null
+        }
+        Update: {
+          amount_used?: number
+          created_at?: string | null
+          gift_card_id?: string | null
+          id?: string
+          order_id?: string | null
+        }
+        Relationships: []
+      }
+      gift_cards: {
+        Row: {
+          balance: number
+          code: string
+          created_at: string | null
+          expires_at: string | null
+          id: string
+          initial_value: number
+          is_active: boolean | null
+        }
+        Insert: {
+          balance: number
+          code: string
+          created_at?: string | null
+          expires_at?: string | null
+          id?: string
+          initial_value: number
+          is_active?: boolean | null
+        }
+        Update: {
+          balance?: number
+          code?: string
+          created_at?: string | null
+          expires_at?: string | null
+          id?: string
+          initial_value?: number
+          is_active?: boolean | null
+        }
+        Relationships: []
+      }
       order_items: {
         Row: {
           id: string
@@ -563,6 +680,7 @@ export type Database = {
           product_id: string | null
           rating: number
           title: string | null
+          images: string[] | null
         }
         Insert: {
           comment?: string | null
@@ -574,6 +692,7 @@ export type Database = {
           product_id?: string | null
           rating: number
           title?: string | null
+          images?: string[] | null
         }
         Update: {
           comment?: string | null
@@ -585,6 +704,7 @@ export type Database = {
           product_id?: string | null
           rating?: number
           title?: string | null
+          images?: string[] | null
         }
         Relationships: [
           {
@@ -826,25 +946,12 @@ export type OrderItem = Tables<'order_items'>
 export type Product = Tables<'products'>
 export type ProductImage = Tables<'product_images'>
 export type ProductVariant = Tables<'product_variants'>
-export type Promotion = Tables<'promotions'>
 export type Review = Tables<'reviews'>
 export type WishlistItem = Tables<'wishlist_items'>
 export type AuditLog = Tables<'audit_logs'>
 export type AnalyticsEvent = Tables<'analytics_events'>
 
-// Note: If 'customers' table exists in DB, add: export type Customer = Tables<'customers'>
-// For now, define Customer manually if not in generated types
-export type Customer = {
-  id: string;
-  auth_id: string | null;
-  email: string | null;
-  first_name: string | null;
-  last_name: string | null;
-  phone: string | null;
-  role: string;
-  created_at: string | null;
-  updated_at: string | null;
-}
+export type Customer = Tables<'customers'>
 
 // Insert types
 export type InsertAddress = TablesInsert<'addresses'>

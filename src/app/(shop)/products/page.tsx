@@ -9,6 +9,30 @@ export const metadata: Metadata = {
     description: 'Explore our latest collection of premium fashion, accessories, and trends.',
 };
 
+// Type for products returned from getProducts action
+interface ProductsQueryResult {
+    id: string;
+    name: string;
+    slug: string | null;
+    price: number;
+    stock: number;
+    images: string[] | null;
+    is_active: boolean;
+    in_stock: boolean | null;
+    created_at: string;
+    category: { name: string } | null;
+    original_price?: number | null;
+    image_url?: string | null;
+    is_new?: boolean | null;
+    is_sale?: boolean | null;
+    is_featured?: boolean | null;
+    description?: string | null;
+    short_description?: string | null;
+    category_id?: string | null;
+    sizes?: string[] | null;
+    colors?: string[] | null;
+}
+
 interface ProductsPageProps {
     searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }
@@ -24,7 +48,7 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
         .eq('is_active', true)
         .order('display_order');
 
-    const categories = [...(categoriesData?.map(c => c.name) || [])];
+    const categories = [...(categoriesData?.map((c: { name: string; slug: string }) => c.name) || [])];
 
     // 2. Parse Filters from URL
     const selectedCategories = typeof params.categories === 'string' ? params.categories.split(',') : [];
@@ -42,31 +66,32 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
     });
 
     // 4. Transform Data
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const products: ProductUI[] = (productsData || []).map((p: any) => ({
+    const products: ProductUI[] = ((productsData || []) as ProductsQueryResult[]).map((p) => ({
         id: p.id,
         name: p.name,
         price: p.price,
-        originalPrice: p.original_price,
-        original_price: p.original_price,
+        originalPrice: p.original_price ?? undefined,
+        original_price: p.original_price ?? null,
         image: p.image_url || (p.images && p.images[0]) || '/products/placeholder.png',
-        category: p.categories?.name || 'Uncategorized',
-        isNew: p.is_new,
-        isSale: p.is_sale,
-        is_new: p.is_new,
-        is_sale: p.is_sale,
+        category: p.category?.name || 'Uncategorized',
+        isNew: p.is_new ?? undefined,
+        isSale: p.is_sale ?? undefined,
+        is_new: p.is_new ?? null,
+        is_sale: p.is_sale ?? null,
         createdAt: new Date(p.created_at),
         created_at: p.created_at,
-        slug: p.slug,
-        description: p.description,
-        category_id: p.category_id,
-        in_stock: p.in_stock,
-        is_featured: p.is_featured,
-        sizes: p.sizes,
-        colors: p.colors,
-        short_description: p.short_description,
-        image_url: p.image_url,
-        images: p.images
+        slug: p.slug ?? null,
+        description: p.description ?? null,
+        category_id: p.category_id ?? null,
+        in_stock: p.in_stock ?? null,
+        is_featured: p.is_featured ?? null,
+        sizes: p.sizes ?? null,
+        colors: p.colors ?? null,
+        short_description: p.short_description ?? null,
+        image_url: p.image_url ?? null,
+        images: p.images ?? null,
+        is_active: p.is_active,
+        stock: p.stock
     }));
 
     return (

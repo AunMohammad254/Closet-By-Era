@@ -1,10 +1,11 @@
 'use server';
 
-import { supabaseServer } from '@/lib/supabase-server';
+import { createClient } from '@/lib/supabase/server';
 
 export async function trackEvent(eventType: string, data: { pagePath?: string, productId?: string, meta?: any }) {
     try {
-        await supabaseServer.from('analytics_events').insert({
+        const supabase = await createClient();
+        await supabase.from('analytics_events').insert({
             event_type: eventType,
             page_path: data.pagePath,
             product_id: data.productId,
@@ -17,8 +18,9 @@ export async function trackEvent(eventType: string, data: { pagePath?: string, p
 }
 
 export async function getAnalyticsSummary(daysBack: number = 7) {
+    const supabase = await createClient();
     // Optimized: Use RPC function for database-side aggregation
-    const { data, error } = await supabaseServer.rpc('get_analytics_summary', {
+    const { data, error } = await supabase.rpc('get_analytics_summary', {
         days_back: daysBack
     });
 
@@ -39,9 +41,10 @@ export async function getAnalyticsSummary(daysBack: number = 7) {
 }
 
 export async function getDashboardStats() {
+    const supabase = await createClient();
     // Optimization: Use SQL RPC to calculate stats on the database side
     // This avoids fetching all orders to the server-side logic
-    const { data, error } = await supabaseServer.rpc('get_admin_stats');
+    const { data, error } = await supabase.rpc('get_admin_stats');
 
     if (error) {
         // console.error('Failed to fetch admin stats via RPC:', error);
