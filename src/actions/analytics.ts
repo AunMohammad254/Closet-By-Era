@@ -33,10 +33,11 @@ export async function getAnalyticsSummary(daysBack: number = 7) {
         };
     }
 
+    const summary = data as any;
     return {
-        timeline: data?.timeline || [],
-        topProducts: data?.topProducts || [],
-        totalViews: data?.totalViews || 0
+        timeline: summary?.timeline || [],
+        topProducts: summary?.topProducts || [],
+        totalViews: summary?.totalViews || 0
     };
 }
 
@@ -58,14 +59,12 @@ export async function getDashboardStats() {
     }
 
     // RPC returns a JSON object (or single row)
-    // The RPC we defined returns json_build_object. 
-    // Supabase .rpc() with no parameters returns 'data' as the JSON directly if it's a scalar/json return?
-    // Let's verify return structure. If it returns 'json', data is the object.
+    const stats = data as any; 
 
     return {
-        totalRevenue: Number(data.totalRevenue) || 0,
-        activeOrders: Number(data.activeOrders) || 0,
-        totalProducts: Number(data.totalProducts) || 0,
-        totalCustomers: Number(data.totalCustomers) || 0
+        totalRevenue: Number(stats?.totalRevenue) || 0,
+        activeOrders: Number(stats?.activeOrders) || 0,
+        totalProducts: Number(stats?.totalProducts) || 0,
+        totalCustomers: Number(stats?.totalCustomers) || 0
     };
 }

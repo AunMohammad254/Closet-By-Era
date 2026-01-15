@@ -114,7 +114,7 @@ export default function ComparePage() {
                                         <div className="relative aspect-[3/4] bg-gray-100 rounded-lg overflow-hidden mb-4">
                                             {(product.images?.[0] || product.image) ? (
                                                 <Image
-                                                    src={product.images?.[0] || product.image}
+                                                    src={product.images?.[0] || product.image || '/placeholder.png'}
                                                     alt={product.name}
                                                     fill
                                                     className="object-cover"
@@ -148,7 +148,7 @@ export default function ComparePage() {
                                 <td className="p-4 font-medium text-gray-900 bg-gray-50 border border-gray-100">Category</td>
                                 {products.map(product => (
                                     <td key={product.id} className="p-4 text-gray-600 border border-gray-100 capitalize">
-                                        {product.category?.name || product.category}
+                                        {typeof product.category === 'string' ? product.category : product.category?.name}
                                     </td>
                                 ))}
                             </tr>

@@ -456,6 +456,11 @@ export type Database = {
           price_at_purchase: number
           product_id: string
           quantity: number
+          product_name: string
+          size: string | null
+          color: string | null
+          total_price: number | null
+          unit_price: number | null
         }
         Insert: {
           id?: string
@@ -498,8 +503,13 @@ export type Database = {
           payment_method: Database["public"]["Enums"]["payment_method"]
           payment_status: Database["public"]["Enums"]["payment_status"]
           shipping_address: string
+          billing_address: string | null
           status: Database["public"]["Enums"]["order_status"]
-          total_amount: number
+          total: number
+          subtotal: number
+          discount: number | null
+          shipping_cost: number | null
+          order_number: string
         }
         Insert: {
           created_at?: string
@@ -510,8 +520,12 @@ export type Database = {
           payment_method: Database["public"]["Enums"]["payment_method"]
           payment_status?: Database["public"]["Enums"]["payment_status"]
           shipping_address: string
+          billing_address?: string | null
           status?: Database["public"]["Enums"]["order_status"]
-          total_amount: number
+          total: number
+          subtotal: number
+          discount?: number | null
+          shipping_cost?: number | null
         }
         Update: {
           created_at?: string
@@ -522,8 +536,13 @@ export type Database = {
           payment_method?: Database["public"]["Enums"]["payment_method"]
           payment_status?: Database["public"]["Enums"]["payment_status"]
           shipping_address?: string
+          billing_address?: string | null
           status?: Database["public"]["Enums"]["order_status"]
-          total_amount?: number
+          total?: number
+          subtotal?: number
+          discount?: number | null
+          shipping_cost?: number | null
+          order_number?: string
         }
         Relationships: [
           {
@@ -783,7 +802,16 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      get_analytics_summary: {
+        Args: {
+          days_back: number
+        }
+        Returns: Json
+      }
+      get_admin_stats: {
+        Args: Record<PropertyKey, never>
+        Returns: Json
+      }
     }
     Enums: {
       order_status:
@@ -800,6 +828,8 @@ export type Database = {
     }
   }
 }
+
+
 
 type DatabaseWithoutInternals = Omit<Database, "__InternalSupabase">
 
@@ -963,4 +993,8 @@ export type InsertReview = TablesInsert<'reviews'>
 // Update types  
 export type UpdateOrder = TablesUpdate<'orders'>
 export type UpdateProduct = TablesUpdate<'products'>
+
+export type Wishlist = Tables<'wishlists'>
+export type InsertTables<T extends keyof Database['public']['Tables']> = TablesInsert<T>
+export type UpdateTables<T extends keyof Database['public']['Tables']> = TablesUpdate<T>
 

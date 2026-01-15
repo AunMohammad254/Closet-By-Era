@@ -9,21 +9,34 @@ export interface Coupon {
     discount_type: 'percentage' | 'fixed';
     discount_value: number;
     min_order_amount: number;
-    start_date: string;
-    end_date: string;
-    usage_limit: number | null;
-    usage_count: number;
+    start_date?: string; // mapped from starts_at
+    end_date?: string;   // mapped from ends_at
+    usage_limit?: number | null; // mapped from max_uses
+    usage_count?: number; // mapped from uses_count
+    starts_at: string | null;
+    ends_at: string | null;
+    max_uses: number | null;
+    uses_count: number | null;
     is_active: boolean;
 }
 
-export type CouponFormData = Omit<Coupon, 'id' | 'usage_count' | 'created_at'>;
+export type CouponFormData = Omit<Coupon, 'id' | 'usage_count' | 'created_at' | 'uses_count' | 'start_date' | 'end_date' | 'usage_limit'> & {
+    start_date: string;
+    end_date: string;
+    usage_limit: number | null;
+};
 
 export async function createCoupon(data: CouponFormData) {
     try {
         const supabase = await createClient();
         const { error } = await supabase
             .from('coupons')
-            .insert(data);
+            .insert({
+                ...data,
+                starts_at: data.start_date,
+                ends_at: data.end_date,
+                max_uses: data.usage_limit
+            });
 
         if (error) {
             console.error('Create Coupon Error:', error);
@@ -43,7 +56,12 @@ export async function updateCoupon(id: string, data: Partial<CouponFormData>) {
         const supabase = await createClient();
         const { error } = await supabase
             .from('coupons')
-            .update(data)
+            .update({
+                ...data,
+                starts_at: data.start_date,
+                ends_at: data.end_date,
+                max_uses: data.usage_limit
+            })
             .eq('id', id);
 
         if (error) {
@@ -104,17 +122,17 @@ export async function validateCoupon(code: string, cartTotal: number) {
         }
 
         const now = new Date();
-        const start = new Date(coupon.start_date);
-        const end = new Date(coupon.end_date);
+        const start = new Date(coupon.starts_at || '');
+        const end = new Date(coupon.ends_at || '');
 
         if (now < start) return { valid: false, message: 'Coupon start date not reached.' };
         if (now > end) return { valid: false, message: 'Coupon expired.' };
 
-        if (coupon.usage_limit && coupon.usage_count >= coupon.usage_limit) {
+        if (coupon.max_uses && (coupon.uses_count || 0) >= coupon.max_uses) {
             return { valid: false, message: 'Coupon usage limit reached.' };
         }
 
-        if (cartTotal < coupon.min_order_amount) {
+        if (coupon.min_order_amount && cartTotal < coupon.min_order_amount) {
             return { valid: false, message: `Minimum order amount is PKR ${coupon.min_order_amount}` };
         }
 

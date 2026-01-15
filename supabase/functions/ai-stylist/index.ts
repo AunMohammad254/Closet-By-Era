@@ -1,6 +1,6 @@
 
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
-import { createClient } from "@supabase/supabase-js";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { Database } from "../database.types.ts";
 
 const GEMINI_API_KEY = Deno.env.get('GeminiAPIKey') || Deno.env.get('GemeniAPIKey');
@@ -62,7 +62,7 @@ Deno.serve(async (req: Request) => {
             .select('id, name, slug')
             .eq('is_active', true);
 
-        const categoryNames = allCategories?.map((c) => c.name).join(', ') || '';
+        const categoryNames = allCategories?.map((c: any) => c.name).join(', ') || '';
 
         // Create prompt for Gemini
         const systemPrompt = `You are a fashion stylist AI for "Closet By Era", a Pakistani fashion e-commerce store specializing in women's clothing.
@@ -145,11 +145,11 @@ Be warm, helpful, and fashion-forward in your advice. Use occasional Urdu words 
         // Filter by categories if AI suggested some
         if (aiResponse.categories.length > 0 && allCategories) {
             const matchingCategoryIds = allCategories
-                .filter((c) => aiResponse.categories.some(
+                .filter((c: any) => aiResponse.categories.some(
                     (ac) => c.name.toLowerCase().includes(ac.toLowerCase()) ||
                         ac.toLowerCase().includes(c.name.toLowerCase())
                 ))
-                .map((c) => c.id);
+                .map((c: any) => c.id);
 
             if (matchingCategoryIds.length > 0) {
                 productsQuery = productsQuery.in('category_id', matchingCategoryIds);

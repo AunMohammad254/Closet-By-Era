@@ -40,11 +40,11 @@ export default function ProductGrid({ initialProducts }: ProductGridProps) {
                             <ProductCard
                                 key={product.id}
                                 id={product.id}
-                                slug={product.slug}
+                                slug={product.slug || ''}
                                 name={product.name}
                                 price={product.price}
                                 originalPrice={product.originalPrice}
-                                image={product.image}
+                                image={product.image || product.image_url || ''}
                                 category={product.category}
                                 isNew={product.isNew}
                                 isSale={product.isSale}

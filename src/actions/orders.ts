@@ -36,7 +36,7 @@ export async function getOrders(page = 1, pageSize = 10, status?: string) {
         .select('*', { count: 'exact' });
 
     if (status && status !== 'All') {
-        query = query.eq('status', status.toLowerCase());
+        query = query.eq('status', status.toLowerCase() as "pending" | "packed" | "shipping" | "delivered" | "cancelled");
     }
 
     const { data, error, count } = await query
@@ -88,7 +88,7 @@ export async function updateOrderStatus(id: string, newStatus: string): Promise<
     // Update the status
     const { data: order, error } = await supabase
         .from('orders')
-        .update({ status: validation.data.status })
+        .update({ status: validation.data.status as "pending" | "packed" | "shipping" | "delivered" | "cancelled" })
         .eq('id', id)
         .select(`
             *,
@@ -132,7 +132,7 @@ export async function updatePaymentStatus(id: string, newStatus: string): Promis
     const supabase = await createClient();
     const { error } = await supabase
         .from('orders')
-        .update({ payment_status: validation.data.status })
+        .update({ payment_status: validation.data.status as "pending" | "paid" | "failed" | "refunded" })
         .eq('id', id);
 
     if (error) {
