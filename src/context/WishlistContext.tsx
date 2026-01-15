@@ -105,19 +105,12 @@ export function WishlistProvider({ children }: { children: ReactNode }) {
             }
 
             if (data && data.length > 0) {
-                const wishlistItems: WishlistItem[] = data.map((item: {
-                    id: string;
-                    product_id: string;
-                    product_name: string;
-                    product_price: number;
-                    product_image: string;
-                    category: string;
-                }) => ({
+                const wishlistItems: WishlistItem[] = data.map((item: any) => ({
                     id: item.product_id,
-                    name: item.product_name,
-                    price: item.product_price,
-                    image: item.product_image,
-                    category: item.category,
+                    name: item.product_name || 'Unknown Product',
+                    price: item.product_price || 0,
+                    image: item.product_image || '',
+                    category: item.category || 'Uncategorized',
                 }));
                 setItems(wishlistItems);
                 // Also save to localStorage as backup
@@ -165,14 +158,7 @@ export function WishlistProvider({ children }: { children: ReactNode }) {
                     const mergedWishlist: WishlistItem[] = [...localWishlist];
 
                     if (dbWishlistData && dbWishlistData.length > 0) {
-                        dbWishlistData.forEach((dbItem: {
-                            id: string;
-                            product_id: string;
-                            product_name: string;
-                            product_price: number;
-                            product_image: string;
-                            category: string;
-                        }) => {
+                        dbWishlistData.forEach((dbItem: any) => {
                             const existingIndex = mergedWishlist.findIndex(
                                 item => item.id === dbItem.product_id
                             );

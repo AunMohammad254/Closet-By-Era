@@ -167,10 +167,10 @@ function AccountPageContent() {
 
             setOrdersLoading(true);
             try {
-                // Fetch orders for this customer
+                // Fetch orders for this customer with their items in a single query
                 const { data: ordersData, error: ordersError } = await supabase
                     .from('orders')
-                    .select('*')
+                    .select('*, items:order_items(*)')
                     .eq('customer_id', customer.id)
                     .order('created_at', { ascending: false });
 
@@ -180,28 +180,14 @@ function AccountPageContent() {
                     return;
                 }
 
-                if (!ordersData || ordersData.length === 0) {
+                if (!ordersData) {
                     setOrders([]);
-                    setOrdersLoading(false);
                     return;
                 }
-
-                // Fetch order items for each order
-                const ordersWithItems: OrderWithItems[] = await Promise.all(
-                    ordersData.map(async (order) => {
-                        const { data: itemsData } = await supabase
-                            .from('order_items')
-                            .select('*')
-                            .eq('order_id', order.id);
-
-                        return {
-                            ...order,
-                            items: itemsData || [],
-                        } as OrderWithItems;
-                    })
-                );
-
-                setOrders(ordersWithItems);
+                
+                // Cast the response to OrderWithItems[] since we know the structure matches
+                // but Supabase types might imply arrays or nulls differently
+                setOrders(ordersData as unknown as OrderWithItems[]);
             } catch (error) {
                 console.error('Error fetching orders:', error);
             } finally {
@@ -548,7 +534,7 @@ function AccountPageContent() {
                                                             <span className="text-gray-600">
                                                                 {item.product_name} {item.size && `(${item.size}`}{item.color && `, ${item.color}`}{(item.size || item.color) && ')'} x{item.quantity}
                                                             </span>
-                                                            <span className="text-gray-900 font-medium">PKR {item.total_price?.toLocaleString() || (item.unit_price * item.quantity).toLocaleString()}</span>
+                                                            <span className="text-gray-900 font-medium">PKR {item.total_price?.toLocaleString() || ((item.unit_price || 0) * item.quantity).toLocaleString()}</span>
                                                         </div>
                                                     ))}
                                                 </div>

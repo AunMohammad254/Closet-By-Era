@@ -20,7 +20,7 @@ export interface Coupon {
     is_active: boolean;
 }
 
-export type CouponFormData = Omit<Coupon, 'id' | 'usage_count' | 'created_at' | 'uses_count' | 'start_date' | 'end_date' | 'usage_limit'> & {
+export type CouponFormData = Omit<Coupon, 'id' | 'usage_count' | 'created_at' | 'uses_count' | 'start_date' | 'end_date' | 'usage_limit' | 'starts_at' | 'ends_at' | 'max_uses'> & {
     start_date: string;
     end_date: string;
     usage_limit: number | null;

@@ -8,11 +8,11 @@ interface EditProductPageProps {
 
 export default async function EditProductPage({ params }: EditProductPageProps) {
   const { id } = await params;
-  const result = await getProductById(id);
+  const product = await getProductById(id);
 
-  if (!result.success) {
+  if (!product) {
     notFound();
   }
 
-  return <EditProductUI product={result.data} />;
+  return <EditProductUI product={product as any} />;
 }

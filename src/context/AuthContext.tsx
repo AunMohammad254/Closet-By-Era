@@ -60,15 +60,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 },
             });
 
-            if (!error && data.user) {
-                // Create customer record
-                await supabase.from('customers').insert({
-                    auth_id: data.user.id,
-                    email: email,
-                    first_name: firstName,
-                    last_name: lastName,
-                });
-            }
+            // Customer record is created automatically by database trigger (handle_new_user)
+            // when the user is inserted into auth.users
 
             return { error: error as Error | null };
         } catch (error) {

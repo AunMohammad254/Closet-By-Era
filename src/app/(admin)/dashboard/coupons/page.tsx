@@ -87,10 +87,10 @@ export default function CouponsPage() {
                                             {coupon.discount_type === 'percentage' ? `${coupon.discount_value}%` : `PKR ${coupon.discount_value}`}
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-gray-500">
-                                            {coupon.usage_count} / {coupon.usage_limit || '∞'}
+                                            {coupon.uses_count} / {coupon.max_uses || '∞'}
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-gray-500">
-                                            {new Date(coupon.end_date).toLocaleDateString()}
+                                            {coupon.ends_at ? new Date(coupon.ends_at).toLocaleDateString() : 'Never'}
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap">
                                             <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${coupon.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'

@@ -6,6 +6,8 @@ export const metadata = {
     title: 'Orders | Admin Dashboard',
 };
 
+export const dynamic = 'force-dynamic';
+
 // Define types locally since we aren't sharing them yet
 interface Order {
     id: string;
@@ -160,7 +162,7 @@ export default async function OrdersPage({
                                             {order.items?.length || 0} items
                                         </td>
                                         <td className="px-6 py-4 text-right font-medium text-gray-900">
-                                            PKR {order.total.toLocaleString()}
+                                            PKR {(order.total || 0).toLocaleString()}
                                         </td>
                                         <td className="px-6 py-4 text-right">
                                             <Link

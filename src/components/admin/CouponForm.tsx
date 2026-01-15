@@ -14,9 +14,9 @@ export default function CouponForm({ initialData, onClose }: CouponFormProps) {
         discount_type: initialData?.discount_type || 'percentage',
         discount_value: initialData?.discount_value || 0,
         min_order_amount: initialData?.min_order_amount || 0,
-        start_date: initialData?.start_date ? new Date(initialData.start_date).toISOString().slice(0, 16) : new Date().toISOString().slice(0, 16),
-        end_date: initialData?.end_date ? new Date(initialData.end_date).toISOString().slice(0, 16) : '',
-        usage_limit: initialData?.usage_limit || null,
+        start_date: initialData?.starts_at ? new Date(initialData.starts_at).toISOString().slice(0, 16) : new Date().toISOString().slice(0, 16),
+        end_date: initialData?.ends_at ? new Date(initialData.ends_at).toISOString().slice(0, 16) : '',
+        usage_limit: initialData?.max_uses || null,
         is_active: initialData?.is_active ?? true,
     });
 

@@ -222,7 +222,7 @@ export default function CheckoutPage() {
                     shipping_address: shippingAddress,
                     payment_method: total === 0 ? 'gift_card' : formData.paymentMethod, // Override method if free
                     notes: formData.notes || null,
-                })
+                } as any)
                 .select()
                 .single();
 
@@ -241,8 +241,9 @@ export default function CheckoutPage() {
                     color: item.color,
                     quantity: item.quantity,
                     unit_price: item.price,
+                    price_at_purchase: item.price, // Map for DB
                     total_price: item.price * item.quantity,
-                }));
+                } as any));
 
                 const { error: itemsError } = await supabase
                     .from('order_items')

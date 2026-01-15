@@ -295,7 +295,7 @@ export async function createOrder(orderData: {
         .from('orders')
         .insert({
             order_number: orderNumber,
-            customer_id: orderData.customerId,
+            customer_id: orderData.customerId || null,
             status: 'pending',
             subtotal: orderData.subtotal,
             discount: orderData.discount || 0,
@@ -303,8 +303,8 @@ export async function createOrder(orderData: {
             total: orderData.total,
             shipping_address: orderData.shippingAddress as any,
             billing_address: (orderData.billingAddress || orderData.shippingAddress) as any,
-            notes: orderData.notes,
-        })
+            notes: orderData.notes || '',
+        } as any)
         .select()
         .single();
 
@@ -323,8 +323,9 @@ export async function createOrder(orderData: {
         size: item.size,
         color: item.color,
         unit_price: item.unitPrice,
+        price_at_purchase: item.unitPrice, // Map for DB requirement
         total_price: item.unitPrice * item.quantity,
-    }));
+    } as any));
 
     const { error: itemsError } = await supabase.from('order_items').insert(orderItems);
 
