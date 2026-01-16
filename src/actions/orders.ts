@@ -72,7 +72,7 @@ export async function getOrderById(id: string) {
 
 export async function updateOrderStatus(id: string, newStatus: string): Promise<{ success: boolean; error?: string }> {
     // Rate limiting (use 'admin' as identifier for now - in production use actual user ID)
-    const rateCheck = checkRateLimit('admin-user', 'updateOrderStatus', RateLimits.mutation);
+    const rateCheck = await checkRateLimit('admin-user', 'updateOrderStatus', RateLimits.mutation);
     if (!rateCheck.allowed) {
         return { success: false, error: `Too many requests. Try again in ${rateCheck.resetIn}s` };
     }
@@ -117,7 +117,7 @@ export async function updateOrderStatus(id: string, newStatus: string): Promise<
 
 export async function updatePaymentStatus(id: string, newStatus: string): Promise<{ success: boolean; error?: string }> {
     // Rate limiting
-    const rateCheck = checkRateLimit('admin-user', 'updatePaymentStatus', RateLimits.mutation);
+    const rateCheck = await checkRateLimit('admin-user', 'updatePaymentStatus', RateLimits.mutation);
     if (!rateCheck.allowed) {
         return { success: false, error: `Too many requests. Try again in ${rateCheck.resetIn}s` };
     }

@@ -1,7 +1,7 @@
 import { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import ProductView, { ProductDetails } from '@/components/ProductView';
-import { supabase } from '@/lib/supabase';
+import { createClient } from '@/lib/supabase/server';
 
 // Helper to map colors
 const getColorHex = (name: string) => {
@@ -21,7 +21,7 @@ const getColorHex = (name: string) => {
 };
 
 async function getProduct(slug: string) {
-    // console.log(`Fetching product with slug: ${slug}`);
+    const supabase = await createClient();
 
     const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(slug);
 
@@ -46,7 +46,7 @@ async function getProduct(slug: string) {
             console.error(`Error fetching product with join (slug: ${slug}):`, JSON.stringify(error, null, 2));
         }
 
-        // Fallback: Fetch product without join
+        // Fallback: Fetch product without join (supabase already initialized above)
         let fallbackQuery = supabase
             .from('products')
             .select('*');
@@ -137,6 +137,8 @@ export default async function Page({ params }: { params: Promise<{ slug: string 
     if (!product) {
         notFound();
     }
+
+    const supabase = await createClient();
 
     // Parallel fetching for performance
     const [relatedDataSimple, reviews] = await Promise.all([

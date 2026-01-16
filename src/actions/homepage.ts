@@ -2,6 +2,7 @@
 
 import { createClient } from '@/lib/supabase/server';
 import { logger } from '@/lib/logger';
+import { unstable_cache } from 'next/cache';
 
 export interface FeaturedProductData {
     id: string;
@@ -30,10 +31,9 @@ interface ProductQueryResult {
 }
 
 /**
- * Fetch featured products from database
- * Uses server-side Supabase client for better performance
+ * Internal fetcher for featured products (used by cache wrapper)
  */
-export async function getFeaturedProducts(limit = 8): Promise<FeaturedProductData[]> {
+async function fetchFeaturedProductsInternal(limit: number): Promise<FeaturedProductData[]> {
     try {
         const supabase = await createClient();
         const { data, error } = await supabase
@@ -80,9 +80,25 @@ export async function getFeaturedProducts(limit = 8): Promise<FeaturedProductDat
 }
 
 /**
- * Fetch new arrivals (products marked as new or recently added)
+ * Fetch featured products from database with caching
+ * Cache lasts 60 seconds and can be invalidated with 'featured-products' tag
  */
-export async function getNewArrivals(limit = 4): Promise<FeaturedProductData[]> {
+export async function getFeaturedProducts(limit = 8): Promise<FeaturedProductData[]> {
+    const getCachedFeaturedProducts = unstable_cache(
+        () => fetchFeaturedProductsInternal(limit),
+        ['featured-products', `limit-${limit}`],
+        {
+            revalidate: 60, // 60 seconds
+            tags: ['featured-products', 'products']
+        }
+    );
+    return getCachedFeaturedProducts();
+}
+
+/**
+ * Internal fetcher for new arrivals (used by cache wrapper)
+ */
+async function fetchNewArrivalsInternal(limit: number): Promise<FeaturedProductData[]> {
     try {
         const supabase = await createClient();
         const { data, error } = await supabase
@@ -126,4 +142,20 @@ export async function getNewArrivals(limit = 4): Promise<FeaturedProductData[]> 
         logger.error('Unexpected error fetching new arrivals', error, { action: 'getNewArrivals' });
         return [];
     }
+}
+
+/**
+ * Fetch new arrivals with caching
+ * Cache lasts 60 seconds and can be invalidated with 'new-arrivals' tag
+ */
+export async function getNewArrivals(limit = 4): Promise<FeaturedProductData[]> {
+    const getCachedNewArrivals = unstable_cache(
+        () => fetchNewArrivalsInternal(limit),
+        ['new-arrivals', `limit-${limit}`],
+        {
+            revalidate: 60,
+            tags: ['new-arrivals', 'products']
+        }
+    );
+    return getCachedNewArrivals();
 }
