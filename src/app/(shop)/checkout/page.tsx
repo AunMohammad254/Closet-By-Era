@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useCart } from '@/context/CartContext';
 import { useAuth } from '@/context/AuthContext';
-import { sendOrderConfirmationEmail, formatOrderForEmail } from '@/lib/email';
+import { sendOrderConfirmation } from '@/actions/email';
 import { supabase, getOrCreateCustomer } from '@/lib/supabase';
 import { revalidateAccountPage } from '@/app/actions';
 import { validateCoupon } from '@/actions/coupons';
@@ -266,8 +266,8 @@ export default function CheckoutPage() {
                 totalPrice: item.price * item.quantity,
             }));
 
-            // Format and send order confirmation email
-            const emailData = formatOrderForEmail(
+            // Format and send order confirmation email via Server Action
+            sendOrderConfirmation(
                 {
                     order_number: newOrderNumber,
                     subtotal: subtotal,
@@ -279,13 +279,10 @@ export default function CheckoutPage() {
                 formData.email,
                 `${formData.firstName} ${formData.lastName}`,
                 shippingAddress,
-                formData.paymentMethod
-            );
-
-            // Send email (non-blocking - don't wait for result)
-            sendOrderConfirmationEmail(emailData).then((result) => {
+                total === 0 ? 'gift_card' : formData.paymentMethod
+            ).then((result) => {
                 if (!result.success) {
-                    console.warn('Email sending failed:', result.error);
+                    console.warn('Email sending failed:', result.message);
                 }
             });
 
@@ -294,8 +291,6 @@ export default function CheckoutPage() {
 
             // Award Loyalty Points
             if (user) {
-                // We import this dynamically or at top. best to add import.
-                // Assuming imported awardLoyaltyPoints from '@/actions/loyalty'
                 await awardLoyaltyPoints(total);
             }
 
@@ -694,6 +689,125 @@ export default function CheckoutPage() {
                                                         />
                                                         {errors.cardCvc && <p className="mt-1 text-sm text-rose-500">{errors.cardCvc}</p>}
                                                     </div>
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        {/* Mobile Wallets Section */}
+                                        <div className="pt-4 border-t border-gray-100">
+                                            <p className="text-xs text-gray-500 uppercase tracking-wider mb-3 font-medium">Mobile Wallets</p>
+                                        </div>
+
+                                        {/* JazzCash Option */}
+                                        <label className={`flex items-center p-4 border rounded-xl cursor-pointer transition-colors ${formData.paymentMethod === 'jazzcash' ? 'border-red-500 bg-red-50' : 'border-gray-200 hover:border-gray-400'
+                                            }`}>
+                                            <input
+                                                type="radio"
+                                                name="paymentMethod"
+                                                value="jazzcash"
+                                                checked={formData.paymentMethod === 'jazzcash'}
+                                                onChange={handleInputChange}
+                                                className="sr-only"
+                                            />
+                                            <div className={`w-5 h-5 rounded-full border-2 mr-4 flex items-center justify-center ${formData.paymentMethod === 'jazzcash' ? 'border-red-500' : 'border-gray-300'
+                                                }`}>
+                                                {formData.paymentMethod === 'jazzcash' && (
+                                                    <div className="w-2.5 h-2.5 rounded-full bg-red-500" />
+                                                )}
+                                            </div>
+                                            <div className="w-10 h-10 mr-3 bg-red-600 rounded-lg flex items-center justify-center">
+                                                <span className="text-white font-bold text-xs">JC</span>
+                                            </div>
+                                            <div className="flex-1">
+                                                <p className="font-medium text-gray-900">JazzCash</p>
+                                                <p className="text-sm text-gray-500">Pay via JazzCash mobile wallet</p>
+                                            </div>
+                                        </label>
+
+                                        {formData.paymentMethod === 'jazzcash' && (
+                                            <div className="mt-2 p-4 bg-red-50 rounded-xl border border-red-100">
+                                                <p className="text-sm text-red-800 font-medium mb-2">JazzCash Payment Instructions:</p>
+                                                <ol className="text-sm text-red-700 list-decimal list-inside space-y-1">
+                                                    <li>Send payment to: <span className="font-bold">0300-1234567</span></li>
+                                                    <li>Use order number as reference</li>
+                                                    <li>Send screenshot via WhatsApp</li>
+                                                </ol>
+                                            </div>
+                                        )}
+
+                                        {/* EasyPaisa Option */}
+                                        <label className={`flex items-center p-4 border rounded-xl cursor-pointer transition-colors ${formData.paymentMethod === 'easypaisa' ? 'border-green-500 bg-green-50' : 'border-gray-200 hover:border-gray-400'
+                                            }`}>
+                                            <input
+                                                type="radio"
+                                                name="paymentMethod"
+                                                value="easypaisa"
+                                                checked={formData.paymentMethod === 'easypaisa'}
+                                                onChange={handleInputChange}
+                                                className="sr-only"
+                                            />
+                                            <div className={`w-5 h-5 rounded-full border-2 mr-4 flex items-center justify-center ${formData.paymentMethod === 'easypaisa' ? 'border-green-500' : 'border-gray-300'
+                                                }`}>
+                                                {formData.paymentMethod === 'easypaisa' && (
+                                                    <div className="w-2.5 h-2.5 rounded-full bg-green-500" />
+                                                )}
+                                            </div>
+                                            <div className="w-10 h-10 mr-3 bg-green-600 rounded-lg flex items-center justify-center">
+                                                <span className="text-white font-bold text-xs">EP</span>
+                                            </div>
+                                            <div className="flex-1">
+                                                <p className="font-medium text-gray-900">EasyPaisa</p>
+                                                <p className="text-sm text-gray-500">Pay via EasyPaisa mobile wallet</p>
+                                            </div>
+                                        </label>
+
+                                        {formData.paymentMethod === 'easypaisa' && (
+                                            <div className="mt-2 p-4 bg-green-50 rounded-xl border border-green-100">
+                                                <p className="text-sm text-green-800 font-medium mb-2">EasyPaisa Payment Instructions:</p>
+                                                <ol className="text-sm text-green-700 list-decimal list-inside space-y-1">
+                                                    <li>Send payment to: <span className="font-bold">0345-1234567</span></li>
+                                                    <li>Use order number as reference</li>
+                                                    <li>Send screenshot via WhatsApp</li>
+                                                </ol>
+                                            </div>
+                                        )}
+
+                                        {/* Bank Transfer Option */}
+                                        <label className={`flex items-center p-4 border rounded-xl cursor-pointer transition-colors ${formData.paymentMethod === 'bank_transfer' ? 'border-slate-900 bg-slate-50' : 'border-gray-200 hover:border-gray-400'
+                                            }`}>
+                                            <input
+                                                type="radio"
+                                                name="paymentMethod"
+                                                value="bank_transfer"
+                                                checked={formData.paymentMethod === 'bank_transfer'}
+                                                onChange={handleInputChange}
+                                                className="sr-only"
+                                            />
+                                            <div className={`w-5 h-5 rounded-full border-2 mr-4 flex items-center justify-center ${formData.paymentMethod === 'bank_transfer' ? 'border-slate-900' : 'border-gray-300'
+                                                }`}>
+                                                {formData.paymentMethod === 'bank_transfer' && (
+                                                    <div className="w-2.5 h-2.5 rounded-full bg-slate-900" />
+                                                )}
+                                            </div>
+                                            <div className="w-10 h-10 mr-3 bg-slate-700 rounded-lg flex items-center justify-center">
+                                                <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+                                                </svg>
+                                            </div>
+                                            <div className="flex-1">
+                                                <p className="font-medium text-gray-900">Bank Transfer</p>
+                                                <p className="text-sm text-gray-500">Transfer to our bank account</p>
+                                            </div>
+                                        </label>
+
+                                        {formData.paymentMethod === 'bank_transfer' && (
+                                            <div className="mt-2 p-4 bg-slate-50 rounded-xl border border-slate-200">
+                                                <p className="text-sm text-slate-800 font-medium mb-2">Bank Account Details:</p>
+                                                <div className="text-sm text-slate-600 space-y-1">
+                                                    <p><span className="font-medium">Bank:</span> HBL</p>
+                                                    <p><span className="font-medium">Account Title:</span> Closet By Era</p>
+                                                    <p><span className="font-medium">Account No:</span> 1234567890123</p>
+                                                    <p><span className="font-medium">IBAN:</span> PK36HABB0001234567890123</p>
                                                 </div>
                                             </div>
                                         )}

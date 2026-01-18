@@ -1,12 +1,14 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 
-export default function LoginPage() {
+// Separate component using useSearchParams
+function LoginForm() {
     const router = useRouter();
+    const searchParams = useSearchParams();
     const { signIn } = useAuth();
 
     const [email, setEmail] = useState('');
@@ -14,6 +16,17 @@ export default function LoginPage() {
     const [showPassword, setShowPassword] = useState(false);
     const [error, setError] = useState('');
     const [isLoading, setIsLoading] = useState(false);
+
+    // Get the redirect destination from URL params
+    const redirectedFrom = searchParams.get('redirectedFrom');
+
+    // Show error if unauthorized redirect
+    useEffect(() => {
+        const urlError = searchParams.get('error');
+        if (urlError === 'unauthorized') {
+            setError('You do not have permission to access that page.');
+        }
+    }, [searchParams]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -28,7 +41,9 @@ export default function LoginPage() {
             return;
         }
 
-        router.push('/account');
+        // Redirect to original destination or default to /account
+        router.push(redirectedFrom || '/account');
+        router.refresh(); // Force refresh to update session state
     };
 
     return (
@@ -168,5 +183,17 @@ export default function LoginPage() {
                 </div>
             </div>
         </main>
+    );
+}
+
+export default function LoginPage() {
+    return (
+        <Suspense fallback={
+            <div className="min-h-screen bg-gradient-to-b from-slate-50/50 to-white flex items-center justify-center">
+                <div className="animate-spin w-8 h-8 border-2 border-gray-200 border-t-rose-600 rounded-full"></div>
+            </div>
+        }>
+            <LoginForm />
+        </Suspense>
     );
 }

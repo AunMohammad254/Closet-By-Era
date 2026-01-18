@@ -1,15 +1,9 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { createClient } from '@supabase/supabase-js';
+import { createClient } from '@/lib/supabase/client';
 import { Upload, X, Loader2, Image as ImageIcon, Link as LinkIcon, Check } from 'lucide-react';
 import Image from 'next/image';
-
-// Initialize Supabase client for client-side storage upload
-const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
 
 interface Props {
     defaultValue?: string;
@@ -39,6 +33,37 @@ export default function ImageUpload({ defaultValue, onUpload }: Props) {
         setUploading(true);
 
         try {
+            // Create a fresh browser client that includes auth cookies
+            const supabase = createClient();
+            
+            // Debug: Check if user is authenticated
+            const { data: { session } } = await supabase.auth.getSession();
+            console.log('Upload session check:', session?.user?.email || 'NOT AUTHENTICATED');
+            
+            if (!session) {
+                throw new Error('You must be logged in to upload images. Please log out and log back in.');
+            }
+
+            // Debug: Check customer role via RPC
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const { data: debugData, error: debugError } = await supabase.rpc('debug_storage_upload' as any);
+            console.log('Debug storage upload:', debugData, debugError);
+            
+            const debugArray = debugData as Array<{current_auth_uid: string; has_customer: boolean; customer_role: string}> | null;
+            if (debugArray && debugArray.length > 0) {
+                const info = debugArray[0];
+                console.log('Auth UID:', info.current_auth_uid);
+                console.log('Has customer record:', info.has_customer);
+                console.log('Customer role:', info.customer_role);
+                
+                if (!info.has_customer) {
+                    throw new Error('No customer record found for your account. Please contact support.');
+                }
+                if (info.customer_role !== 'admin') {
+                    throw new Error(`Your role is "${info.customer_role}". Only admins can upload images.`);
+                }
+            }
+
             const { error: uploadError } = await supabase.storage
                 .from('products')
                 .upload(filePath, file);
@@ -53,7 +78,7 @@ export default function ImageUpload({ defaultValue, onUpload }: Props) {
             onUpload(publicUrl);
         } catch (error) {
             console.error('Error uploading image:', error);
-            alert('Error uploading image. Please try again.');
+            alert(error instanceof Error ? error.message : 'Error uploading image. Please try again.');
         } finally {
             setUploading(false);
         }

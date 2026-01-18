@@ -184,7 +184,7 @@ function AccountPageContent() {
                     setOrders([]);
                     return;
                 }
-                
+
                 // Cast the response to OrderWithItems[] since we know the structure matches
                 // but Supabase types might imply arrays or nulls differently
                 setOrders(ordersData as unknown as OrderWithItems[]);
@@ -359,12 +359,12 @@ function AccountPageContent() {
                             <div className="bg-white rounded-2xl p-6 shadow-sm">
                                 {/* User Info */}
                                 <div className="flex items-center gap-4 mb-6 pb-6 border-b border-gray-100">
-                                    <div className="w-14 h-14 bg-gradient-to-br from-rose-400 to-rose-600 rounded-full flex items-center justify-center text-white text-xl font-bold">
+                                    <div className="w-14 h-14 flex-shrink-0 bg-gradient-to-br from-rose-400 to-rose-600 rounded-full flex items-center justify-center text-white text-xl font-bold">
                                         {getInitials()}
                                     </div>
-                                    <div>
-                                        <p className="font-semibold text-gray-900">{getDisplayName()}</p>
-                                        <p className="text-sm text-gray-500">{user.email}</p>
+                                    <div className="min-w-0 flex-1">
+                                        <p className="font-semibold text-gray-900 truncate" title={getDisplayName()}>{getDisplayName()}</p>
+                                        <p className="text-sm text-gray-500 truncate" title={user.email || ''}>{user.email}</p>
                                     </div>
                                 </div>
 

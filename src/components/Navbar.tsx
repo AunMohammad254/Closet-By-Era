@@ -13,6 +13,10 @@ const AIStylistModal = dynamic(() => import('./AIStylistModal'), {
     loading: () => null
 });
 
+const AIStylistTrigger = dynamic(() => import('./AIStylistTrigger'), {
+    ssr: false
+});
+
 export default function Navbar() {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const [isSearchOpen, setIsSearchOpen] = useState(false);
@@ -177,13 +181,7 @@ export default function Navbar() {
                 </div>
 
 
-                <button
-                    onClick={() => setIsStylistOpen(true)}
-                    className="fixed bottom-6 right-6 z-40 flex items-center gap-2 px-5 py-3 bg-gradient-to-r from-violet-600 to-indigo-600 text-white text-base font-medium rounded-full shadow-xl hover:shadow-2xl hover:scale-105 transition-all duration-300 group"
-                >
-                    <span className="text-xl group-hover:rotate-12 transition-transform">✨</span>
-                    <span>AI Stylist</span>
-                </button>
+                <AIStylistTrigger />
 
             </header>
             <AIStylistModal isOpen={isStylistOpen} onClose={() => setIsStylistOpen(false)} />

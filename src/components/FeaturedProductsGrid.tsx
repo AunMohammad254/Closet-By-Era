@@ -32,7 +32,7 @@ function FeaturedProductsGrid({ products }: FeaturedProductsGridProps) {
                     price={product.price}
                     originalPrice={product.originalPrice}
                     image={product.image}
-                    category={product.category}
+                    category={product.category || 'Collection'}
                     isNew={product.isNew}
                     isSale={product.isSale}
                 />

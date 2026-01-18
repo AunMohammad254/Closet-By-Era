@@ -5,7 +5,7 @@ import { revalidatePath } from 'next/cache';
 import { logger } from '@/lib/logger';
 import { checkRateLimit, RateLimits } from '@/lib/rate-limit';
 import { UpdateOrderStatusSchema, UpdatePaymentStatusSchema } from '@/lib/validations';
-import { generateStatusEmailHtml, sendEmail } from '@/lib/email';
+import { sendOrderStatusEmail } from '@/lib/nodemailer';
 
 export async function getRecentOrders(limit = 5) {
     const supabase = await createClient();
@@ -103,10 +103,11 @@ export async function updateOrderStatus(id: string, newStatus: string): Promise<
 
     // Send notification email (fire-and-forget)
     if (order?.customer?.email) {
-        sendEmail(
+        sendOrderStatusEmail(
             order.customer.email,
-            `Order Update - ${order.order_number}`,
-            generateStatusEmailHtml(order.customer.first_name || 'Customer', order.order_number, newStatus)
+            order.customer.first_name || 'Customer',
+            order.order_number,
+            newStatus
         ).catch(err => logger.error('Failed to send status email', err, { orderId: id }));
     }
 
