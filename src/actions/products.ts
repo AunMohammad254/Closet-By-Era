@@ -1,7 +1,7 @@
 'use server';
 
 import { createClient } from '@/lib/supabase/server';
-import { revalidatePath } from 'next/cache';
+import { revalidatePath, revalidateTag } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { ProductFormSchema } from '@/lib/validations';
 import { logger } from '@/lib/logger';
@@ -188,6 +188,9 @@ export async function createProduct(data: ProductFormData): Promise<{ success: b
 
     revalidatePath('/admin/products');
     revalidatePath('/dashboard/products');
+    revalidateTag('products', 'max'); // Invalidate all product caches
+    revalidateTag('featured-products', 'max');
+    revalidateTag('new-arrivals', 'max');
     return { success: true };
 }
 
@@ -224,6 +227,9 @@ export async function updateProduct(id: string, data: ProductFormData): Promise<
     revalidatePath('/dashboard/products');
     revalidatePath(`/admin/products/${id}`);
     revalidatePath(`/dashboard/products/${id}`);
+    revalidateTag('products', 'max');
+    revalidateTag('featured-products', 'max');
+    revalidateTag('new-arrivals', 'max');
     return { success: true };
 }
 
@@ -240,6 +246,9 @@ export async function deleteProduct(id: string): Promise<{ success: boolean; err
     }
 
     revalidatePath('/admin/products');
+    revalidateTag('products', 'max');
+    revalidateTag('featured-products', 'max');
+    revalidateTag('new-arrivals', 'max');
     return { success: true };
 }
 
