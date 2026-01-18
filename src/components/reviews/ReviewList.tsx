@@ -1,6 +1,7 @@
 'use client';
 
 import { Review } from '@/actions/reviews';
+import Image from 'next/image';
 import StarRating from './StarRating';
 
 interface ReviewListProps {
@@ -48,7 +49,13 @@ export default function ReviewList({ reviews }: ReviewListProps) {
                         <div className="flex gap-2 mt-3">
                             {review.images.map((img, idx) => (
                                 <div key={idx} className="relative w-16 h-16 rounded-lg overflow-hidden border border-gray-100">
-                                    <img src={img} alt="Review attachment" className="w-full h-full object-cover" />
+                                    <Image 
+                                      src={img} 
+                                      alt="Review attachment" 
+                                      fill
+                                      className="object-cover"
+                                      sizes="64px"
+                                    />
                                 </div>
                             ))}
                         </div>
