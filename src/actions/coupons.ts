@@ -3,6 +3,8 @@
 import { createClient } from '@/lib/supabase/server';
 import { revalidatePath } from 'next/cache';
 
+import { ActionResult } from '@/types/shared';
+
 export interface Coupon {
     id: string;
     code: string;
@@ -26,7 +28,7 @@ export type CouponFormData = Omit<Coupon, 'id' | 'usage_count' | 'created_at' | 
     usage_limit: number | null;
 };
 
-export async function createCoupon(data: CouponFormData) {
+export async function createCoupon(data: CouponFormData): Promise<ActionResult> {
     try {
         const supabase = await createClient();
         const { error } = await supabase
@@ -40,18 +42,18 @@ export async function createCoupon(data: CouponFormData) {
 
         if (error) {
             console.error('Create Coupon Error:', error);
-            if (error.code === '23505') return { error: 'Coupon code already exists.' };
-            return { error: 'Failed to create coupon.' };
+            if (error.code === '23505') return { success: false, error: 'Coupon code already exists.' };
+            return { success: false, error: 'Failed to create coupon.' };
         }
 
         revalidatePath('/dashboard/coupons');
         return { success: true };
     } catch (err) {
-        return { error: 'Unexpected error.' };
+        return { success: false, error: 'Unexpected error.' };
     }
 }
 
-export async function updateCoupon(id: string, data: Partial<CouponFormData>) {
+export async function updateCoupon(id: string, data: Partial<CouponFormData>): Promise<ActionResult> {
     try {
         const supabase = await createClient();
         const { error } = await supabase
@@ -66,17 +68,17 @@ export async function updateCoupon(id: string, data: Partial<CouponFormData>) {
 
         if (error) {
             console.error('Update Coupon Error:', error);
-            return { error: 'Failed to update coupon.' };
+            return { success: false, error: 'Failed to update coupon.' };
         }
 
         revalidatePath('/dashboard/coupons');
         return { success: true };
     } catch (err) {
-        return { error: 'Unexpected error.' };
+        return { success: false, error: 'Unexpected error.' };
     }
 }
 
-export async function deleteCoupon(id: string) {
+export async function deleteCoupon(id: string): Promise<ActionResult> {
     try {
         const supabase = await createClient();
         const { error } = await supabase
@@ -84,12 +86,12 @@ export async function deleteCoupon(id: string) {
             .delete()
             .eq('id', id);
 
-        if (error) return { error: 'Failed to delete coupon.' };
+        if (error) return { success: false, error: 'Failed to delete coupon.' };
 
         revalidatePath('/dashboard/coupons');
         return { success: true };
     } catch (err) {
-        return { error: 'Unexpected error.' };
+        return { success: false, error: 'Unexpected error.' };
     }
 }
 

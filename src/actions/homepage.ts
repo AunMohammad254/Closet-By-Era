@@ -1,6 +1,6 @@
 'use server';
 
-import { supabase } from '@/lib/supabase';
+import { createClient } from '@/lib/supabase/server';
 import { logger } from '@/lib/logger';
 import { unstable_cache } from 'next/cache';
 
@@ -33,6 +33,7 @@ interface RpcProductResult {
  */
 async function fetchFeaturedProductsInternal(limit: number): Promise<FeaturedProductData[]> {
     try {
+        const supabase = await createClient();
         // Use optimized RPC function for better performance
         // @ts-ignore - RPC function exists in DB but not in types yet
         const { data, error } = await supabase.rpc('get_featured_products_fast', {
@@ -85,6 +86,7 @@ export async function getFeaturedProducts(limit = 8): Promise<FeaturedProductDat
  */
 async function fetchNewArrivalsInternal(limit: number): Promise<FeaturedProductData[]> {
     try {
+        const supabase = await createClient();
         // Use optimized RPC function for better performance
         // @ts-ignore - RPC function exists in DB but not in types yet
         const { data, error } = await supabase.rpc('get_new_arrivals_fast', {

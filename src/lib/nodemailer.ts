@@ -17,7 +17,9 @@
  */
 
 import nodemailer from 'nodemailer';
-import { Order } from './supabase';
+import type { Order } from '@/types/database';
+import type { ShippingAddress } from '@/types/shared';
+export type { ShippingAddress };
 
 // SMTP Configuration from environment variables
 const smtpConfig = {
@@ -49,16 +51,7 @@ export interface OrderItem {
     totalPrice: number;
 }
 
-export interface ShippingAddress {
-    firstName: string;
-    lastName: string;
-    address: string;
-    apartment?: string;
-    city: string;
-    postalCode?: string;
-    country: string;
-    phone: string;
-}
+// ShippingAddress imported from shared types
 
 export interface OrderEmailData {
     orderNumber: string;

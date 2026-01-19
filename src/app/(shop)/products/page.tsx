@@ -1,4 +1,4 @@
-import { supabase } from '@/lib/supabase';
+import { createClient } from '@/lib/supabase/server';
 import ProductGrid, { ProductUI } from '@/components/ProductGrid';
 import ProductFilters from '@/components/shop/ProductFilters';
 import { getProducts } from '@/actions/products';
@@ -42,6 +42,7 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
     const params = await searchParams;
 
     // 1. Fetch Categories
+    const supabase = await createClient(); // Initialize server client
     const { data: categoriesData } = await supabase
         .from('categories')
         .select('name, slug')

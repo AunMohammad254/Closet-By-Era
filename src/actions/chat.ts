@@ -3,10 +3,6 @@
 import { createClient } from '@/lib/supabase/server';
 import { revalidatePath } from 'next/cache';
 
-// Type-safe wrapper for tables not yet in generated types
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const getSupabaseAny = async () => await createClient() as any;
-
 export interface Ticket {
     id: string;
     user_id: string;
@@ -26,7 +22,7 @@ export interface Message {
 }
 
 export async function createTicket(message: string) {
-    const supabase = await getSupabaseAny();
+    const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) throw new Error('Unauthorized');
@@ -59,7 +55,7 @@ export async function createTicket(message: string) {
 }
 
 export async function sendMessage(ticketId: string, message: string) {
-    const supabase = await getSupabaseAny();
+    const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) throw new Error('Unauthorized');
 
@@ -87,7 +83,7 @@ export async function sendMessage(ticketId: string, message: string) {
 }
 
 export async function getTickets() {
-    const supabase = await getSupabaseAny();
+    const supabase = await createClient();
     const { data: tickets, error } = await supabase
         .from('support_tickets')
         .select('*')
@@ -98,7 +94,7 @@ export async function getTickets() {
 }
 
 export async function getUserActiveTicket() {
-    const supabase = await getSupabaseAny();
+    const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return null;
 
@@ -113,7 +109,7 @@ export async function getUserActiveTicket() {
 }
 
 export async function getMessages(ticketId: string) {
-    const supabase = await getSupabaseAny();
+    const supabase = await createClient();
     const { data: messages, error } = await supabase
         .from('support_messages')
         .select('*')

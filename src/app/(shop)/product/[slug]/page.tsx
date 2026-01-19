@@ -2,6 +2,8 @@ import { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import ProductView, { ProductDetails } from '@/components/ProductView';
 import { createClient } from '@/lib/supabase/server';
+import type { Tables } from '@/types/supabase';
+import { RelatedProduct } from '@/components/product/RelatedProducts';
 
 // Helper to map colors
 const getColorHex = (name: string) => {
@@ -85,22 +87,23 @@ async function getProduct(slug: string) {
     return mapDBToProduct(data, data.category);
 }
 
-function mapDBToProduct(data: any, categoryData: any): ProductDetails {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function mapDBToProduct(data: Omit<Tables<'products'>, 'category'> & { category?: any }, categoryData: { name: string; slug: string } | null): ProductDetails {
     return {
         id: data.id,
         name: data.name,
         price: data.price,
-        originalPrice: data.original_price,
+        originalPrice: data.original_price ?? undefined,
         description: data.description || '',
-        shortDescription: data.short_description,
+        shortDescription: data.short_description ?? undefined,
         category: categoryData?.name || 'Uncategorized',
         categorySlug: categoryData?.slug || 'all',
         images: data.images || (data.image_url ? [data.image_url] : ['/products/placeholder.png']),
         sizes: data.sizes || [],
         colors: (data.colors || []).map((c: string) => ({ name: c, hex: getColorHex(c) })),
-        inStock: data.in_stock,
-        isNew: data.is_new,
-        isSale: data.is_sale,
+        inStock: data.in_stock ?? false,
+        isNew: data.is_new ?? false,
+        isSale: data.is_sale ?? false,
         features: [],
         sku: data.id.substring(0, 8).toUpperCase(),
     };
@@ -150,15 +153,15 @@ export default async function Page({ params }: { params: Promise<{ slug: string 
         getProductReviews(product.id)
     ]);
 
-    const relatedProducts = (relatedDataSimple.data || []).map((p: any) => ({
+    const relatedProducts: RelatedProduct[] = (relatedDataSimple.data || []).map((p: Tables<'products'>) => ({
         id: p.id,
         name: p.name,
         price: p.price,
-        originalPrice: p.original_price,
-        image: p.image_url || (p.images && p.images[0]),
+        originalPrice: p.original_price ?? undefined,
+        image: p.image_url || (p.images && p.images[0]) || '',
         category: 'View Details', // Placeholder
-        isNew: p.is_new,
-        isSale: p.is_sale,
+        isNew: p.is_new ?? false,
+        isSale: p.is_sale ?? false,
     }));
 
     return (

@@ -11,17 +11,17 @@ import { Review } from '@/actions/reviews';
 import ProductGallery from './product/ProductGallery';
 import ProductTabs from './product/ProductTabs';
 import AddToCartToast from './product/AddToCartToast';
-import RelatedProducts from './product/RelatedProducts';
+import RelatedProducts, { RelatedProduct } from './product/RelatedProducts';
 import ReviewList from './reviews/ReviewList';
 import ReviewForm from './reviews/ReviewForm';
 import SizeGuideModal from './product/SizeGuideModal';
 import RecentlyViewed from './product/RecentlyViewed';
-import AddToCompareButton from './product/AddToCompareButton';
+import ColorSelector, { ProductColor } from './product/ColorSelector';
+import SizeSelector from './product/SizeSelector';
+import QuantitySelector from './product/QuantitySelector';
+import ProductActions from './product/ProductActions';
 
-export interface ProductColor {
-    name: string;
-    hex: string;
-}
+export type { ProductColor };
 
 export interface ProductDetails {
     id: string;
@@ -44,7 +44,7 @@ export interface ProductDetails {
 
 interface ProductViewProps {
     product: ProductDetails;
-    relatedProducts: any[];
+    relatedProducts: RelatedProduct[];
     reviews?: Review[];
 }
 
@@ -172,104 +172,37 @@ export default function ProductView({ product, relatedProducts, reviews = [] }: 
                                 {/* Short Description */}
                                 <p className="mt-4 text-gray-600 leading-relaxed">{product.shortDescription}</p>
 
-                                {/* Color Selection */}
-                                {product.colors.length > 0 && (
-                                    <div className="mt-8">
-                                        <div className="flex items-center justify-between">
-                                            <span className="text-sm font-medium text-gray-900">Color: {selectedColor.name}</span>
-                                        </div>
-                                        <div className="mt-3 flex gap-3">
-                                            {product.colors.map((color) => (
-                                                <button
-                                                    key={color.name}
-                                                    onClick={() => setSelectedColor(color)}
-                                                    className={`w-10 h-10 rounded-full transition-all ${selectedColor.name === color.name ? 'ring-2 ring-offset-2 ring-slate-900' : ''
-                                                        }`}
-                                                    style={{ backgroundColor: color.hex }}
-                                                    title={color.name}
-                                                />
-                                            ))}
-                                        </div>
-                                    </div>
-                                )}
+                                <ColorSelector
+                                    colors={product.colors}
+                                    selectedColor={selectedColor}
+                                    onSelect={setSelectedColor}
+                                />
 
-                                {/* Size Selection */}
-                                {product.sizes.length > 0 && (
-                                    <div className="mt-8">
-                                        <div className="flex items-center justify-between">
-                                            <span className="text-sm font-medium text-gray-900">Size</span>
-                                            <button
-                                                onClick={() => setIsSizeGuideOpen(true)}
-                                                className="text-sm text-gray-500 underline hover:text-gray-900 transition-colors flex items-center gap-1"
-                                            >
-                                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 6l3 1m0 0l-3 9a5.002 5.002 0 006.001 0M6 7l3 9M6 7l6-2m6 2l3-1m-3 1l-3 9a5.002 5.002 0 006.001 0M18 7l3 9m-3-9l-6-2m0-2v2m0 16V5m0 16H9m3 0h3" />
-                                                </svg>
-                                                Size Guide
-                                            </button>
-                                        </div>
-                                        <div className="mt-3 flex flex-wrap gap-2">
-                                            {product.sizes.map((size) => (
-                                                <button
-                                                    key={size}
-                                                    onClick={() => setSelectedSize(size)}
-                                                    className={`px-4 py-2 text-sm font-medium rounded-lg border transition-all ${selectedSize === size
-                                                        ? 'border-slate-900 bg-slate-900 text-white'
-                                                        : 'border-gray-200 text-gray-700 hover:border-gray-400'
-                                                        }`}
-                                                >
-                                                    {size}
-                                                </button>
-                                            ))}
-                                        </div>
-                                    </div>
-                                )}
+                                <SizeSelector
+                                    sizes={product.sizes}
+                                    selectedSize={selectedSize}
+                                    onSelect={setSelectedSize}
+                                    onSizeGuideClick={() => setIsSizeGuideOpen(true)}
+                                />
 
-                                {/* Quantity */}
-                                <div className="mt-8">
-                                    <span className="text-sm font-medium text-gray-900">Quantity</span>
-                                    <div className="mt-3 flex items-center w-fit border border-gray-200 rounded-lg">
-                                        <button
-                                            onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                                            className="px-4 py-2 text-gray-600 hover:text-gray-900 transition-colors"
-                                        >
-                                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
-                                            </svg>
-                                        </button>
-                                        <span className="px-4 py-2 text-gray-900 font-medium">{quantity}</span>
-                                        <button
-                                            onClick={() => setQuantity(quantity + 1)}
-                                            className="px-4 py-2 text-gray-600 hover:text-gray-900 transition-colors"
-                                        >
-                                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                                            </svg>
-                                        </button>
-                                    </div>
-                                </div>
+                                <QuantitySelector
+                                    quantity={quantity}
+                                    setQuantity={setQuantity}
+                                />
 
-                                {/* Add to Cart Button */}
-                                <div className="mt-8 flex gap-4">
-                                    <button
-                                        onClick={handleAddToCart}
-                                        className="flex-1 py-4 bg-slate-900 text-white font-medium rounded-full hover:bg-slate-800 transition-colors"
-                                    >
-                                        Add to Cart — {formatPrice(product.price * quantity)}
-                                    </button>
-                                    <AddToCompareButton
-                                        product={{
-                                            id: product.id,
-                                            name: product.name,
-                                            price: product.price,
-                                            image: product.images[0],
-                                            category: product.category,
-                                            slug: product.categorySlug,
-                                        }}
-                                        iconOnly={true}
-                                        className="w-14 h-14 !rounded-full !bg-white !text-gray-600 !border !border-gray-200 hover:!bg-gray-50 flex-shrink-0"
-                                    />
-                                </div>
+                                <ProductActions
+                                    price={product.price}
+                                    quantity={quantity}
+                                    onAddToCart={handleAddToCart}
+                                    product={{
+                                        id: product.id,
+                                        name: product.name,
+                                        price: product.price,
+                                        image: product.images[0],
+                                        category: product.category,
+                                        slug: product.categorySlug,
+                                    }}
+                                />
 
                                 {/* Features Icons */}
                                 <div className="mt-8 grid grid-cols-3 gap-4 py-6 border-t border-gray-100">

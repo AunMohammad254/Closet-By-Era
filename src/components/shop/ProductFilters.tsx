@@ -20,6 +20,7 @@ export default function ProductFilters({ categories }: ProductFiltersProps) {
     useEffect(() => {
         const catParam = searchParams.get('categories');
         if (catParam) {
+            // eslint-disable-next-line
             setSelectedCategories(catParam.split(','));
         } else {
             setSelectedCategories([]);

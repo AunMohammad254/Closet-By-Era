@@ -1,7 +1,7 @@
 'use client';
 
 import { createContext, useContext, useState, useEffect, ReactNode, useCallback, useMemo } from 'react';
-import { supabase } from '@/lib/supabase';
+import { createClient } from '@/lib/supabase/client';
 import { useAuth } from './AuthContext';
 
 export interface WishlistItem {
@@ -26,6 +26,7 @@ interface WishlistContextType {
 const WishlistContext = createContext<WishlistContextType | undefined>(undefined);
 
 export function WishlistProvider({ children }: { children: ReactNode }) {
+    const supabase = createClient();
     const [items, setItems] = useState<WishlistItem[]>([]);
     const [isLoading, setIsLoading] = useState(false);
     const [isInitialized, setIsInitialized] = useState(false);
@@ -86,7 +87,7 @@ export function WishlistProvider({ children }: { children: ReactNode }) {
         } catch (error) {
             console.error('Error syncing wishlist to database:', error);
         }
-    }, [user]);
+    }, [user]); // eslint-disable-line react-hooks/exhaustive-deps
 
     // Fetch wishlist from database
     const syncWishlistFromDB = useCallback(async () => {
@@ -105,7 +106,7 @@ export function WishlistProvider({ children }: { children: ReactNode }) {
             }
 
             if (data && data.length > 0) {
-                const wishlistItems: WishlistItem[] = data.map((item: any) => ({
+                const wishlistItems: WishlistItem[] = data.map((item) => ({
                     id: item.product_id,
                     name: item.product_name || 'Unknown Product',
                     price: item.product_price || 0,
@@ -121,7 +122,7 @@ export function WishlistProvider({ children }: { children: ReactNode }) {
         } finally {
             setIsLoading(false);
         }
-    }, [user]);
+    }, [user]); // eslint-disable-line react-hooks/exhaustive-deps
 
     // Load from localStorage on mount (for guests and initial load)
     useEffect(() => {
@@ -158,7 +159,7 @@ export function WishlistProvider({ children }: { children: ReactNode }) {
                     const mergedWishlist: WishlistItem[] = [...localWishlist];
 
                     if (dbWishlistData && dbWishlistData.length > 0) {
-                        dbWishlistData.forEach((dbItem: any) => {
+                        dbWishlistData.forEach((dbItem) => {
                             const existingIndex = mergedWishlist.findIndex(
                                 item => item.id === dbItem.product_id
                             );
@@ -169,8 +170,8 @@ export function WishlistProvider({ children }: { children: ReactNode }) {
                                     id: dbItem.product_id,
                                     name: dbItem.product_name,
                                     price: dbItem.product_price,
-                                    image: dbItem.product_image,
-                                    category: dbItem.category,
+                                    image: dbItem.product_image || '',
+                                    category: dbItem.category || 'Uncategorized',
                                 });
                             }
                         });
@@ -234,7 +235,7 @@ export function WishlistProvider({ children }: { children: ReactNode }) {
                 console.error('Error clearing wishlist from database:', error);
             }
         }
-    }, [user]);
+    }, [user]); // eslint-disable-line react-hooks/exhaustive-deps
 
     const itemCount = items.length;
 

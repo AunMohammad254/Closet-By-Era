@@ -1,39 +1,28 @@
 'use server';
 
-import { Product } from '@/lib/supabase';
+import { createClient } from '@/lib/supabase/server';
+import type { Product } from '@/types/database';
 
 export interface StylistRecommendation {
     products: Product[];
     message: string;
 }
 
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-
 export async function getStylistRecommendations(prompt: string): Promise<StylistRecommendation> {
-    try {
-        // Call the AI Stylist Edge Function
-        const response = await fetch(
-            `${SUPABASE_URL}/functions/v1/ai-stylist`,
-            {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
-                },
-                body: JSON.stringify({ prompt }),
-            }
-        );
+    const supabase = await createClient();
 
-        if (!response.ok) {
-            console.error('AI Stylist Edge Function error:', response.statusText);
+    try {
+        const { data, error } = await supabase.functions.invoke('ai-stylist', {
+            body: { prompt }
+        });
+
+        if (error) {
+            console.error('AI Stylist Edge Function error:', error);
             return {
                 products: [],
                 message: "Sorry, I'm having trouble right now. Please try again! 😊"
             };
         }
-
-        const data = await response.json();
 
         return {
             products: data.products || [],

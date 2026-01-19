@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { getGiftCards, createGiftCard, deactivateGiftCard, GiftCard } from '@/actions/gift-cards';
 
 export default function GiftCardsPage() {
@@ -10,16 +10,16 @@ export default function GiftCardsPage() {
     const [newValue, setNewValue] = useState(1000);
     const [newCode, setNewCode] = useState('');
 
-    const fetchCards = async () => {
+    const fetchCards = useCallback(async () => {
         setLoading(true);
         const data = await getGiftCards();
         setCards(data);
         setLoading(false);
-    };
+    }, []);
 
     useEffect(() => {
         fetchCards();
-    }, []);
+    }, [fetchCards]);
 
     const handleCreate = async () => {
         if (!newValue) return;
@@ -120,8 +120,8 @@ export default function GiftCardsPage() {
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap">
                                         <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${card.is_active && (card.balance > 0)
-                                                ? 'bg-emerald-100 text-emerald-800'
-                                                : 'bg-gray-100 text-gray-800'
+                                            ? 'bg-emerald-100 text-emerald-800'
+                                            : 'bg-gray-100 text-gray-800'
                                             }`}>
                                             {card.is_active && (card.balance > 0) ? 'Active' : 'Inactive'}
                                         </span>

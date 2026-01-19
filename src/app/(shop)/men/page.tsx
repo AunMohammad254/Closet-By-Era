@@ -3,9 +3,9 @@
 import { useState, useMemo, useEffect } from 'react';
 import ProductCard from '@/components/ProductCard';
 import CustomDropdown from '@/components/CustomDropdown';
-import { supabase } from '@/lib/supabase';
+import { createClient } from '@/lib/supabase/client';
 
-interface Product {
+interface ProductUI {
     id: string;
     name: string;
     slug: string;
@@ -27,7 +27,7 @@ const sortOptions = ['Newest', 'Price: Low to High', 'Price: High to Low', 'Best
 export default function MenPage() {
     const [selectedCategory, setSelectedCategory] = useState<string>('All');
     const [sortOption, setSortOption] = useState('Newest');
-    const [products, setProducts] = useState<Product[]>([]);
+    const [products, setProducts] = useState<ProductUI[]>([]);
     const [categories, setCategories] = useState<string[]>(['All']);
     const [loading, setLoading] = useState(true);
 
@@ -36,6 +36,7 @@ export default function MenPage() {
             setLoading(true);
             try {
                 // Fetch Categories
+                const supabase = createClient();
                 const { data: categoriesData } = await supabase
                     .from('categories')
                     .select('name')
@@ -60,22 +61,22 @@ export default function MenPage() {
                 if (error) throw error;
 
                 if (productsData) {
-                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                    const mappedProducts: Product[] = productsData.map((p: any) => ({
+                    const mappedProducts: ProductUI[] = productsData.map((p) => ({
                         id: p.id,
                         name: p.name,
                         price: p.price,
-                        originalPrice: p.original_price,
+                        originalPrice: p.original_price || undefined,
                         image: p.image_url || (p.images && p.images[0]) || '/products/placeholder.png',
+                        // @ts-ignore - Supabase join types
                         category: p.categories?.name || 'Uncategorized',
-                        isNew: p.is_new,
-                        isSale: p.is_sale,
+                        isNew: p.is_new || false,
+                        isSale: p.is_sale || false,
                         createdAt: new Date(p.created_at),
-                        slug: p.slug,
-                        description: p.description,
-                        category_id: p.category_id,
-                        in_stock: p.in_stock,
-                        is_featured: p.is_featured
+                        slug: p.slug || '',
+                        description: p.description || '',
+                        category_id: p.category_id || '',
+                        in_stock: p.in_stock || false,
+                        is_featured: p.is_featured || false
                     }));
                     setProducts(mappedProducts);
                 }

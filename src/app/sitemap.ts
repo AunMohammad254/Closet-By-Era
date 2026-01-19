@@ -1,7 +1,8 @@
 import { MetadataRoute } from 'next';
-import { supabase } from '@/lib/supabase';
+import { createClient } from '@/lib/supabase/server';
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
+    const supabase = await createClient();
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://closetbyera.com';
 
     // Static routes

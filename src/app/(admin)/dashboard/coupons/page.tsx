@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Coupon, getCoupons, deleteCoupon } from '@/actions/coupons';
 import CouponForm from '@/components/admin/CouponForm';
 
@@ -10,16 +10,16 @@ export default function CouponsPage() {
     const [editingCoupon, setEditingCoupon] = useState<Coupon | undefined>(undefined);
     const [isLoading, setIsLoading] = useState(true);
 
-    const fetchCoupons = async () => {
+    const fetchCoupons = useCallback(async () => {
         setIsLoading(true);
         const data = await getCoupons();
         setCoupons(data);
         setIsLoading(false);
-    };
+    }, []);
 
     useEffect(() => {
         fetchCoupons();
-    }, [isFormOpen]); // Refresh when form closes
+    }, [fetchCoupons, isFormOpen]);
 
     const handleDelete = async (id: string) => {
         if (confirm('Are you sure you want to delete this coupon?')) {

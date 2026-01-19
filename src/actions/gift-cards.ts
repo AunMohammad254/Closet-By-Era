@@ -3,9 +3,11 @@
 import { createClient } from '@/lib/supabase/server';
 import { revalidatePath } from 'next/cache';
 
-// Type-safe wrapper for tables not yet in generated types
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const getSupabaseAny = async () => await createClient() as any;
+import { ActionResult } from '@/types/shared';
+import type { Database } from '@/types/supabase';
+
+// Helper to get typed client
+const getSupabase = async () => await createClient();
 
 export type GiftCard = {
     id: string;
@@ -27,19 +29,19 @@ export type ValidationResult = {
 };
 
 export async function getGiftCards() {
-    const supabase = await getSupabaseAny();
+    const supabase = await getSupabase();
 
     // Check if admin
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return [];
 
-    const { data: profile } = await supabase
-        .from('profiles')
+    const { data: customer } = await supabase
+        .from('customers')
         .select('role')
-        .eq('id', user.id)
+        .eq('auth_id', user.id)
         .single();
 
-    if (profile?.role !== 'admin') return [];
+    if (customer?.role !== 'admin') return [];
 
     const { data, error } = await supabase
         .from('gift_cards')
@@ -54,24 +56,25 @@ export async function getGiftCards() {
     return data as GiftCard[];
 }
 
+
 export async function createGiftCard(data: {
     code?: string;
     initial_value: number;
     expires_at?: string;
-}) {
-    const supabase = await getSupabaseAny();
+}): Promise<ActionResult> {
+    const supabase = await getSupabase();
 
     // Check if admin
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return { success: false, error: 'Unauthorized' };
 
-    const { data: profile } = await supabase
-        .from('profiles')
+    const { data: customer } = await supabase
+        .from('customers')
         .select('role')
-        .eq('id', user.id)
+        .eq('auth_id', user.id)
         .single();
 
-    if (profile?.role !== 'admin') return { success: false, error: 'Unauthorized' };
+    if (customer?.role !== 'admin') return { success: false, error: 'Unauthorized' };
 
     const code = data.code || generateCode();
 
@@ -94,11 +97,10 @@ export async function createGiftCard(data: {
 }
 
 export async function validateGiftCard(code: string): Promise<ValidationResult> {
-    const supabase = await getSupabaseAny();
+    const supabase = await getSupabase();
 
-    // Type assertion needed until types are regenerated
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data, error } = await (supabase.rpc as any)('validate_gift_card', {
+    // @ts-ignore - RPC not in types yet
+    const { data, error } = await supabase.rpc('validate_gift_card', {
         code_input: code
     });
 
@@ -110,19 +112,19 @@ export async function validateGiftCard(code: string): Promise<ValidationResult> 
     return data as ValidationResult;
 }
 
-export async function deactivateGiftCard(id: string) {
-    const supabase = await getSupabaseAny();
+export async function deactivateGiftCard(id: string): Promise<ActionResult> {
+    const supabase = await getSupabase();
 
     // Check admin
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return { success: false, error: 'Unauthorized' };
-    const { data: profile } = await supabase
-        .from('profiles')
+    const { data: customer } = await supabase
+        .from('customers')
         .select('role')
-        .eq('id', user.id)
+        .eq('auth_id', user.id)
         .single();
 
-    if (profile?.role !== 'admin') return { success: false, error: 'Unauthorized' };
+    if (customer?.role !== 'admin') return { success: false, error: 'Unauthorized' };
 
     const { error } = await supabase
         .from('gift_cards')
@@ -135,8 +137,8 @@ export async function deactivateGiftCard(id: string) {
     return { success: true };
 }
 
-export async function redeemGiftCard(code: string, amount: number, orderId: string) {
-    const supabase = await getSupabaseAny();
+export async function redeemGiftCard(code: string, amount: number, orderId: string): Promise<ActionResult> {
+    const supabase = await getSupabase();
 
     // 1. Get Card (Securely)
     // We use RPC or direct query. Since we have headers/cookies, we can't trust client-provided balance.

@@ -1,6 +1,6 @@
 'use client';
 
-import { useCurrency } from '@/context/CurrencyContext';
+import { useCurrency, CurrencyCode } from '@/context/CurrencyContext';
 import { Fragment } from 'react';
 import { Menu, Transition } from '@headlessui/react';
 
@@ -40,7 +40,7 @@ export default function CurrencySwitcher() {
                             <Menu.Item key={c.code}>
                                 {({ active }) => (
                                     <button
-                                        onClick={() => setCurrency(c.code as any)}
+                                        onClick={() => setCurrency(c.code as CurrencyCode)}
                                         className={`${active ? 'bg-gray-100 text-gray-900' : 'text-gray-700'
                                             } group flex w-full items-center rounded-md px-2 py-2 text-sm ${currency === c.code ? 'bg-slate-50 font-bold' : ''
                                             }`}

@@ -6,6 +6,7 @@ import { logger } from '@/lib/logger';
 import { checkRateLimit, RateLimits } from '@/lib/rate-limit';
 import { UpdateOrderStatusSchema, UpdatePaymentStatusSchema } from '@/lib/validations';
 import { sendOrderStatusEmail } from '@/lib/nodemailer';
+import { ActionResult } from '@/types/shared';
 
 export async function getRecentOrders(limit = 5) {
     const supabase = await createClient();
@@ -70,7 +71,7 @@ export async function getOrderById(id: string) {
     return data;
 }
 
-export async function updateOrderStatus(id: string, newStatus: string): Promise<{ success: boolean; error?: string }> {
+export async function updateOrderStatus(id: string, newStatus: string): Promise<ActionResult> {
     // Rate limiting (use 'admin' as identifier for now - in production use actual user ID)
     const rateCheck = await checkRateLimit('admin-user', 'updateOrderStatus', RateLimits.mutation);
     if (!rateCheck.allowed) {
@@ -116,7 +117,7 @@ export async function updateOrderStatus(id: string, newStatus: string): Promise<
     return { success: true };
 }
 
-export async function updatePaymentStatus(id: string, newStatus: string): Promise<{ success: boolean; error?: string }> {
+export async function updatePaymentStatus(id: string, newStatus: string): Promise<ActionResult> {
     // Rate limiting
     const rateCheck = await checkRateLimit('admin-user', 'updatePaymentStatus', RateLimits.mutation);
     if (!rateCheck.allowed) {

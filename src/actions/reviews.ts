@@ -3,6 +3,9 @@
 import { createClient } from '@/lib/supabase/server';
 import { revalidatePath } from 'next/cache';
 
+import { ActionResult } from '@/types/shared';
+import type { Database, Tables } from '@/types/supabase';
+
 export interface Review {
     id: string;
     product_id: string;
@@ -18,13 +21,13 @@ export interface Review {
     }
 }
 
-export async function submitReview(productId: string, rating: number, comment: string, images: string[] = []) {
+export async function submitReview(productId: string, rating: number, comment: string, images: string[] = []): Promise<ActionResult> {
     try {
         const supabase = await createClient();
         const { data: { user } } = await supabase.auth.getUser();
 
         if (!user) {
-            return { error: "You must be logged in to submit a review." };
+            return { success: false, error: "You must be logged in to submit a review." };
         }
 
         const { error } = await supabase
@@ -34,19 +37,19 @@ export async function submitReview(productId: string, rating: number, comment: s
                 user_id: user.id,
                 rating,
                 comment,
-                images, // Save images
+                images,
             });
 
         if (error) {
             console.error("Submit Review Error:", error);
-            return { error: "Failed to submit review. Please try again." };
+            return { success: false, error: "Failed to submit review. Please try again." };
         }
 
         revalidatePath(`/product/[slug]`);
-        return { success: true };
+        return { success: true, message: "Review submitted successfully!" };
     } catch (err) {
         console.error("Submit Review Exception:", err);
-        return { error: "An unexpected error occurred." };
+        return { success: false, error: "An unexpected error occurred." };
     }
 }
 
@@ -65,9 +68,16 @@ export async function getProductReviews(productId: string): Promise<Review[]> {
         return [];
     }
 
-    return (reviews as any[])?.map(r => ({
-        ...r,
-        images: r.images || [], // Ensure images array exists
-        user: r.user || { first_name: 'Verified', last_name: 'User' }
-    })) || [];
+    if (!reviews) return [];
+
+    return reviews.map((r: Tables<'reviews'>) => ({
+        id: r.id,
+        product_id: r.product_id || '',
+        user_id: r.customer_id || '',
+        rating: r.rating,
+        comment: r.comment || '',
+        created_at: r.created_at || new Date().toISOString(),
+        images: r.images || [],
+        user: { first_name: 'Verified', last_name: 'User' }
+    }));
 }

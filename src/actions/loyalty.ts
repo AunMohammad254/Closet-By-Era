@@ -2,10 +2,6 @@
 
 import { createClient } from '@/lib/supabase/server';
 
-// Type-safe wrapper for tables not yet in generated types
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const getSupabaseAny = async () => await createClient() as any;
-
 export interface LoyaltyHistory {
     id: string;
     points: number;
@@ -14,7 +10,7 @@ export interface LoyaltyHistory {
 }
 
 export async function getLoyaltyBalance() {
-    const supabase = await getSupabaseAny();
+    const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) return 0;
@@ -29,7 +25,7 @@ export async function getLoyaltyBalance() {
 }
 
 export async function getLoyaltyHistory() {
-    const supabase = await getSupabaseAny();
+    const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) return [];
@@ -44,7 +40,7 @@ export async function getLoyaltyHistory() {
 }
 
 export async function awardLoyaltyPoints(total: number) {
-    const supabase = await getSupabaseAny();
+    const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) return;
@@ -79,6 +75,6 @@ export async function awardLoyaltyPoints(total: number) {
         .insert({
             user_id: user.id,
             points: pointsEarned,
-            reason: `Earned from purchase (Order)` // Ideally we'd link the Order ID, but for now generic is fine or we pass Order ID
+            reason: `Earned from purchase (Order)`
         });
 }

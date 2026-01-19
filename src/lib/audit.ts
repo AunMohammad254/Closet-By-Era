@@ -1,10 +1,11 @@
 import { createClient } from '@/lib/supabase/server';
+import { Json } from '@/types/supabase';
 
 interface AuditLogParams {
     action: string;
     entity: string;
     entityId?: string;
-    details?: Record<string, any>;
+    details?: Json;
 }
 
 export async function logAdminAction({ action, entity, entityId, details }: AuditLogParams) {

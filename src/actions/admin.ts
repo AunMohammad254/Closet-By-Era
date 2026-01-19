@@ -1,8 +1,9 @@
 'use server';
 
-import { createClient } from '@/lib/supabase/server'; // Assumes this existing utility creates a server client
+import { createClient } from '@/lib/supabase/server';
+import { ActionResult } from '@/types/shared';
 
-export async function getAdminCustomers() {
+export async function getAdminCustomers(): Promise<ActionResult<any[]>> {
     const supabase = await createClient();
 
     try {
@@ -32,8 +33,9 @@ export async function getAdminCustomers() {
         }
 
         return { success: true, data };
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error('Server action error:', error);
-        return { success: false, error: error.message };
+        const message = error instanceof Error ? error.message : 'An unexpected error occurred';
+        return { success: false, error: message };
     }
 }

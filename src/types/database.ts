@@ -1,60 +1,33 @@
-// ============================================================================
-// Database Types for Admin Dashboard
-// Generated from schema.sql enums and tables
-// ============================================================================
+import { Database } from './supabase';
 
 // ============================================================================
 // Enums
 // ============================================================================
 
-export type OrderStatus = 'pending' | 'packed' | 'shipping' | 'delivered' | 'cancelled';
-
-export type PaymentStatus = 'pending' | 'paid' | 'failed' | 'refunded';
-
-export type PaymentMethod = 'cod' | 'bank_transfer' | 'card';
+export type OrderStatus = Database["public"]["Enums"]["order_status"];
+export type PaymentStatus = Database["public"]["Enums"]["payment_status"];
+export type PaymentMethod = Database["public"]["Enums"]["payment_method"];
 
 // ============================================================================
-// Database Row Types
+// Database Row Types (Derived from Supabase)
 // ============================================================================
 
-export interface Product {
-    id: string;
-    created_at: string;
-    name: string;
-    description: string | null;
-    price: number;
-    stock: number;
-    category: string;
-    images: string[];
-    is_active: boolean;
-}
-
-export interface Order {
-    id: string;
-    created_at: string;
-    customer_name: string;
-    customer_email: string;
-    shipping_address: string;
-    total_amount: number;
-    status: OrderStatus;
-    payment_status: PaymentStatus;
-    payment_method: PaymentMethod;
-}
-
-export interface OrderItem {
-    id: string;
-    order_id: string;
-    product_id: string;
-    quantity: number;
-    price_at_purchase: number;
-}
+export type Product = Database['public']['Tables']['products']['Row'];
+export type Order = Database['public']['Tables']['orders']['Row'];
+export type OrderItem = Database['public']['Tables']['order_items']['Row'];
+export type Customer = Database['public']['Tables']['customers']['Row'];
+export type Category = Database['public']['Tables']['categories']['Row'];
+export type Review = Database['public']['Tables']['reviews']['Row'];
+export type WishlistItem = Database['public']['Tables']['wishlist_items']['Row'];
+export type CartItem = Database['public']['Tables']['cart_items']['Row'];
+export type Address = Database['public']['Tables']['addresses']['Row'];
 
 // ============================================================================
 // Extended Types (with relations)
 // ============================================================================
 
 export interface OrderWithItems extends Order {
-    order_items: (OrderItem & { product?: Product })[];
+    order_items: (OrderItem & { product: Product | null })[];
 }
 
 // ============================================================================
@@ -85,7 +58,7 @@ export interface CreateOrderData {
 }
 
 // ============================================================================
-// Server Action Response Types (Discriminated Union)
+// Server Action Response Types
 // ============================================================================
 
 export type ActionResponse<T = void> =
@@ -93,7 +66,7 @@ export type ActionResponse<T = void> =
     | { success: false; error: string };
 
 // ============================================================================
-// UI Helper Types
+// UI Helper Types & Constants
 // ============================================================================
 
 export const ORDER_STATUS_COLORS: Record<OrderStatus, { bg: string; text: string }> = {

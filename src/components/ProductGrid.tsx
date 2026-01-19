@@ -1,7 +1,7 @@
 'use client';
 
 import ProductCard from '@/components/ProductCard';
-import { Product } from '@/lib/supabase';
+import type { Product } from '@/types/database';
 
 // Extended product interface for UI logic
 export interface ProductUI extends Product {

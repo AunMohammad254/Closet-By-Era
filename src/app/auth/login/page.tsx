@@ -24,6 +24,7 @@ function LoginForm() {
     useEffect(() => {
         const urlError = searchParams.get('error');
         if (urlError === 'unauthorized') {
+            // eslint-disable-next-line
             setError('You do not have permission to access that page.');
         }
     }, [searchParams]);

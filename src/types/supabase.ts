@@ -797,6 +797,105 @@ export type Database = {
           },
         ]
       }
+      profiles: {
+        Row: {
+          id: string
+          role: string | null
+          loyalty_points: number | null
+          created_at: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          id: string
+          role?: string | null
+          loyalty_points?: number | null
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          id?: string
+          role?: string | null
+          loyalty_points?: number | null
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      loyalty_history: {
+        Row: {
+          id: string
+          user_id: string
+          points: number
+          reason: string
+          created_at: string | null
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          points: number
+          reason: string
+          created_at?: string | null
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          points?: number
+          reason?: string
+          created_at?: string | null
+        }
+        Relationships: []
+      }
+      support_tickets: {
+        Row: {
+          id: string
+          user_id: string
+          status: string
+          created_at: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          status?: string
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          status?: string
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      support_messages: {
+        Row: {
+          id: string
+          ticket_id: string
+          sender_id: string
+          message: string
+          is_admin_reply: boolean
+          created_at: string | null
+        }
+        Insert: {
+          id?: string
+          ticket_id: string
+          sender_id: string
+          message: string
+          is_admin_reply?: boolean
+          created_at?: string | null
+        }
+        Update: {
+          id?: string
+          ticket_id?: string
+          sender_id?: string
+          message?: string
+          is_admin_reply?: boolean
+          created_at?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

@@ -48,3 +48,9 @@ docs/
 
 #errors
 errors/
+
+# Temporary/generated files
+*.log
+build-*.txt
+lint_*.txt
+scripts/

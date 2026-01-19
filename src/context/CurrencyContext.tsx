@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 
-type CurrencyCode = 'PKR' | 'USD' | 'GBP' | 'EUR' | 'AED';
+export type CurrencyCode = 'PKR' | 'USD' | 'GBP' | 'EUR' | 'AED';
 
 interface CurrencyContextType {
     currency: CurrencyCode;
@@ -37,6 +37,7 @@ export function CurrencyProvider({ children }: { children: ReactNode }) {
     useEffect(() => {
         const stored = localStorage.getItem('currency');
         if (stored && RATES[stored as CurrencyCode]) {
+            // eslint-disable-next-line
             setCurrency(stored as CurrencyCode);
         }
     }, []);

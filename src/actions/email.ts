@@ -22,8 +22,6 @@ export async function sendOrderConfirmation(
     paymentMethod: string
 ) {
     try {
-        console.log('📧 Attempting to send order confirmation email to:', customerEmail); // Debug log
-
         // 1. Verify connection
         const isConnected = await verifyEmailConnection();
         if (!isConnected) {
@@ -44,11 +42,7 @@ export async function sendOrderConfirmation(
         // 3. Send email
         const result = await sendNodemailerConfirm(emailData);
 
-        if (result.success) {
-            console.log('✅ Order confirmation sent successfully:', result.messageId);
-        } else {
-            console.error('❌ Failed to send order confirmation:', result.error);
-        }
+        // Result is logged at the nodemailer level
 
         return result;
     } catch (error) {

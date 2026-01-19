@@ -5,7 +5,9 @@ import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
 import OrderTracking from '@/components/OrderTracking';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { supabase, Order, OrderItem, Customer, getCustomerByAuthId } from '@/lib/supabase';
+import { createClient } from '@/lib/supabase/client';
+import type { Order, OrderItem, Customer } from '@/types/database';
+import { getCustomerByAuthId } from '@/actions/customer';
 import { getLoyaltyBalance, getLoyaltyHistory, LoyaltyHistory } from '@/actions/loyalty';
 
 type AccountTab = 'profile' | 'orders' | 'addresses' | 'wishlist' | 'loyalty';
@@ -33,6 +35,7 @@ interface Address {
 
 function AccountPageContent() {
     const { user, signOut, loading } = useAuth();
+    const supabase = createClient();
     const router = useRouter();
     const searchParams = useSearchParams();
 

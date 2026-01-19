@@ -35,27 +35,20 @@ export default function ImageUpload({ defaultValue, onUpload }: Props) {
         try {
             // Create a fresh browser client that includes auth cookies
             const supabase = createClient();
-            
-            // Debug: Check if user is authenticated
+
             const { data: { session } } = await supabase.auth.getSession();
-            console.log('Upload session check:', session?.user?.email || 'NOT AUTHENTICATED');
-            
             if (!session) {
                 throw new Error('You must be logged in to upload images. Please log out and log back in.');
             }
 
-            // Debug: Check customer role via RPC
+            // Check customer role via RPC
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const { data: debugData, error: debugError } = await supabase.rpc('debug_storage_upload' as any);
-            console.log('Debug storage upload:', debugData, debugError);
-            
-            const debugArray = debugData as Array<{current_auth_uid: string; has_customer: boolean; customer_role: string}> | null;
+            const { data: debugData } = await supabase.rpc('debug_storage_upload' as any);
+
+            const debugArray = debugData as Array<{ current_auth_uid: string; has_customer: boolean; customer_role: string }> | null;
             if (debugArray && debugArray.length > 0) {
                 const info = debugArray[0];
-                console.log('Auth UID:', info.current_auth_uid);
-                console.log('Has customer record:', info.has_customer);
-                console.log('Customer role:', info.customer_role);
-                
+
                 if (!info.has_customer) {
                     throw new Error('No customer record found for your account. Please contact support.');
                 }

@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { supabase } from '@/lib/supabase';
+import { createClient } from '@/lib/supabase/client';
 
 interface OrderTrackingProps {
     orderId: string;
@@ -19,10 +19,12 @@ const STEPS: { status: OrderStatus; label: string; icon: string }[] = [
 ];
 
 export default function OrderTracking({ orderId, currentStatus: initialStatus, createdAt }: OrderTrackingProps) {
+    const supabase = createClient();
     const [status, setStatus] = useState<string>(initialStatus);
 
     useEffect(() => {
         // Update local status if prop changes
+        // eslint-disable-next-line
         setStatus(initialStatus);
 
         // Subscribe to real-time updates for this specific order

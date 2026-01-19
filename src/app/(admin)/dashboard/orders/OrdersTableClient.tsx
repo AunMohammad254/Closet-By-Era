@@ -6,148 +6,148 @@ import type { Order, OrderStatus, PaymentStatus } from '@/types/database';
 import { ORDER_STATUS_COLORS, PAYMENT_STATUS_COLORS, PAYMENT_METHOD_LABELS } from '@/types/database';
 
 interface OrdersTableClientProps {
-    initialOrders: Order[];
+  initialOrders: Order[];
 }
 
 const ORDER_STATUSES: OrderStatus[] = ['pending', 'packed', 'shipping', 'delivered', 'cancelled'];
 const PAYMENT_STATUSES: PaymentStatus[] = ['pending', 'paid', 'failed', 'refunded'];
 
 export default function OrdersTableClient({ initialOrders }: OrdersTableClientProps) {
-    const [orders, setOrders] = useState(initialOrders);
-    const [isPending, startTransition] = useTransition();
-    const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [orders, setOrders] = useState(initialOrders);
+  const [isPending, startTransition] = useTransition();
+  const [updatingId, setUpdatingId] = useState<string | null>(null);
 
-    const handleStatusChange = async (orderId: string, newStatus: OrderStatus) => {
-        setUpdatingId(orderId);
-        startTransition(async () => {
-            const result = await updateOrderStatus(orderId, newStatus);
-            if (result.success) {
-                setOrders(prev =>
-                    prev.map(o => (o.id === orderId ? { ...o, status: newStatus } : o))
-                );
-            } else {
-                alert(result.error);
-            }
-            setUpdatingId(null);
-        });
-    };
+  const handleStatusChange = async (orderId: string, newStatus: OrderStatus) => {
+    setUpdatingId(orderId);
+    startTransition(async () => {
+      const result = await updateOrderStatus(orderId, newStatus);
+      if (result.success) {
+        setOrders(prev =>
+          prev.map(o => (o.id === orderId ? { ...o, status: newStatus } : o))
+        );
+      } else {
+        alert(result.error);
+      }
+      setUpdatingId(null);
+    });
+  };
 
-    const handlePaymentStatusChange = async (orderId: string, newStatus: PaymentStatus) => {
-        setUpdatingId(orderId);
-        startTransition(async () => {
-            const result = await updatePaymentStatus(orderId, newStatus);
-            if (result.success) {
-                setOrders(prev =>
-                    prev.map(o => (o.id === orderId ? { ...o, payment_status: newStatus } : o))
-                );
-            } else {
-                alert(result.error);
-            }
-            setUpdatingId(null);
-        });
-    };
+  const handlePaymentStatusChange = async (orderId: string, newStatus: PaymentStatus) => {
+    setUpdatingId(orderId);
+    startTransition(async () => {
+      const result = await updatePaymentStatus(orderId, newStatus);
+      if (result.success) {
+        setOrders(prev =>
+          prev.map(o => (o.id === orderId ? { ...o, payment_status: newStatus } : o))
+        );
+      } else {
+        alert(result.error);
+      }
+      setUpdatingId(null);
+    });
+  };
 
-    const formatPrice = (price: number) => {
-        return new Intl.NumberFormat('en-US', {
-            style: 'currency',
-            currency: 'USD',
-        }).format(price);
-    };
+  const formatPrice = (price: number) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+    }).format(price);
+  };
 
-    const formatDate = (dateString: string) => {
-        return new Intl.DateTimeFormat('en-US', {
-            month: 'short',
-            day: 'numeric',
-            year: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit',
-        }).format(new Date(dateString));
-    };
+  const formatDate = (dateString: string) => {
+    return new Intl.DateTimeFormat('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    }).format(new Date(dateString));
+  };
 
-    return (
-        <>
-            <div className="table-container">
-                <table className="orders-table">
-                    <thead>
-                        <tr>
-                            <th>Order</th>
-                            <th>Customer</th>
-                            <th>Total</th>
-                            <th>Payment</th>
-                            <th>Order Status</th>
-                            <th>Date</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {orders.map((order) => {
-                            const statusColors = ORDER_STATUS_COLORS[order.status];
-                            const paymentColors = PAYMENT_STATUS_COLORS[order.payment_status];
-                            const isUpdating = updatingId === order.id;
+  return (
+    <>
+      <div className="table-container">
+        <table className="orders-table">
+          <thead>
+            <tr>
+              <th>Order</th>
+              <th>Customer</th>
+              <th>Total</th>
+              <th>Payment</th>
+              <th>Order Status</th>
+              <th>Date</th>
+            </tr>
+          </thead>
+          <tbody>
+            {orders.map((order) => {
+              const statusColors = ORDER_STATUS_COLORS[order.status];
+              const paymentColors = PAYMENT_STATUS_COLORS[order.payment_status];
+              const isUpdating = updatingId === order.id;
 
-                            return (
-                                <tr key={order.id} className={isUpdating ? 'updating' : ''}>
-                                    <td>
-                                        <div className="order-cell">
-                                            <span className="order-id">#{order.id.slice(0, 8)}</span>
-                                            <span className="payment-method">{PAYMENT_METHOD_LABELS[order.payment_method]}</span>
-                                        </div>
-                                    </td>
-                                    <td>
-                                        <div className="customer-cell">
-                                            <span className="customer-name">{order.customer_name}</span>
-                                            <span className="customer-email">{order.customer_email}</span>
-                                        </div>
-                                    </td>
-                                    <td className="total">{formatPrice(order.total_amount)}</td>
-                                    <td>
-                                        <div className="status-dropdown-wrapper">
-                                            <select
-                                                value={order.payment_status}
-                                                onChange={(e) => handlePaymentStatusChange(order.id, e.target.value as PaymentStatus)}
-                                                disabled={isPending}
-                                                className={`status-select ${paymentColors.bg} ${paymentColors.text}`}
-                                                style={{
-                                                    backgroundColor: paymentColors.bg.replace('bg-', ''),
-                                                    color: paymentColors.text.replace('text-', ''),
-                                                }}
-                                            >
-                                                {PAYMENT_STATUSES.map((status) => (
-                                                    <option key={status} value={status}>
-                                                        {status.charAt(0).toUpperCase() + status.slice(1)}
-                                                    </option>
-                                                ))}
-                                            </select>
-                                        </div>
-                                    </td>
-                                    <td>
-                                        <div className="status-dropdown-wrapper">
-                                            <select
-                                                value={order.status}
-                                                onChange={(e) => handleStatusChange(order.id, e.target.value as OrderStatus)}
-                                                disabled={isPending}
-                                                className={`status-select ${statusColors.bg} ${statusColors.text}`}
-                                                style={{
-                                                    backgroundColor: statusColors.bg.replace('bg-', ''),
-                                                    color: statusColors.text.replace('text-', ''),
-                                                }}
-                                            >
-                                                {ORDER_STATUSES.map((status) => (
-                                                    <option key={status} value={status}>
-                                                        {status.charAt(0).toUpperCase() + status.slice(1)}
-                                                    </option>
-                                                ))}
-                                            </select>
-                                        </div>
-                                    </td>
-                                    <td className="date">{formatDate(order.created_at)}</td>
-                                </tr>
-                            );
-                        })}
-                    </tbody>
-                </table>
-            </div>
+              return (
+                <tr key={order.id} className={isUpdating ? 'updating' : ''}>
+                  <td>
+                    <div className="order-cell">
+                      <span className="order-id">#{order.id.slice(0, 8)}</span>
+                      <span className="payment-method">{PAYMENT_METHOD_LABELS[order.payment_method]}</span>
+                    </div>
+                  </td>
+                  <td>
+                    <div className="customer-cell">
+                      <span className="customer-name">{order.customer_name}</span>
+                      <span className="customer-email">{order.customer_email}</span>
+                    </div>
+                  </td>
+                  <td className="total">{formatPrice(order.total)}</td>
+                  <td>
+                    <div className="status-dropdown-wrapper">
+                      <select
+                        value={order.payment_status}
+                        onChange={(e) => handlePaymentStatusChange(order.id, e.target.value as PaymentStatus)}
+                        disabled={isPending}
+                        className={`status-select ${paymentColors.bg} ${paymentColors.text}`}
+                        style={{
+                          backgroundColor: paymentColors.bg.replace('bg-', ''),
+                          color: paymentColors.text.replace('text-', ''),
+                        }}
+                      >
+                        {PAYMENT_STATUSES.map((status) => (
+                          <option key={status} value={status}>
+                            {status.charAt(0).toUpperCase() + status.slice(1)}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </td>
+                  <td>
+                    <div className="status-dropdown-wrapper">
+                      <select
+                        value={order.status}
+                        onChange={(e) => handleStatusChange(order.id, e.target.value as OrderStatus)}
+                        disabled={isPending}
+                        className={`status-select ${statusColors.bg} ${statusColors.text}`}
+                        style={{
+                          backgroundColor: statusColors.bg.replace('bg-', ''),
+                          color: statusColors.text.replace('text-', ''),
+                        }}
+                      >
+                        {ORDER_STATUSES.map((status) => (
+                          <option key={status} value={status}>
+                            {status.charAt(0).toUpperCase() + status.slice(1)}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </td>
+                  <td className="date">{formatDate(order.created_at)}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
 
-            <style jsx>{`
+      <style jsx>{`
         .table-container {
           background: white;
           border-radius: 16px;
@@ -305,6 +305,6 @@ export default function OrdersTableClient({ initialOrders }: OrdersTableClientPr
           }
         }
       `}</style>
-        </>
-    );
+    </>
+  );
 }

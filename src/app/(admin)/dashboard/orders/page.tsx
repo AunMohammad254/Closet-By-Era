@@ -7,7 +7,7 @@ export default async function OrdersPage() {
   const result = await getOrders();
 
   // getOrders returns { data, count } - data is empty array on error
-  const orders: Order[] = (result.data as any as Order[]) || [];
+  const orders = result.data || [];
 
   return (
     <OrdersPageUI orders={orders} error={null}>

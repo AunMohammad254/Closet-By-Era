@@ -1,7 +1,7 @@
 'use client';
 
 import { createContext, useContext, useState, useEffect, ReactNode, useCallback, useMemo } from 'react';
-import { supabase } from '@/lib/supabase';
+import { createClient } from '@/lib/supabase/client';
 import { useAuth } from './AuthContext';
 import type { Tables } from '@/types/supabase';
 
@@ -34,6 +34,7 @@ interface CartContextType {
 const CartContext = createContext<CartContextType | undefined>(undefined);
 
 export function CartProvider({ children }: { children: ReactNode }) {
+    const supabase = createClient();
     const [items, setItems] = useState<CartItem[]>([]);
     const [isLoading, setIsLoading] = useState(false);
     const [isInitialized, setIsInitialized] = useState(false);
@@ -103,7 +104,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
         } catch (error) {
             console.error('Error syncing cart to database:', error);
         }
-    }, [user]);
+    }, [user]); // eslint-disable-line react-hooks/exhaustive-deps
 
     // Fetch cart from database
     const syncCartFromDB = useCallback(async () => {
@@ -141,7 +142,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
         } finally {
             setIsLoading(false);
         }
-    }, [user]);
+    }, [user]); // eslint-disable-line react-hooks/exhaustive-deps
 
     // Load cart from localStorage on mount (for guests and initial load)
     useEffect(() => {
@@ -279,7 +280,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
                 console.error('Error clearing cart from database:', error);
             }
         }
-    }, [user]);
+    }, [user]); // eslint-disable-line react-hooks/exhaustive-deps
 
     const itemCount = items.reduce((sum, item) => sum + item.quantity, 0);
     const subtotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0);

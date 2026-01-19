@@ -2,7 +2,7 @@
 
 import ProductCard from '@/components/ProductCard';
 
-interface RelatedProduct {
+export interface RelatedProduct {
     id: string;
     name: string;
     price: number;

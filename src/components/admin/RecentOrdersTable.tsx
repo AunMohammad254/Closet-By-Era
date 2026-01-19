@@ -11,9 +11,9 @@ interface Order {
     created_at: string;
     status: string;
     total: number;
-    shipping_address: any; // Simplified for now
-    customer?: { first_name: string; last_name: string; email: string };
-    // Or if handling guest checkout, check shipping_address
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    shipping_address: any;
+    customers?: { first_name: string | null; last_name: string | null; email: string | null };
 }
 
 export default function RecentOrdersTable() {
@@ -23,7 +23,6 @@ export default function RecentOrdersTable() {
     useEffect(() => {
         async function fetchOrders() {
             try {
-                // @ts-ignore
                 const data = await getRecentOrders(5);
                 setOrders(data || []);
             } catch (error) {
@@ -56,10 +55,8 @@ export default function RecentOrdersTable() {
     // Helper to get customer name
     const getCustomerName = (order: Order) => {
         // If we have customer relation (from auth)
-        // @ts-ignore
         if (order.customers) {
-            // @ts-ignore
-            return `${order.customers.first_name || ''} ${order.customers.last_name || ''}`.trim() || order.customers.email;
+            return `${order.customers.first_name || ''} ${order.customers.last_name || ''}`.trim() || order.customers.email || 'Customer';
         }
         // Fallback to shipping address
         const addr = order.shipping_address;
