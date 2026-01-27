@@ -47,7 +47,7 @@ export default function CouponForm({ initialData, onClose }: CouponFormProps) {
             } else {
                 onClose();
             }
-        } catch (err) {
+        } catch {
             setError('Something went wrong.');
         } finally {
             setIsSubmitting(false);
@@ -79,7 +79,7 @@ export default function CouponForm({ initialData, onClose }: CouponFormProps) {
                         <select
                             className="w-full border rounded p-2"
                             value={formData.discount_type}
-                            onChange={e => setFormData({ ...formData, discount_type: e.target.value as any })}
+                            onChange={e => setFormData({ ...formData, discount_type: e.target.value as 'percentage' | 'fixed' })}
                         >
                             <option value="percentage">Percentage (%)</option>
                             <option value="fixed">Fixed Amount</option>

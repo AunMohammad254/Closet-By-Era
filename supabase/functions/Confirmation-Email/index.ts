@@ -7,12 +7,18 @@ const corsHeaders = {
     'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
+interface OrderItem {
+    name: string;
+    quantity: number;
+    price: number;
+}
+
 interface OrderEmailData {
     orderNumber: string;
     customerEmail: string;
     customerName: string;
-    items: any[];
-    shippingAddress: any;
+    items: OrderItem[];
+    shippingAddress: object;
     subtotal: number;
     shippingCost: number;
     discount?: number;
@@ -27,7 +33,7 @@ serve(async (req: Request) => {
     }
 
     try {
-        const { to, subject, html, orderData } = await req.json()
+        const { to, subject, html, orderData }: { to: string; subject: string; html?: string; orderData?: OrderEmailData } = await req.json()
 
         if (!RESEND_API_KEY) {
             console.error('RESEND_API_KEY is not set')
@@ -78,9 +84,10 @@ serve(async (req: Request) => {
                 status: 200,
             },
         )
-    } catch (error: any) {
+    } catch (error: unknown) {
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
         return new Response(
-            JSON.stringify({ error: error.message || 'Unknown error' }),
+            JSON.stringify({ error: errorMessage }),
             {
                 headers: { ...corsHeaders, 'Content-Type': 'application/json' },
                 status: 400,

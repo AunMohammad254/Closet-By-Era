@@ -22,16 +22,6 @@ interface GeminiResponse {
     }>;
 }
 
-interface Product {
-    id: string;
-    name: string;
-    price: number;
-    image_url: string;
-    slug: string;
-    category_id: string;
-    description: string;
-}
-
 interface StylistRequest {
     prompt: string;
     categories?: string[];
@@ -44,7 +34,7 @@ Deno.serve(async (req: Request) => {
     }
 
     try {
-        const { prompt, categories = [] }: StylistRequest = await req.json();
+        const { prompt }: StylistRequest = await req.json();
 
         if (!prompt) {
             return new Response(
@@ -62,7 +52,7 @@ Deno.serve(async (req: Request) => {
             .select('id, name, slug')
             .eq('is_active', true);
 
-        const categoryNames = allCategories?.map((c: any) => c.name).join(', ') || '';
+        const categoryNames = allCategories?.map((c) => c.name).join(', ') || '';
 
         // Create prompt for Gemini
         const systemPrompt = `You are a fashion stylist AI for "Closet By Era", a Pakistani fashion e-commerce store specializing in women's clothing.
@@ -145,11 +135,11 @@ Be warm, helpful, and fashion-forward in your advice. Use occasional Urdu words 
         // Filter by categories if AI suggested some
         if (aiResponse.categories.length > 0 && allCategories) {
             const matchingCategoryIds = allCategories
-                .filter((c: any) => aiResponse.categories.some(
+                .filter((c) => aiResponse.categories.some(
                     (ac) => c.name.toLowerCase().includes(ac.toLowerCase()) ||
                         ac.toLowerCase().includes(c.name.toLowerCase())
                 ))
-                .map((c: any) => c.id);
+                .map((c) => c.id);
 
             if (matchingCategoryIds.length > 0) {
                 productsQuery = productsQuery.in('category_id', matchingCategoryIds);

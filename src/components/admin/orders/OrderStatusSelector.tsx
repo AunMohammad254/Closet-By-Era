@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { updateOrderStatus } from '@/actions/orders';
 import { Loader2 } from 'lucide-react';
+import { OrderStatus } from '@/types/database';
 
 interface Props {
     orderId: string;
@@ -13,9 +14,15 @@ export default function OrderStatusSelector({ orderId, currentStatus }: Props) {
     const [status, setStatus] = useState(currentStatus);
     const [updating, setUpdating] = useState(false);
 
-    const statuses = ['Pending', 'Processing', 'Shipped', 'Delivered', 'Cancelled'];
+    const statuses: { label: string; value: OrderStatus }[] = [
+        { label: 'Pending', value: 'pending' },
+        { label: 'Packed', value: 'packed' },
+        { label: 'Shipping', value: 'shipping' },
+        { label: 'Delivered', value: 'delivered' },
+        { label: 'Cancelled', value: 'cancelled' },
+    ];
 
-    const handleStatusChange = async (newStatus: string) => {
+    const handleStatusChange = async (newStatus: OrderStatus) => {
         setUpdating(true);
         try {
             await updateOrderStatus(orderId, newStatus);
@@ -34,14 +41,13 @@ export default function OrderStatusSelector({ orderId, currentStatus }: Props) {
             <div className="relative">
                 <select
                     value={status}
-                    // @ts-ignore
-                    onChange={(e) => handleStatusChange(e.target.value)}
+                    onChange={(e) => handleStatusChange(e.target.value as OrderStatus)}
                     disabled={updating}
                     className="appearance-none bg-gray-50 border border-gray-200 text-gray-900 text-sm rounded-lg focus:ring-slate-900 focus:border-slate-900 block w-full p-2.5 pr-8 disabled:opacity-50"
                 >
                     {statuses.map((s) => (
-                        <option key={s} value={s.toLowerCase()}>
-                            {s}
+                        <option key={s.value} value={s.value}>
+                            {s.label}
                         </option>
                     ))}
                 </select>
