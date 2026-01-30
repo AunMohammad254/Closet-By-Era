@@ -11,7 +11,8 @@ interface Product {
     name: string;
     stock: number;
     price: number;
-    images: string[];
+    images: string[] | null;
+    slug: string | null;
 }
 
 export default function LowStockAlert() {
@@ -21,13 +22,8 @@ export default function LowStockAlert() {
     useEffect(() => {
         async function fetchLowStock() {
             try {
-                // @ts-ignore
                 const data = await getLowStockProducts(5);
-                // Transform data if needed to match local interface or update local interface
-                // The server action returns { id, name, stock, price, images, slug }
-                // The local interface expects { id, name, stock, price, images }
-                // So the data is compatible if strictness isn't an issue or we cast.
-                setProducts(data as unknown as Product[]);
+                setProducts(data);
             } catch (error) {
                 console.error('Failed to fetch low stock products', error);
             } finally {
@@ -50,24 +46,7 @@ export default function LowStockAlert() {
     }
 
     if (products.length === 0) {
-        return null; // Don't show if no low stock, or show a "All Good" state?
-        // Let's show "All Good" to fill the grid if needed, or better yet, handle empty consistently.
-        // For dashboard density, showing nothing is often better, but let's show a "Healthy Stock" card for now
-        // so the layout doesn't break if it expects a grid item.
-        /* 
-        return (
-             <div className="bg-[#1e293b] p-6 rounded-2xl border border-slate-700/50 h-full flex flex-col items-center justify-center text-center">
-                <div className="w-12 h-12 bg-emerald-500/10 rounded-full flex items-center justify-center mb-3">
-                    <PackageCheck className="w-6 h-6 text-emerald-400" />
-                </div>
-                <h3 className="font-medium text-slate-200">Stock Levels Healthy</h3>
-                <p className="text-sm text-slate-400 mt-1">No products below threshold.</p>
-            </div>
-        );
-        */
-        // Actually, let's just default to returning null for cleaner dashboard if empty, 
-        // but the container grid in page.tsx might need to be responsive.
-        // I'll return a "Good" state.
+        return null;
     }
 
     return (

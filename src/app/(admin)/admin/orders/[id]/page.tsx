@@ -11,8 +11,6 @@ export const metadata = {
 export default async function OrderDetailPage({ params }: { params: Promise<{ id: string }> }) {
     const resolvedParams = await params;
 
-    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-    // @ts-ignore
     const order = await getOrderById(resolvedParams.id);
 
     if (!order) {
@@ -77,7 +75,7 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
                             {order.items?.map((item: any) => (
                                 <div key={item.id} className="p-6 flex gap-4">
                                     {/* Placeholder image if we had one */}
-                                    <div className="w-20 h-24 bg-gray-100 rounded-lg flex-shrink-0"></div>
+                                    <div className="w-20 h-24 bg-gray-100 rounded-lg shrink-0"></div>
                                     <div className="flex-1">
                                         <div className="flex justify-between items-start">
                                             <div>

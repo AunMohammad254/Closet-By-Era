@@ -4,8 +4,6 @@ import { createClient } from '@/lib/supabase/server';
 import { revalidatePath } from 'next/cache';
 import { logger } from '@/lib/logger';
 import { ActionResult } from '@/types/shared';
-// Rate limiting is good practice for public endpoints like validateCoupon
-// import { checkRateLimit } from '@/lib/rate-limit'; 
 
 export interface Coupon {
     id: string;

@@ -2,7 +2,6 @@
 
 import { createClient } from '@/lib/supabase/server';
 import { logger } from '@/lib/logger';
-import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 
 export interface AdminLoginState {
@@ -36,7 +35,7 @@ export async function adminLogin(prevState: AdminLoginState, formData: FormData)
     const supabase = await createClient();
 
     // 1. Sign in with password
-    const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+    const { error: signInError } = await supabase.auth.signInWithPassword({
         email,
         password,
     });
@@ -111,7 +110,7 @@ export async function verifyAdminMfa(prevState: AdminLoginState, formData: FormD
 
     const supabase = await createClient();
 
-    const { data, error } = await supabase.auth.mfa.verify({
+    const { error } = await supabase.auth.mfa.verify({
         factorId,
         challengeId,
         code,

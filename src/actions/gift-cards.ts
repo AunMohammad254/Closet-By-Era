@@ -2,12 +2,11 @@
 
 import { createClient } from '@/lib/supabase/server';
 import { revalidatePath } from 'next/cache';
-import { GiftCardFormSchema, RedeemGiftCardSchema } from '@/lib/validations';
+import { GiftCardFormSchema } from '@/lib/validations';
 import { logger } from '@/lib/logger';
 import { checkRateLimit, RateLimits } from '@/lib/rate-limit';
 
 import { ActionResult } from '@/types/shared';
-import type { Database } from '@/types/supabase';
 
 // Helper to get typed client
 const getSupabase = async () => await createClient();
@@ -175,19 +174,8 @@ export async function redeemGiftCard(code: string, amount: number, orderId: stri
         return { success: false, error: 'Invalid redemption amount' };
     }
 
-    // Atomic update: only succeeds if card exists, is active, not expired, and has sufficient balance
+    // Atomic update using RPC for safe balance deduction
     // This prevents race conditions by combining check and update in a single atomic operation
-    // Note: This query is a validation step before the RPC call
-    const { data: updatedCards, error: updateError } = await supabase
-        .from('gift_cards')
-        .select('id, balance')
-        .eq('code', code)
-        .eq('is_active', true)
-        .gte('balance', amount)
-        .or(`expires_at.is.null,expires_at.gt.${new Date().toISOString()}`);
-
-    // Use raw SQL via RPC for atomic balance deduction
-    // This is the safest approach to prevent race conditions
     const { data: result, error: rpcError } = await supabase.rpc('redeem_gift_card_atomic', {
         p_code: code,
         p_amount: amount,

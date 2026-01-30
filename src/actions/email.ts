@@ -4,7 +4,6 @@ import {
     sendOrderConfirmationEmail as sendNodemailerConfirm,
     formatOrderForEmail as formatNodemailerOrder,
     verifyEmailConnection,
-    type OrderEmailData,
     type ShippingAddress,
     type OrderItem
 } from '@/lib/nodemailer';
