@@ -2,8 +2,6 @@
 
 import dynamic from 'next/dynamic';
 import LowStockAlert from '@/components/admin/dashboard/LowStockAlert';
-import { getLowStockProducts } from '@/actions/products';
-import { useEffect, useState } from 'react';
 
 // Dynamic import to reduce initial bundle size (~75KB for Recharts)
 const AnalyticsCharts = dynamic(() => import('@/components/admin/AnalyticsCharts'), {
@@ -17,12 +15,6 @@ const AnalyticsCharts = dynamic(() => import('@/components/admin/AnalyticsCharts
 });
 
 export default function DashboardPage() {
-  const [lowStockProducts, setLowStockProducts] = useState<any[]>([]);
-
-  useEffect(() => {
-    getLowStockProducts().then(setLowStockProducts);
-  }, []);
-
   return (
     <div className="dashboard-page">
       <header className="page-header">
@@ -88,7 +80,7 @@ export default function DashboardPage() {
           <AnalyticsCharts />
         </div>
         <div>
-          <LowStockAlert products={lowStockProducts} />
+          <LowStockAlert />
         </div>
       </div>
 

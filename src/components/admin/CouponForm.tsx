@@ -1,7 +1,18 @@
 'use client';
 
 import { useState } from 'react';
-import { Coupon, CouponFormData, createCoupon, updateCoupon } from '@/actions/coupons';
+import { Coupon, createCoupon, updateCoupon } from '@/actions/coupons';
+
+interface CouponFormData {
+    code: string;
+    description?: string;
+    discount_type: 'percentage' | 'fixed';
+    discount_value: number;
+    min_order_amount: number;
+    end_date: string;
+    max_uses: number | null;
+    is_active: boolean;
+}
 
 interface CouponFormProps {
     initialData?: Coupon;
@@ -11,12 +22,12 @@ interface CouponFormProps {
 export default function CouponForm({ initialData, onClose }: CouponFormProps) {
     const [formData, setFormData] = useState<CouponFormData>({
         code: initialData?.code || '',
+        description: initialData?.description || '',
         discount_type: initialData?.discount_type || 'percentage',
         discount_value: initialData?.discount_value || 0,
         min_order_amount: initialData?.min_order_amount || 0,
-        start_date: initialData?.starts_at ? new Date(initialData.starts_at).toISOString().slice(0, 16) : new Date().toISOString().slice(0, 16),
         end_date: initialData?.ends_at ? new Date(initialData.ends_at).toISOString().slice(0, 16) : '',
-        usage_limit: initialData?.max_uses || null,
+        max_uses: initialData?.max_uses || null,
         is_active: initialData?.is_active ?? true,
     });
 
@@ -30,9 +41,14 @@ export default function CouponForm({ initialData, onClose }: CouponFormProps) {
 
         try {
             const payload = {
-                ...formData,
-                start_date: new Date(formData.start_date).toISOString(),
-                end_date: new Date(formData.end_date).toISOString(),
+                code: formData.code,
+                description: formData.description,
+                discount_type: formData.discount_type,
+                discount_value: formData.discount_value,
+                min_order_amount: formData.min_order_amount,
+                max_uses: formData.max_uses,
+                ends_at: formData.end_date ? new Date(formData.end_date).toISOString() : null,
+                is_active: formData.is_active,
             };
 
             let result;
@@ -100,20 +116,9 @@ export default function CouponForm({ initialData, onClose }: CouponFormProps) {
 
                 <div className="grid grid-cols-2 gap-4">
                     <div>
-                        <label className="block text-sm font-medium mb-1">Start Date</label>
+                        <label className="block text-sm font-medium mb-1">End Date (Optional)</label>
                         <input
                             type="datetime-local"
-                            required
-                            className="w-full border rounded p-2"
-                            value={formData.start_date}
-                            onChange={e => setFormData({ ...formData, start_date: e.target.value })}
-                        />
-                    </div>
-                    <div>
-                        <label className="block text-sm font-medium mb-1">End Date</label>
-                        <input
-                            type="datetime-local"
-                            required
                             className="w-full border rounded p-2"
                             value={formData.end_date}
                             onChange={e => setFormData({ ...formData, end_date: e.target.value })}
@@ -138,8 +143,8 @@ export default function CouponForm({ initialData, onClose }: CouponFormProps) {
                             type="number"
                             min="1"
                             className="w-full border rounded p-2"
-                            value={formData.usage_limit || ''}
-                            onChange={e => setFormData({ ...formData, usage_limit: e.target.value ? parseInt(e.target.value) : null })}
+                            value={formData.max_uses || ''}
+                            onChange={e => setFormData({ ...formData, max_uses: e.target.value ? parseInt(e.target.value) : null })}
                             placeholder="Unlimited"
                         />
                     </div>

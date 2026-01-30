@@ -12,8 +12,10 @@ export default function CouponsPage() {
 
     const fetchCoupons = useCallback(async () => {
         setIsLoading(true);
-        const data = await getCoupons();
-        setCoupons(data);
+        const result = await getCoupons();
+        if (result.success && result.data) {
+            setCoupons(result.data);
+        }
         setIsLoading(false);
     }, []);
 

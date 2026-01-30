@@ -37,7 +37,10 @@ export async function getOrders(page = 1, pageSize = 10, status?: string) {
         .select('*', { count: 'exact' });
 
     if (status && status !== 'All') {
-        query = query.eq('status', status.toLowerCase() as "pending" | "packed" | "shipping" | "delivered" | "cancelled");
+        const queryStatus = status.toLowerCase();
+        if (['pending', 'packed', 'shipping', 'delivered', 'cancelled'].includes(queryStatus)) {
+            query = query.eq('status', queryStatus as "pending" | "packed" | "shipping" | "delivered" | "cancelled");
+        }
     }
 
     const { data, error, count } = await query
@@ -67,7 +70,10 @@ export async function getAllOrdersForExport(status?: string) {
         `);
 
     if (status && status !== 'All') {
-        query = query.eq('status', status.toLowerCase());
+        const queryStatus = status.toLowerCase();
+        if (['pending', 'packed', 'shipping', 'delivered', 'cancelled'].includes(queryStatus)) {
+            query = query.eq('status', queryStatus as "pending" | "packed" | "shipping" | "delivered" | "cancelled");
+        }
     }
 
     // Limit to 1000 for safety, can be increased or paginated if needed

@@ -85,13 +85,13 @@ export default function LowStockAlert() {
                 </Link>
             </div>
 
-            <div className="flex-1 space-y-3 overflow-y-auto max-h-[300px] pr-1 custom-scrollbar">
+            <div className="flex-1 space-y-3 overflow-y-auto max-h-75 pr-1 custom-scrollbar">
                 {products.map((product) => (
                     <div
                         key={product.id}
                         className="flex items-center gap-3 p-3 rounded-xl bg-slate-800/30 border border-slate-700/50 hover:bg-slate-800/50 transition-colors group"
                     >
-                        <div className="w-10 h-10 rounded-lg bg-slate-700/50 relative overflow-hidden flex-shrink-0">
+                        <div className="w-10 h-10 rounded-lg bg-slate-700/50 relative overflow-hidden shrink-0">
                             {product.images && product.images[0] ? (
                                 <Image
                                     src={product.images[0]}
