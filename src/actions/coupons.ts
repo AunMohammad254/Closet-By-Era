@@ -95,6 +95,47 @@ export async function createCoupon(data: Omit<Coupon, 'id' | 'created_at' | 'use
     }
 }
 
+export async function updateCoupon(id: string, data: Partial<Omit<Coupon, 'id' | 'created_at' | 'uses_count'>>): Promise<ActionResult<Coupon>> {
+    const supabase = await createClient();
+    try {
+        // Verify Admin
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return { success: false, error: 'Unauthorized' };
+        const { data: customer } = await supabase.from('customers').select('role').eq('auth_id', user.id).single();
+        if (customer?.role !== 'admin') return { success: false, error: 'Forbidden' };
+
+        // Validate
+        if (data.discount_value !== undefined && data.discount_value <= 0) return { success: false, error: 'Value must be positive' };
+        if (data.min_order_amount !== undefined && data.min_order_amount < 0) return { success: false, error: 'Min order amount cannot be negative' };
+
+        // Upper case code if provided
+        const couponData = { ...data };
+        if (couponData.code) {
+            couponData.code = couponData.code.toUpperCase();
+        }
+
+        const { data: updatedCoupon, error } = await supabase
+            .from('coupons' as any)
+            .update(couponData)
+            .eq('id', id)
+            .select('id, code, description, discount_type, discount_value, min_order_amount, max_uses, uses_count, ends_at, is_active, created_at')
+            .single();
+
+        if (error) {
+            if (error.code === '23505') { // Unique violation
+                return { success: false, error: 'Coupon code already exists' };
+            }
+            throw error;
+        }
+
+        revalidatePath('/admin/coupons');
+        return { success: true, data: updatedCoupon as unknown as Coupon };
+    } catch (error: any) {
+        logger.error('Error updating coupon', error);
+        return { success: false, error: error.message };
+    }
+}
+
 export async function deleteCoupon(id: string): Promise<ActionResult> {
     const supabase = await createClient();
     try {

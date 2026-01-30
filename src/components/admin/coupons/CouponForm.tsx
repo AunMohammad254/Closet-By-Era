@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { createCoupon, deleteCoupon, type Coupon } from '@/actions/coupons';
+import { createCoupon, updateCoupon, type Coupon } from '@/actions/coupons';
 import { Loader2, Save, X, Calendar } from 'lucide-react';
 
 interface CouponFormProps {
@@ -39,25 +39,19 @@ export default function CouponForm({ coupon, onClose }: CouponFormProps) {
         };
 
         try {
-            // Currently only create is fully implemented in actions logic for the form context (though update could be added)
-            // But we'll use createCoupon. 
-            // If we add edit later, we'd use updateCoupon (which I haven't created in actions yet, only create/delete/get).
-            // Wait, I only made create, get, delete. So I can't support Edit properly yet without adding updateCoupon action.
-            // For now, I will treat this as Create Only unless I add Update action.
-            // The task list said "Create Coupons Admin Page (List & Create)". It didn't explicitly demand Edit, but it's nice to have.
-            // I'll stick to Create for now to be safe and fast.
+            let result;
 
             if (coupon) {
-                setError('Editing not yet supported');
-                setSubmitting(false);
-                return;
+                // Update implementation
+                result = await updateCoupon(coupon.id, data);
+            } else {
+                // Create implementation
+                result = await createCoupon({
+                    ...data,
+                    created_at: '', // ignore
+                    uses_count: 0 // ignore
+                } as any);
             }
-
-            const result = await createCoupon({
-                ...data,
-                created_at: '', // ignore
-                uses_count: 0 // ignore
-            } as any); // Casting because createCoupon expects Omit<Coupon...> but strict TS might complain about extras
 
             if (result.success) {
                 onClose();

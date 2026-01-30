@@ -12,6 +12,8 @@ export default function CouponsPage() {
     const [isFormOpen, setIsFormOpen] = useState(false);
     const [deletingId, setDeletingId] = useState<string | null>(null);
 
+    const [selectedCoupon, setSelectedCoupon] = useState<Coupon | null>(null);
+
     const fetchCoupons = async () => {
         setLoading(true);
         try {
@@ -43,6 +45,11 @@ export default function CouponsPage() {
         setDeletingId(null);
     };
 
+    const handleEdit = (coupon: Coupon) => {
+        setSelectedCoupon(coupon);
+        setIsFormOpen(true);
+    };
+
     const filteredCoupons = coupons.filter(c =>
         c.code.toLowerCase().includes(searchTerm.toLowerCase())
     );
@@ -56,6 +63,7 @@ export default function CouponsPage() {
                 </div>
                 <button
                     onClick={() => {
+                        setSelectedCoupon(null);
                         setIsFormOpen(true);
                     }}
                     className="inline-flex items-center justify-center px-4 py-2.5 bg-rose-500 text-white rounded-xl hover:bg-rose-600 transition-colors font-medium shadow-lg shadow-rose-500/20 hover:shadow-rose-500/30"
@@ -156,18 +164,29 @@ export default function CouponsPage() {
                                                 : 'Never'}
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                            <button
-                                                onClick={() => handleDelete(coupon.id)}
-                                                disabled={deletingId === coupon.id}
-                                                className="p-2 text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 rounded-lg transition-colors disabled:opacity-50"
-                                                title="Delete"
-                                            >
-                                                {deletingId === coupon.id ? (
-                                                    <Loader2 className="w-4 h-4 animate-spin" />
-                                                ) : (
-                                                    <Trash2 className="w-4 h-4" />
-                                                )}
-                                            </button>
+                                            <div className="flex items-center justify-end gap-2">
+                                                <button
+                                                    onClick={() => handleEdit(coupon)}
+                                                    className="p-2 text-blue-400 hover:text-blue-300 hover:bg-blue-500/10 rounded-lg transition-colors"
+                                                    title="Edit"
+                                                >
+                                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                                                    </svg>
+                                                </button>
+                                                <button
+                                                    onClick={() => handleDelete(coupon.id)}
+                                                    disabled={deletingId === coupon.id}
+                                                    className="p-2 text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 rounded-lg transition-colors disabled:opacity-50"
+                                                    title="Delete"
+                                                >
+                                                    {deletingId === coupon.id ? (
+                                                        <Loader2 className="w-4 h-4 animate-spin" />
+                                                    ) : (
+                                                        <Trash2 className="w-4 h-4" />
+                                                    )}
+                                                </button>
+                                            </div>
                                         </td>
                                     </tr>
                                 ))
@@ -179,8 +198,10 @@ export default function CouponsPage() {
 
             {isFormOpen && (
                 <CouponForm
+                    coupon={selectedCoupon}
                     onClose={() => {
                         setIsFormOpen(false);
+                        setSelectedCoupon(null);
                         fetchCoupons(); // Refresh list
                     }}
                 />
