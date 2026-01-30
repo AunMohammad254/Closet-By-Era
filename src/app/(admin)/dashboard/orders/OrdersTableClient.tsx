@@ -98,7 +98,7 @@ export default function OrdersTableClient({ initialOrders }: OrdersTableClientPr
                       <span className="customer-email">{order.customer_email}</span>
                     </div>
                   </td>
-                  <td className="total">{formatPrice(order.total)}</td>
+                  <td className="total">{formatPrice(order.total ?? order.total_amount ?? 0)}</td>
                   <td>
                     <div className="status-dropdown-wrapper">
                       <select

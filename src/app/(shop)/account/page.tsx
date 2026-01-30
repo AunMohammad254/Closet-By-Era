@@ -537,13 +537,13 @@ function AccountPageContent() {
                                                             <span className="text-gray-600">
                                                                 {item.product_name} {item.size && `(${item.size}`}{item.color && `, ${item.color}`}{(item.size || item.color) && ')'} x{item.quantity}
                                                             </span>
-                                                            <span className="text-gray-900 font-medium">PKR {item.total_price?.toLocaleString() || ((item.unit_price || 0) * item.quantity).toLocaleString()}</span>
+                                                            <span className="text-gray-900 font-medium">PKR {(item.price_at_purchase * item.quantity).toLocaleString()}</span>
                                                         </div>
                                                     ))}
                                                 </div>
 
                                                 <div className="flex items-center justify-between pt-4 border-t border-gray-100">
-                                                    <span className="font-semibold text-gray-900">Total: PKR {order.total.toLocaleString()}</span>
+                                                    <span className="font-semibold text-gray-900">Total: PKR {(order.total ?? order.total_amount ?? 0).toLocaleString()}</span>
                                                     <button className="text-sm text-rose-600 font-medium hover:text-rose-700 transition-colors">
                                                         View Details
                                                     </button>

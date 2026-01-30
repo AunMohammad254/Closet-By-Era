@@ -73,7 +73,7 @@ export async function getProductReviews(productId: string): Promise<Review[]> {
     return reviews.map((r: Tables<'reviews'>) => ({
         id: r.id,
         product_id: r.product_id || '',
-        user_id: r.customer_id || '',
+        user_id: r.user_id || '',
         rating: r.rating,
         comment: r.comment || '',
         created_at: r.created_at || new Date().toISOString(),

@@ -97,7 +97,7 @@ export function WishlistProvider({ children }: { children: ReactNode }) {
         try {
             const { data, error } = await supabase
                 .from('wishlist_items')
-                .select('*')
+                .select('id, product_id, product_name, product_price, product_image, category')
                 .eq('user_id', user.id);
 
             if (error) {
@@ -149,7 +149,7 @@ export function WishlistProvider({ children }: { children: ReactNode }) {
                     // Fetch existing wishlist from database
                     const { data: dbWishlistData } = await supabase
                         .from('wishlist_items')
-                        .select('*')
+                        .select('id, product_id, product_name, product_price, product_image, category')
                         .eq('user_id', user.id);
 
                     // Get local wishlist

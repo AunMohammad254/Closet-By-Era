@@ -114,7 +114,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
         try {
             const { data, error } = await supabase
                 .from('cart_items')
-                .select('*')
+                .select('id, product_id, product_name, product_price, product_image, size, color, quantity')
                 .eq('user_id', user.id);
 
             if (error) {
@@ -123,7 +123,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
             }
 
             if (data && data.length > 0) {
-                const cartItems: CartItem[] = data.map((item: DBCartItem) => ({
+                const cartItems: CartItem[] = data.map((item) => ({
                     id: item.id,
                     productId: item.product_id,
                     name: item.product_name,
@@ -169,7 +169,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
                     // Fetch existing cart from database
                     const { data: dbCartData } = await supabase
                         .from('cart_items')
-                        .select('*')
+                        .select('id, product_id, product_name, product_price, product_image, size, color, quantity')
                         .eq('user_id', user.id);
 
                     // Get local cart
@@ -179,7 +179,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
                     const mergedCart: CartItem[] = [...localCart];
 
                     if (dbCartData && dbCartData.length > 0) {
-                        dbCartData.forEach((dbItem: DBCartItem) => {
+                        dbCartData.forEach((dbItem) => {
                             const existingIndex = mergedCart.findIndex(
                                 item => item.productId === dbItem.product_id &&
                                     item.size === dbItem.size &&

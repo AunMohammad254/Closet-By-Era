@@ -71,6 +71,53 @@ export const CustomerSchema = z.object({
 });
 
 // ========================
+// Coupon Validation Schemas
+// ========================
+
+export const CouponFormSchema = z.object({
+    code: z.string()
+        .min(3, 'Coupon code must be at least 3 characters')
+        .max(50, 'Coupon code must be less than 50 characters')
+        .regex(/^[A-Za-z0-9_-]+$/, 'Coupon code can only contain letters, numbers, underscores, and hyphens'),
+    discount_type: z.enum(['percentage', 'fixed']),
+    discount_value: z.number()
+        .positive('Discount value must be positive')
+        .max(100000, 'Discount value seems too high'),
+    min_order_amount: z.number()
+        .min(0, 'Minimum order amount cannot be negative')
+        .default(0),
+    is_active: z.boolean().default(true),
+    start_date: z.string().datetime({ offset: true }).optional().or(z.literal('')),
+    end_date: z.string().datetime({ offset: true }).optional().or(z.literal('')),
+    usage_limit: z.number().int().positive().nullable().optional(),
+});
+
+export type ValidatedCouponFormData = z.infer<typeof CouponFormSchema>;
+
+// ========================
+// Gift Card Validation Schemas
+// ========================
+
+export const GiftCardFormSchema = z.object({
+    code: z.string()
+        .min(8, 'Gift card code must be at least 8 characters')
+        .max(20, 'Gift card code must be less than 20 characters')
+        .optional(),
+    initial_value: z.number()
+        .positive('Initial value must be positive')
+        .max(1000000, 'Initial value seems too high'),
+    expires_at: z.string().datetime({ offset: true }).optional().or(z.literal('')),
+});
+
+export type ValidatedGiftCardFormData = z.infer<typeof GiftCardFormSchema>;
+
+export const RedeemGiftCardSchema = z.object({
+    code: z.string().min(8, 'Invalid gift card code'),
+    amount: z.number().positive('Redemption amount must be positive'),
+    orderId: z.string().uuid('Invalid order ID'),
+});
+
+// ========================
 // Common Validators
 // ========================
 

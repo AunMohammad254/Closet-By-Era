@@ -19,7 +19,17 @@
 import nodemailer from 'nodemailer';
 import type { Order } from '@/types/database';
 import type { ShippingAddress } from '@/types/shared';
+import { logger } from '@/lib/logger';
 export type { ShippingAddress };
+
+// Extended Order type for email templates (handles both old and new schema)
+type OrderEmailInput = Partial<Order> & {
+    order_number?: string;
+    subtotal?: number;
+    shipping_cost?: number;
+    discount?: number;
+    total?: number;
+};
 
 // SMTP Configuration from environment variables
 const smtpConfig = {
@@ -80,10 +90,10 @@ interface EmailResult {
 export async function verifyEmailConnection(): Promise<boolean> {
     try {
         await transporter.verify();
-        console.log('✅ SMTP connection verified');
+        logger.info('SMTP connection verified');
         return true;
     } catch (error) {
-        console.error('❌ SMTP connection failed:', error);
+        logger.error('SMTP connection failed', error as Error);
         return false;
     }
 }
@@ -100,7 +110,7 @@ export async function sendEmail(
     try {
         // Check if SMTP is configured
         if (!smtpConfig.auth.user || !smtpConfig.auth.pass) {
-            console.warn('SMTP not configured. Email not sent.');
+            logger.warn('SMTP not configured. Email not sent.');
             return {
                 success: false,
                 message: 'SMTP not configured',
@@ -116,14 +126,14 @@ export async function sendEmail(
             html,
         });
 
-        console.log('✅ Email sent:', info.messageId);
+        logger.info('Email sent', { messageId: info.messageId });
         return {
             success: true,
             message: 'Email sent successfully',
             messageId: info.messageId,
         };
     } catch (error) {
-        console.error('❌ Error sending email:', error);
+        logger.error('Error sending email', error as Error);
         return {
             success: false,
             message: 'Failed to send email',
@@ -265,7 +275,7 @@ export async function sendWelcomeEmail(
  * Format order data for email template
  */
 export function formatOrderForEmail(
-    order: Partial<Order>,
+    order: OrderEmailInput,
     items: OrderItem[],
     customerEmail: string,
     customerName: string,

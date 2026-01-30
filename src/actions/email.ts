@@ -31,7 +31,7 @@ export async function sendOrderConfirmation(
 
         // 2. Format data
         const emailData = formatNodemailerOrder(
-            order,
+            order as Parameters<typeof formatNodemailerOrder>[0],
             items,
             customerEmail,
             customerName,

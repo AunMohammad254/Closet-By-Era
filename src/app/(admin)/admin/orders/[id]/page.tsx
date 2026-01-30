@@ -87,11 +87,11 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
                                                 </p>
                                             </div>
                                             <p className="font-medium text-gray-900">
-                                                PKR {item.total_price.toLocaleString()}
+                                                PKR {(item.price_at_purchase * item.quantity).toLocaleString()}
                                             </p>
                                         </div>
                                         <div className="mt-2 text-sm text-gray-500">
-                                            Qty: {item.quantity} × PKR {item.unit_price.toLocaleString()}
+                                            Qty: {item.quantity} × PKR {item.price_at_purchase?.toLocaleString()}
                                         </div>
                                     </div>
                                 </div>
@@ -100,7 +100,7 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
                         <div className="bg-gray-50 px-6 py-4 border-t border-gray-100 space-y-2">
                             <div className="flex justify-between text-sm text-gray-600">
                                 <span>Subtotal</span>
-                                <span>PKR {order.subtotal.toLocaleString()}</span>
+                                <span>PKR {(order.subtotal ?? 0).toLocaleString()}</span>
                             </div>
                             <div className="flex justify-between text-sm text-gray-600">
                                 <span>Shipping</span>
@@ -115,7 +115,7 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
                             )}
                             <div className="flex justify-between font-bold text-gray-900 text-lg pt-2 border-t border-gray-200 mt-2">
                                 <span>Total</span>
-                                <span>PKR {order.total.toLocaleString()}</span>
+                                <span>PKR {(order.total ?? order.total_amount ?? 0).toLocaleString()}</span>
                             </div>
                         </div>
                     </div>

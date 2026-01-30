@@ -17,7 +17,7 @@ export default function AnalyticsCharts() {
         async function loadData() {
             try {
                 const result = await getAnalyticsSummary();
-                setData(result);
+                setData(result as unknown as AnalyticsData);
             } catch (error) {
                 console.error("Failed to load analytics", error);
             } finally {

@@ -2,6 +2,9 @@
 
 import { createClient } from '@/lib/supabase/server';
 import { revalidatePath } from 'next/cache';
+import { GiftCardFormSchema, RedeemGiftCardSchema } from '@/lib/validations';
+import { logger } from '@/lib/logger';
+import { checkRateLimit, RateLimits } from '@/lib/rate-limit';
 
 import { ActionResult } from '@/types/shared';
 import type { Database } from '@/types/supabase';
@@ -45,11 +48,11 @@ export async function getGiftCards() {
 
     const { data, error } = await supabase
         .from('gift_cards')
-        .select('*')
+        .select('id, code, balance, initial_value, is_active, expires_at, created_at')
         .order('created_at', { ascending: false });
 
     if (error) {
-        console.error('Error fetching gift cards:', error);
+        logger.error('Error fetching gift cards', error, { action: 'getGiftCards' });
         return [];
     }
 
@@ -62,6 +65,20 @@ export async function createGiftCard(data: {
     initial_value: number;
     expires_at?: string;
 }): Promise<ActionResult> {
+    // Rate limiting
+    const rateCheck = await checkRateLimit('admin-user', 'createGiftCard', RateLimits.mutation);
+    if (!rateCheck.allowed) {
+        return { success: false, error: `Too many requests. Try again in ${rateCheck.resetIn}s` };
+    }
+
+    // Validate input with Zod
+    const validation = GiftCardFormSchema.safeParse(data);
+    if (!validation.success) {
+        const errorMessage = validation.error.issues.map(e => e.message).join(', ');
+        logger.warn('Gift card validation failed', { action: 'createGiftCard', errors: errorMessage });
+        return { success: false, error: errorMessage };
+    }
+
     const supabase = await getSupabase();
 
     // Check if admin
@@ -76,19 +93,20 @@ export async function createGiftCard(data: {
 
     if (customer?.role !== 'admin') return { success: false, error: 'Unauthorized' };
 
-    const code = data.code || generateCode();
+    const validData = validation.data;
+    const code = validData.code || generateCode();
 
     const { error } = await supabase
         .from('gift_cards')
         .insert({
             code,
-            initial_value: data.initial_value,
-            balance: data.initial_value,
-            expires_at: data.expires_at || null,
+            initial_value: validData.initial_value,
+            balance: validData.initial_value,
+            expires_at: validData.expires_at || null,
         });
 
     if (error) {
-        console.error('Error creating gift card:', error);
+        logger.error('Error creating gift card', error, { action: 'createGiftCard' });
         return { success: false, error: error.message };
     }
 
@@ -104,7 +122,7 @@ export async function validateGiftCard(code: string): Promise<ValidationResult> 
     });
 
     if (error) {
-        console.error('Error validating gift card:', error);
+        logger.error('Error validating gift card', error, { action: 'validateGiftCard' });
         return { valid: false, message: 'System error' };
     }
 
@@ -112,6 +130,12 @@ export async function validateGiftCard(code: string): Promise<ValidationResult> 
 }
 
 export async function deactivateGiftCard(id: string): Promise<ActionResult> {
+    // Rate limiting
+    const rateCheck = await checkRateLimit('admin-user', 'deactivateGiftCard', RateLimits.mutation);
+    if (!rateCheck.allowed) {
+        return { success: false, error: `Too many requests. Try again in ${rateCheck.resetIn}s` };
+    }
+
     const supabase = await getSupabase();
 
     // Check admin
@@ -130,7 +154,10 @@ export async function deactivateGiftCard(id: string): Promise<ActionResult> {
         .update({ is_active: false })
         .eq('id', id);
 
-    if (error) return { success: false, error: error.message };
+    if (error) {
+        logger.error('Error deactivating gift card', error, { action: 'deactivateGiftCard', giftCardId: id });
+        return { success: false, error: error.message };
+    }
 
     revalidatePath('/dashboard/gift-cards');
     return { success: true };
@@ -150,16 +177,14 @@ export async function redeemGiftCard(code: string, amount: number, orderId: stri
 
     // Atomic update: only succeeds if card exists, is active, not expired, and has sufficient balance
     // This prevents race conditions by combining check and update in a single atomic operation
+    // Note: This query is a validation step before the RPC call
     const { data: updatedCards, error: updateError } = await supabase
         .from('gift_cards')
-        .update({ 
-            balance: supabase.rpc ? undefined : 0 // Placeholder, actual update below
-        })
+        .select('id, balance')
         .eq('code', code)
         .eq('is_active', true)
         .gte('balance', amount)
-        .or(`expires_at.is.null,expires_at.gt.${new Date().toISOString()}`)
-        .select('id, balance');
+        .or(`expires_at.is.null,expires_at.gt.${new Date().toISOString()}`);
 
     // Use raw SQL via RPC for atomic balance deduction
     // This is the safest approach to prevent race conditions
@@ -229,9 +254,11 @@ export async function redeemGiftCard(code: string, amount: number, orderId: stri
         console.error('Gift card redemption error:', rpcError);
         return { success: false, error: 'Failed to redeem gift card' };
     }
+    // Type assertion for RPC result
+    const rpcResult = result as { success: boolean; message?: string; new_balance?: number; amount_redeemed?: number } | null;
 
-    if (!result?.success) {
-        return { success: false, error: result?.message || 'Failed to redeem gift card' };
+    if (!rpcResult?.success) {
+        return { success: false, error: rpcResult?.message || 'Failed to redeem gift card' };
     }
 
     return { success: true };

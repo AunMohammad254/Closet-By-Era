@@ -24,7 +24,7 @@ let client: ReturnType<typeof createBrowserClient<Database>> | undefined;
 export function createClient() {
     if (client) return client;
 
-    client = createBrowserClient<Database>(supabaseUrl, supabaseAnonKey);
+    client = createBrowserClient<Database>(supabaseUrl!, supabaseAnonKey!);
 
     return client;
 }

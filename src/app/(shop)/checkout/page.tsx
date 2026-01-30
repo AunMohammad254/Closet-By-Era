@@ -263,7 +263,7 @@ export default function CheckoutPage() {
                 }
             }
 
-            const finalOrderNumber = orderData!.order_number;
+            const finalOrderNumber = orderData!.order_number ?? `ORD-${orderData!.id.slice(0, 8)}`;
             setOrderNumber(finalOrderNumber);
 
             // Prepare order data for email

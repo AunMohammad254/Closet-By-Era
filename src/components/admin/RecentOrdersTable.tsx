@@ -7,13 +7,16 @@ import Link from 'next/link';
 // Define Order type based on what we get from Supabase
 interface Order {
     id: string;
-    order_number: string;
+    order_number: string | null;
     created_at: string;
     status: string;
-    total: number;
+    total?: number | null;
+    total_amount?: number;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     shipping_address: any;
     customers?: { first_name: string | null; last_name: string | null; email: string | null };
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    [key: string]: any; // Allow additional properties
 }
 
 export default function RecentOrdersTable() {
@@ -24,7 +27,7 @@ export default function RecentOrdersTable() {
         async function fetchOrders() {
             try {
                 const data = await getRecentOrders(5);
-                setOrders(data || []);
+                setOrders((data || []) as Order[]);
             } catch (error) {
                 console.error('Failed to fetch orders', error);
             } finally {
@@ -134,7 +137,7 @@ export default function RecentOrdersTable() {
                                         </span>
                                     </td>
                                     <td className="px-8 py-5 text-right font-bold text-gray-900">
-                                        PKR {order.total.toLocaleString()}
+                                        PKR {(order.total ?? order.total_amount ?? 0).toLocaleString()}
                                     </td>
                                 </tr>
                             ))

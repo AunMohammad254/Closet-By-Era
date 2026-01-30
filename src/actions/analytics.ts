@@ -1,6 +1,7 @@
 'use server';
 
 import { createClient } from '@/lib/supabase/server';
+import { logger } from '@/lib/logger';
 import { Json } from '@/types/supabase';
 
 interface AnalyticsSummary {
@@ -26,7 +27,7 @@ export async function trackEvent(eventType: string, data: { pagePath?: string, p
             meta: data.meta
         });
     } catch (error) {
-        console.error('Failed to track event:', error);
+        logger.error('Failed to track event', error as Error, { action: 'trackEvent', eventType });
         // We don't want to crash the client if tracking fails
     }
 }
@@ -39,7 +40,7 @@ export async function getAnalyticsSummary(daysBack: number = 7): Promise<Analyti
     });
 
     if (error) {
-        console.error('Failed to fetch analytics summary:', error);
+        logger.error('Failed to fetch analytics summary', error, { action: 'getAnalyticsSummary', daysBack });
         return {
             timeline: [],
             topProducts: [],

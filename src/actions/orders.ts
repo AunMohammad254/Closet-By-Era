@@ -107,7 +107,7 @@ export async function updateOrderStatus(id: string, newStatus: string): Promise<
         sendOrderStatusEmail(
             order.customer.email,
             order.customer.first_name || 'Customer',
-            order.order_number,
+            order.order_number || order.id,
             newStatus
         ).catch(err => logger.error('Failed to send status email', err, { orderId: id }));
     }

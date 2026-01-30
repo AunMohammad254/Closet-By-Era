@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import { createContext, useContext, useEffect, useState, useCallback, useMemo, ReactNode } from 'react';
 
 export type CurrencyCode = 'PKR' | 'USD' | 'GBP' | 'EUR' | 'AED';
 
@@ -42,18 +42,17 @@ export function CurrencyProvider({ children }: { children: ReactNode }) {
         }
     }, []);
 
-    const handleSetCurrency = (code: CurrencyCode) => {
+    const handleSetCurrency = useCallback((code: CurrencyCode) => {
         setCurrency(code);
         localStorage.setItem('currency', code);
-    };
+    }, []);
 
-    const convertPrice = (amountInPKR: number) => {
+    const convertPrice = useCallback((amountInPKR: number) => {
         return amountInPKR * RATES[currency];
-    };
+    }, [currency]);
 
-    const formatPrice = (amountInPKR: number) => {
-        const converted = convertPrice(amountInPKR);
-        const symbol = SYMBOLS[currency];
+    const formatPrice = useCallback((amountInPKR: number) => {
+        const converted = amountInPKR * RATES[currency];
 
         return new Intl.NumberFormat('en-US', {
             style: 'currency',
@@ -61,16 +60,18 @@ export function CurrencyProvider({ children }: { children: ReactNode }) {
             minimumFractionDigits: currency === 'PKR' ? 0 : 2,
             maximumFractionDigits: currency === 'PKR' ? 0 : 2,
         }).format(converted);
-    };
+    }, [currency]);
+
+    const contextValue = useMemo(() => ({
+        currency,
+        setCurrency: handleSetCurrency,
+        convertPrice,
+        formatPrice,
+        symbol: SYMBOLS[currency]
+    }), [currency, handleSetCurrency, convertPrice, formatPrice]);
 
     return (
-        <CurrencyContext.Provider value={{
-            currency,
-            setCurrency: handleSetCurrency,
-            convertPrice,
-            formatPrice,
-            symbol: SYMBOLS[currency]
-        }}>
+        <CurrencyContext.Provider value={contextValue}>
             {children}
         </CurrencyContext.Provider>
     );

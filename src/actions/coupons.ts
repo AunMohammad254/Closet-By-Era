@@ -2,6 +2,9 @@
 
 import { createClient } from '@/lib/supabase/server';
 import { revalidatePath } from 'next/cache';
+import { CouponFormSchema } from '@/lib/validations';
+import { logger } from '@/lib/logger';
+import { checkRateLimit, RateLimits } from '@/lib/rate-limit';
 
 import { ActionResult } from '@/types/shared';
 
@@ -29,23 +32,38 @@ export type CouponFormData = Omit<Coupon, 'id' | 'usage_count' | 'created_at' | 
 };
 
 export async function createCoupon(data: CouponFormData): Promise<ActionResult> {
+    // Rate limiting
+    const rateCheck = await checkRateLimit('admin-user', 'createCoupon', RateLimits.mutation);
+    if (!rateCheck.allowed) {
+        return { success: false, error: `Too many requests. Try again in ${rateCheck.resetIn}s` };
+    }
+
+    // Validate input with Zod
+    const validation = CouponFormSchema.safeParse(data);
+    if (!validation.success) {
+        const errorMessage = validation.error.issues.map(e => e.message).join(', ');
+        logger.warn('Coupon validation failed', { action: 'createCoupon', errors: errorMessage });
+        return { success: false, error: errorMessage };
+    }
+
     try {
         const supabase = await createClient();
+        const validData = validation.data;
         const { error } = await supabase
             .from('coupons')
             .insert({
-                code: data.code,
-                discount_type: data.discount_type,
-                discount_value: data.discount_value,
-                min_order_amount: data.min_order_amount,
-                is_active: data.is_active,
-                starts_at: data.start_date,
-                ends_at: data.end_date,
-                max_uses: data.usage_limit
+                code: validData.code,
+                discount_type: validData.discount_type,
+                discount_value: validData.discount_value,
+                min_order_amount: validData.min_order_amount,
+                is_active: validData.is_active,
+                starts_at: validData.start_date || null,
+                ends_at: validData.end_date || null,
+                max_uses: validData.usage_limit ?? null
             });
 
         if (error) {
-            console.error('Create Coupon Error:', error);
+            logger.error('Error creating coupon', error, { action: 'createCoupon' });
             if (error.code === '23505') return { success: false, error: 'Coupon code already exists.' };
             return { success: false, error: 'Failed to create coupon.' };
         }
@@ -53,11 +71,18 @@ export async function createCoupon(data: CouponFormData): Promise<ActionResult> 
         revalidatePath('/dashboard/coupons');
         return { success: true };
     } catch (err) {
+        logger.error('Unexpected error creating coupon', err as Error, { action: 'createCoupon' });
         return { success: false, error: 'Unexpected error.' };
     }
 }
 
 export async function updateCoupon(id: string, data: Partial<CouponFormData>): Promise<ActionResult> {
+    // Rate limiting
+    const rateCheck = await checkRateLimit('admin-user', 'updateCoupon', RateLimits.mutation);
+    if (!rateCheck.allowed) {
+        return { success: false, error: `Too many requests. Try again in ${rateCheck.resetIn}s` };
+    }
+
     try {
         const supabase = await createClient();
 
@@ -78,18 +103,25 @@ export async function updateCoupon(id: string, data: Partial<CouponFormData>): P
             .eq('id', id);
 
         if (error) {
-            console.error('Update Coupon Error:', error);
+            logger.error('Error updating coupon', error, { action: 'updateCoupon', couponId: id });
             return { success: false, error: 'Failed to update coupon.' };
         }
 
         revalidatePath('/dashboard/coupons');
         return { success: true };
     } catch (err) {
+        logger.error('Unexpected error updating coupon', err as Error, { action: 'updateCoupon', couponId: id });
         return { success: false, error: 'Unexpected error.' };
     }
 }
 
 export async function deleteCoupon(id: string): Promise<ActionResult> {
+    // Rate limiting
+    const rateCheck = await checkRateLimit('admin-user', 'deleteCoupon', RateLimits.mutation);
+    if (!rateCheck.allowed) {
+        return { success: false, error: `Too many requests. Try again in ${rateCheck.resetIn}s` };
+    }
+
     try {
         const supabase = await createClient();
         const { error } = await supabase
@@ -97,11 +129,15 @@ export async function deleteCoupon(id: string): Promise<ActionResult> {
             .delete()
             .eq('id', id);
 
-        if (error) return { success: false, error: 'Failed to delete coupon.' };
+        if (error) {
+            logger.error('Error deleting coupon', error, { action: 'deleteCoupon', couponId: id });
+            return { success: false, error: 'Failed to delete coupon.' };
+        }
 
         revalidatePath('/dashboard/coupons');
         return { success: true };
     } catch (err) {
+        logger.error('Unexpected error deleting coupon', err as Error, { action: 'deleteCoupon', couponId: id });
         return { success: false, error: 'Unexpected error.' };
     }
 }
@@ -110,11 +146,11 @@ export async function getCoupons() {
     const supabase = await createClient();
     const { data, error } = await supabase
         .from('coupons')
-        .select('*')
+        .select('id, code, discount_type, discount_value, min_order_amount, is_active, starts_at, ends_at, max_uses, uses_count, created_at')
         .order('created_at', { ascending: false });
 
     if (error) {
-        console.error('Get Coupons Error:', error);
+        logger.error('Error fetching coupons', error, { action: 'getCoupons' });
         return [];
     }
     return data as Coupon[];
