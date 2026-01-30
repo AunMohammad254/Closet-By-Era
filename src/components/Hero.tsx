@@ -23,8 +23,12 @@ const heroSlides: HeroSlide[] = [
     },
 ];
 
-export default function Hero() {
+export default function Hero({ title, subtitle }: { title?: string, subtitle?: string }) {
     const slide = heroSlides[0];
+
+    // Use dynamic content if available, fallback to hardcoded
+    const displayTitle = title || slide.title;
+    const displaySubtitle = subtitle || slide.subtitle;
 
     return (
         <section className="relative h-screen min-h-[600px] max-h-[900px] overflow-hidden">
@@ -35,7 +39,7 @@ export default function Hero() {
             <div className="absolute inset-0 z-0">
                 <Image
                     src={slide.image}
-                    alt={slide.title}
+                    alt={displayTitle}
                     fill
                     className="object-cover object-center opacity-40 mix-blend-overlay"
                     priority
@@ -61,15 +65,15 @@ export default function Hero() {
 
                         {/* Title */}
                         <h1 className="text-5xl sm:text-6xl lg:text-7xl font-bold text-white leading-tight mb-6">
-                            <span className="block font-light">{slide.title.split(' ')[0]}</span>
+                            <span className="block font-light">{displayTitle.split(' ')[0]}</span>
                             <span className="block bg-gradient-to-r from-rose-400 via-rose-500 to-amber-400 bg-clip-text text-transparent">
-                                {slide.title.split(' ').slice(1).join(' ')}
+                                {displayTitle.split(' ').slice(1).join(' ')}
                             </span>
                         </h1>
 
                         {/* Subtitle */}
                         <p className="text-lg sm:text-xl text-gray-300 mb-10 leading-relaxed max-w-lg font-light">
-                            {slide.subtitle}
+                            {displaySubtitle}
                         </p>
 
                         {/* CTA Buttons */}

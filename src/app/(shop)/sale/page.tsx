@@ -50,7 +50,7 @@ export default function SalePage() {
                     .order('display_order');
 
                 if (categoriesData) {
-                    setCategories(['All', ...categoriesData.map(c => c.name)]);
+                    setCategories(['All', ...Array.from(new Set(categoriesData.map(c => c.name)))]);
                 }
 
                 // Fetch Products

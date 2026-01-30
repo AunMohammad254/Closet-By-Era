@@ -58,3 +58,55 @@ export async function getAdminCustomers(): Promise<ActionResult<Customer[]>> {
         return { success: false, error: message };
     }
 }
+
+export async function getCustomerDetails(customerId: string): Promise<ActionResult<any>> {
+    const supabase = await createClient();
+
+    try {
+        const admin = await verifyAdminRole(supabase);
+        if (!admin) {
+            return { success: false, error: 'Forbidden: Admin access required' };
+        }
+
+        // Fetch customer profile
+        const { data: customer, error: customerError } = await supabase
+            .from('customers')
+            .select('*')
+            .eq('id', customerId)
+            .single();
+
+        if (customerError) throw customerError;
+
+        // Fetch orders
+        const { data: orders, error: ordersError } = await supabase
+            .from('orders')
+            .select(`
+                *,
+                items:order_items(*)
+            `)
+            .eq('customer_id', customer.id)
+            .order('created_at', { ascending: false });
+
+        if (ordersError) throw ordersError;
+
+        // Calculate totals
+        const totalSpent = orders?.reduce((sum, order) => sum + (order.total || 0), 0) || 0;
+        const totalOrders = orders?.length || 0;
+
+        return {
+            success: true,
+            data: {
+                ...customer,
+                orders: orders || [],
+                stats: {
+                    totalSpent,
+                    totalOrders
+                }
+            }
+        };
+
+    } catch (error: any) {
+        console.error('Error fetching customer details:', error);
+        return { success: false, error: error.message };
+    }
+}

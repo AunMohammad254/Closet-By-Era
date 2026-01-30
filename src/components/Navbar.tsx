@@ -21,7 +21,11 @@ const AIStylistTrigger = dynamic(() => import('./AIStylistTrigger'), {
     ssr: false
 });
 
-export default function Navbar() {
+interface NavbarProps {
+    announcement?: string;
+}
+
+export default function Navbar({ announcement }: NavbarProps) {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const [isSearchOpen, setIsSearchOpen] = useState(false);
     const [isStylistOpen, setIsStylistOpen] = useState(false);
@@ -34,11 +38,12 @@ export default function Navbar() {
         { name: 'Accessories', href: '/accessories' },
         { name: 'Sale', href: '/sale' },
     ];
+    // ... (rest of the file) stays same until return
 
     return (
         <>
             <header className="fixed top-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-md border-b border-gray-100">
-                <TopBanner />
+                <TopBanner text={announcement} />
 
                 <nav className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                     <div className="flex items-center justify-between h-16">
@@ -86,9 +91,8 @@ export default function Navbar() {
                     user={user}
                 />
 
-                <AIStylistTrigger />
-
             </header>
+            <AIStylistTrigger />
             <AIStylistModal isOpen={isStylistOpen} onClose={() => setIsStylistOpen(false)} />
         </>
     );

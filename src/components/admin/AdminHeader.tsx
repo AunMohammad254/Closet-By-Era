@@ -48,17 +48,17 @@ export default function AdminHeader() {
     };
 
     return (
-        <header className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-6 sticky top-0 z-30">
+        <header className="h-16 bg-[#1e293b] border-b border-slate-700/50 flex items-center justify-between px-6 sticky top-0 z-30">
             {/* Search */}
             <div className="flex items-center max-w-md w-full">
                 <div className="relative w-full">
                     <span className="absolute inset-y-0 left-0 flex items-center pl-3">
-                        <Search size={18} className="text-gray-400" />
+                        <Search size={18} className="text-slate-500" />
                     </span>
                     <input
                         type="text"
                         placeholder="Search..."
-                        className="w-full pl-10 pr-4 py-2 text-sm text-gray-700 bg-gray-50 border border-transparent rounded-lg focus:outline-none focus:bg-white focus:border-rose-300 transition-colors"
+                        className="w-full pl-10 pr-4 py-2 text-sm text-slate-200 bg-slate-800/50 border border-slate-700/50 rounded-xl focus:outline-none focus:bg-slate-800 focus:border-rose-500/50 focus:ring-1 focus:ring-rose-500/20 transition-all placeholder:text-slate-500"
                     />
                 </div>
             </div>
@@ -66,37 +66,37 @@ export default function AdminHeader() {
             {/* Right Side Actions */}
             <div className="flex items-center space-x-4">
                 {/* Notifications */}
-                <button className="relative p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-50 rounded-full transition-colors">
+                <button className="relative p-2 text-slate-400 hover:text-slate-200 hover:bg-slate-700/50 rounded-xl transition-colors">
                     <Bell size={20} />
-                    <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-rose-500 rounded-full border border-white"></span>
+                    <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-rose-500 rounded-full border-2 border-[#1e293b]"></span>
                 </button>
 
                 {/* Profile Dropdown */}
-                <div className="relative pl-4 border-l border-gray-200" ref={dropdownRef}>
+                <div className="relative pl-4 border-l border-slate-700/50" ref={dropdownRef}>
                     <button
                         onClick={() => setShowDropdown(!showDropdown)}
-                        className="flex items-center space-x-2 hover:bg-gray-50 rounded-lg px-2 py-1 transition-colors"
+                        className="flex items-center space-x-3 hover:bg-slate-700/50 rounded-xl px-3 py-1.5 transition-colors"
                     >
-                        <div className="w-8 h-8 rounded-full bg-rose-100 flex items-center justify-center text-rose-600 font-medium text-sm">
+                        <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-rose-500 to-rose-600 flex items-center justify-center text-white font-semibold text-sm shadow-lg shadow-rose-500/20">
                             {isLoading ? '...' : getInitials()}
                         </div>
                         <div className="hidden md:block text-left">
-                            <p className="text-sm font-medium text-gray-900">
+                            <p className="text-sm font-medium text-slate-200">
                                 {isLoading ? 'Loading...' : getDisplayName()}
                             </p>
-                            <p className="text-xs text-gray-500">
+                            <p className="text-xs text-slate-500">
                                 {adminUser?.customer?.role === 'admin' ? 'Administrator' : 'User'}
                             </p>
                         </div>
-                        <ChevronDown size={16} className="text-gray-400" />
+                        <ChevronDown size={16} className="text-slate-500" />
                     </button>
 
                     {/* Dropdown Menu */}
                     {showDropdown && (
-                        <div className="absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-lg border border-gray-100 py-1 z-50">
-                            <div className="px-4 py-3 border-b border-gray-100">
-                                <p className="text-sm font-medium text-gray-900">{getDisplayName()}</p>
-                                <p className="text-xs text-gray-500 truncate">{adminUser?.customer?.email}</p>
+                        <div className="absolute right-0 mt-2 w-56 bg-[#1e293b] rounded-xl shadow-2xl border border-slate-700/50 py-1 z-50">
+                            <div className="px-4 py-3 border-b border-slate-700/50">
+                                <p className="text-sm font-medium text-slate-200">{getDisplayName()}</p>
+                                <p className="text-xs text-slate-500 truncate">{adminUser?.customer?.email}</p>
                             </div>
 
                             <button
@@ -104,16 +104,16 @@ export default function AdminHeader() {
                                     setShowDropdown(false);
                                     router.push('/account');
                                 }}
-                                className="w-full flex items-center gap-3 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                                className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-slate-300 hover:bg-slate-700/50 hover:text-slate-100 transition-colors"
                             >
                                 <User size={16} />
                                 View Profile
                             </button>
 
-                            <div className="border-t border-gray-100 mt-1 pt-1">
+                            <div className="border-t border-slate-700/50 mt-1 pt-1">
                                 <button
                                     onClick={handleLogout}
-                                    className="w-full flex items-center gap-3 px-4 py-2 text-sm text-rose-600 hover:bg-rose-50 transition-colors"
+                                    className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-rose-400 hover:bg-rose-500/10 transition-colors"
                                 >
                                     <LogOut size={16} />
                                     Sign Out

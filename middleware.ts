@@ -101,7 +101,12 @@ export async function middleware(request: NextRequest) {
     // Redirect to login if accessing protected route without session
     if ((isAdminRoute || isProtectedRoute) && !session) {
         const redirectUrl = request.nextUrl.clone()
-        redirectUrl.pathname = '/auth/login'
+        // ADMIN SPECIFIC: Use dedicated admin login
+        if (isAdminRoute) {
+            redirectUrl.pathname = '/admin/login'
+        } else {
+            redirectUrl.pathname = '/auth/login'
+        }
         redirectUrl.searchParams.set('redirectedFrom', request.nextUrl.pathname)
         return NextResponse.redirect(redirectUrl)
     }
@@ -121,9 +126,16 @@ export async function middleware(request: NextRequest) {
                 .from('customers')
                 .select('role')
                 .eq('auth_id', session.user.id)
-                .single()
+                .maybeSingle()
 
             isAdmin = customer?.role === 'admin'
+        }
+
+        // STRICT: Enforce email match with env
+        const envAdminEmail = process.env.ADMIN_EMAIL;
+        if (isAdmin && envAdminEmail && session.user.email !== envAdminEmail) {
+            // Role is admin but email doesn't match the one in .env -> DENY
+            isAdmin = false;
         }
 
         if (!isAdmin) {

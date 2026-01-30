@@ -38,7 +38,7 @@ export default function AdminAuthGuard({ children }: AdminAuthGuardProps) {
 
                 if (!session) {
                     // Not logged in, redirect to login
-                    router.replace('/auth/login?redirectedFrom=/admin');
+                    router.replace('/admin/login');
                     return;
                 }
 
@@ -47,35 +47,34 @@ export default function AdminAuthGuard({ children }: AdminAuthGuardProps) {
                     .from('customers')
                     .select('role')
                     .eq('auth_id', session.user.id)
-                    .single();
+                    .maybeSingle();
+
 
                 if (customerError) {
                     console.error('Customer fetch error:', customerError);
+                    throw new Error('Failed to verify admin status');
+                }
 
-                    // If customer doesn't exist, they might need to be created
-                    if (customerError.code === 'PGRST116') {
-                        // No customer record - create one
-                        const { error: insertError } = await supabase
-                            .from('customers')
-                            .insert({
-                                auth_id: session.user.id,
-                                email: session.user.email || '',
-                                first_name: session.user.user_metadata?.first_name || null,
-                                last_name: session.user.user_metadata?.last_name || null,
-                                role: 'customer' // Default to customer, admin must be set manually
-                            });
+                if (!customer) {
+                    // No customer record - create one
+                    const { error: insertError } = await supabase
+                        .from('customers')
+                        .insert({
+                            auth_id: session.user.id,
+                            email: session.user.email || '',
+                            first_name: session.user.user_metadata?.first_name || null,
+                            last_name: session.user.user_metadata?.last_name || null,
+                            role: 'customer' // Default to customer, admin must be set manually
+                        });
 
-                        if (insertError) {
-                            console.error('Failed to create customer:', insertError);
-                        }
-
-                        // Not an admin
-                        setError('You do not have admin privileges.');
-                        setTimeout(() => router.replace('/'), 2000);
-                        return;
+                    if (insertError) {
+                        console.error('Failed to create customer:', insertError);
                     }
 
-                    throw new Error('Failed to verify admin status');
+                    // Not an admin
+                    setError('You do not have admin privileges.');
+                    setTimeout(() => router.replace('/'), 2000);
+                    return;
                 }
 
                 const typedCustomer = customer as CustomerData;
@@ -91,7 +90,7 @@ export default function AdminAuthGuard({ children }: AdminAuthGuardProps) {
             } catch (err) {
                 console.error('Auth check failed:', err);
                 setError('Authentication error. Please try logging in again.');
-                setTimeout(() => router.replace('/auth/login'), 2000);
+                setTimeout(() => router.replace('/admin/login'), 2000);
             } finally {
                 setIsLoading(false);
             }

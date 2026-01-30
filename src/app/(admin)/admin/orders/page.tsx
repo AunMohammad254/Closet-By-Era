@@ -1,6 +1,7 @@
 import { getOrders } from '@/actions/orders';
 import Link from 'next/link';
-import { ChevronLeft, ChevronRight, Filter, Search } from 'lucide-react';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
+import OrdersToolbar from '@/components/admin/orders/OrdersToolbar';
 
 export const metadata = {
     title: 'Orders | Admin Dashboard',
@@ -8,7 +9,6 @@ export const metadata = {
 
 export const dynamic = 'force-dynamic';
 
-// Define types locally since we aren't sharing them yet
 interface Order {
     id: string;
     order_number: string;
@@ -30,27 +30,17 @@ export default async function OrdersPage({
     const status = resolvedParams.status || 'All';
     const pageSize = 10;
 
-    // Use await for searchParams in Next.js 15+ if needed, but for 14/15 stable it's fine.
-    // Actually in Next.js 15 searchParams is a Promise. We should await it if using latest.
-    // Assuming Next.js 14/15 based on "use client" directives seen elsewhere. 
-    // Wait, the user said Next.js 16.0.10. So searchParams IS a promise.
-
-    // We need to resolve params first if using Next 15+ dynamic APIs.
-    // But since I can't be 100% sure of the exact Next.js version behavior for searchParams in this precise patch, 
-    // I will write standard component code. If it errors, I'll fix.
-    // Safe bet: standard props.
-
     const { data: orders, count } = await getOrders(page, pageSize, status);
     const totalPages = Math.ceil((count || 0) / pageSize);
 
     const getStatusColor = (status: string) => {
         const s = status.toLowerCase();
-        if (s === 'confirmed' || s === 'pending') return 'bg-blue-50 text-blue-600';
-        if (s === 'processing') return 'bg-yellow-50 text-yellow-600';
-        if (s === 'shipped') return 'bg-purple-50 text-purple-600';
-        if (s === 'delivered') return 'bg-green-50 text-green-600';
-        if (s === 'cancelled') return 'bg-red-50 text-red-600';
-        return 'bg-gray-50 text-gray-600';
+        if (s === 'confirmed' || s === 'pending') return 'bg-blue-500/10 text-blue-400 border-blue-500/20';
+        if (s === 'processing') return 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20';
+        if (s === 'shipped') return 'bg-purple-500/10 text-purple-400 border-purple-500/20';
+        if (s === 'delivered') return 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20';
+        if (s === 'cancelled') return 'bg-rose-500/10 text-rose-400 border-rose-500/20';
+        return 'bg-slate-700/50 text-slate-400 border-slate-600/50';
     };
 
     const formatDate = (dateString: string) => {
@@ -64,9 +54,9 @@ export default async function OrdersPage({
     };
 
     const getCustomerName = (order: Order) => {
-        // @ts-ignore
+        // @ts-expect-error - customers relation
         if (order.customers) {
-            // @ts-ignore
+            // @ts-expect-error - customers relation
             return `${order.customers.first_name || ''} ${order.customers.last_name || ''}`.trim() || order.customers.email;
         }
         const addr = order.shipping_address;
@@ -80,94 +70,72 @@ export default async function OrdersPage({
         <div className="space-y-6">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
-                    <h1 className="text-2xl font-bold text-gray-900">Orders</h1>
-                    <p className="text-gray-500 text-sm mt-1">Manage and fulfill store orders.</p>
-                </div>
-                <div className="flex gap-2">
-                    <button className="px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 flex items-center gap-2">
-                        <Filter className="w-4 h-4" />
-                        Filter
-                    </button>
-                    <button className="px-4 py-2 bg-slate-900 text-white rounded-lg text-sm font-medium hover:bg-slate-800">
-                        Export Orders
-                    </button>
+                    <h1 className="text-2xl font-bold text-slate-100">Orders</h1>
+                    <p className="text-slate-400 text-sm mt-1">Manage and fulfill store orders.</p>
                 </div>
             </div>
 
-            {/* Filters */}
-            <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm flex flex-wrap gap-4 items-center justify-between">
-                <div className="flex gap-2 overflow-x-auto pb-2 sm:pb-0">
-                    {['All', 'Pending', 'Processing', 'Shipped', 'Delivered', 'Cancelled'].map((s) => (
-                        <Link
-                            key={s}
-                            href={`/admin/orders?status=${s}`}
-                            className={`px-3 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${status === s || (status === 'All' && s === 'All')
-                                ? 'bg-slate-900 text-white'
-                                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                                }`}
-                        >
-                            {s}
-                        </Link>
-                    ))}
-                </div>
-                <div className="relative w-full sm:w-64">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                    <input
-                        type="text"
-                        placeholder="Search orders..."
-                        className="w-full pl-9 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-slate-900 focus:border-transparent"
-                    />
-                </div>
-            </div>
+            {/* Toolbar (Search, Filter, Export) */}
+            <OrdersToolbar />
 
             {/* Orders Table */}
-            <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+            <div className="bg-[#1e293b] rounded-xl border border-slate-700/50 overflow-hidden">
                 <div className="overflow-x-auto">
                     <table className="w-full text-sm text-left">
-                        <thead className="bg-gray-50 text-gray-500 font-medium">
+                        <thead className="bg-slate-800/50 text-slate-400 font-semibold border-b border-slate-700/50">
                             <tr>
-                                <th className="px-6 py-3">Order ID</th>
-                                <th className="px-6 py-3">Customer</th>
-                                <th className="px-6 py-3">Date</th>
-                                <th className="px-6 py-3">Status</th>
-                                <th className="px-6 py-3">Items</th>
-                                <th className="px-6 py-3 text-right">Total</th>
-                                <th className="px-6 py-3 text-right">Actions</th>
+                                <th className="px-6 py-4">Order ID</th>
+                                <th className="px-6 py-4">Customer</th>
+                                <th className="px-6 py-4">Date</th>
+                                <th className="px-6 py-4">Status</th>
+                                <th className="px-6 py-4">Items</th>
+                                <th className="px-6 py-4 text-right">Total</th>
+                                <th className="px-6 py-4 text-right">Actions</th>
                             </tr>
                         </thead>
-                        <tbody className="divide-y divide-gray-100">
+                        <tbody className="divide-y divide-slate-700/50">
                             {!orders || orders.length === 0 ? (
                                 <tr>
-                                    <td colSpan={7} className="px-6 py-12 text-center text-gray-500">
-                                        No orders found matching your criteria.
+                                    <td colSpan={7} className="px-6 py-12 text-center text-slate-400">
+                                        <div className="flex flex-col items-center gap-2">
+                                            <span className="text-2xl">📦</span>
+                                            <span>No orders found matching your criteria.</span>
+                                        </div>
                                     </td>
                                 </tr>
                             ) : (
                                 orders.map((order: any) => (
-                                    <tr key={order.id} className="hover:bg-gray-50 transition-colors">
-                                        <td className="px-6 py-4 font-medium text-gray-900">
-                                            {order.order_number}
+                                    <tr key={order.id} className="hover:bg-slate-800/30 transition-colors group">
+                                        <td className="px-6 py-4 font-medium text-slate-200">
+                                            #{order.order_number}
                                         </td>
                                         <td className="px-6 py-4">
-                                            <div className="font-medium text-gray-900">{getCustomerName(order)}</div>
-                                            <div className="text-xs text-gray-500">{order.email || order.shipping_address?.email || 'No email'}</div>
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-8 h-8 rounded-lg bg-slate-700/50 flex items-center justify-center text-xs font-bold text-slate-400 group-hover:bg-rose-500/10 group-hover:text-rose-400 transition-all">
+                                                    {getCustomerName(order).charAt(0).toUpperCase()}
+                                                </div>
+                                                <div>
+                                                    <div className="font-medium text-slate-200">{getCustomerName(order)}</div>
+                                                    <div className="text-xs text-slate-500">{order.email || order.shipping_address?.email || 'No email'}</div>
+                                                </div>
+                                            </div>
                                         </td>
-                                        <td className="px-6 py-4 text-gray-500">{formatDate(order.created_at)}</td>
+                                        <td className="px-6 py-4 text-slate-500">{formatDate(order.created_at)}</td>
                                         <td className="px-6 py-4">
-                                            <span className={`px-2.5 py-1 rounded-full text-xs font-medium capitalize ${getStatusColor(order.status)}`}>
+                                            <span className={`px-2.5 py-1 rounded-full text-xs font-medium capitalize border ${getStatusColor(order.status)}`}>
                                                 {order.status}
                                             </span>
                                         </td>
-                                        <td className="px-6 py-4 text-gray-500">
+                                        <td className="px-6 py-4 text-slate-400">
                                             {order.items?.length || 0} items
                                         </td>
-                                        <td className="px-6 py-4 text-right font-medium text-gray-900">
+                                        <td className="px-6 py-4 text-right font-medium text-slate-200">
                                             PKR {(order.total || 0).toLocaleString()}
                                         </td>
                                         <td className="px-6 py-4 text-right">
                                             <Link
                                                 href={`/admin/orders/${order.id}`}
-                                                className="text-rose-600 hover:text-rose-700 font-medium"
+                                                className="text-rose-400 hover:text-rose-300 font-medium hover:underline"
                                             >
                                                 Manage
                                             </Link>
@@ -181,20 +149,20 @@ export default async function OrdersPage({
 
                 {/* Pagination */}
                 {totalPages > 1 && (
-                    <div className="px-6 py-4 border-t border-gray-100 flex items-center justify-between">
-                        <p className="text-sm text-gray-500">
-                            Showing page <span className="font-medium">{page}</span> of <span className="font-medium">{totalPages}</span>
+                    <div className="px-6 py-4 border-t border-slate-700/50 flex items-center justify-between">
+                        <p className="text-sm text-slate-400">
+                            Showing page <span className="font-medium text-slate-200">{page}</span> of <span className="font-medium text-slate-200">{totalPages}</span>
                         </p>
                         <div className="flex gap-2">
                             <Link
                                 href={`/admin/orders?page=${page - 1}&status=${status}`}
-                                className={`p-2 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors ${page <= 1 ? 'pointer-events-none opacity-50' : ''}`}
+                                className={`p-2 border border-slate-700/50 rounded-lg hover:bg-slate-700/50 transition-colors text-slate-300 ${page <= 1 ? 'pointer-events-none opacity-50' : ''}`}
                             >
                                 <ChevronLeft className="w-4 h-4" />
                             </Link>
                             <Link
                                 href={`/admin/orders?page=${page + 1}&status=${status}`}
-                                className={`p-2 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors ${page >= totalPages ? 'pointer-events-none opacity-50' : ''}`}
+                                className={`p-2 border border-slate-700/50 rounded-lg hover:bg-slate-700/50 transition-colors text-slate-300 ${page >= totalPages ? 'pointer-events-none opacity-50' : ''}`}
                             >
                                 <ChevronRight className="w-4 h-4" />
                             </Link>

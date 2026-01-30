@@ -295,3 +295,24 @@ export async function uploadProductImage(formData: FormData): Promise<{ success:
 
     return { success: true, url: publicUrl };
 }
+
+export async function bulkDeleteProducts(ids: string[]): Promise<{ success: boolean; error?: string }> {
+    if (!ids || ids.length === 0) return { success: true };
+
+    const supabase = await createClient();
+    const { error } = await supabase
+        .from('products')
+        .delete()
+        .in('id', ids);
+
+    if (error) {
+        logger.error('Error batch deleting products', error, { action: 'bulkDeleteProducts', ids });
+        return { success: false, error: 'Failed to delete selected products' };
+    }
+
+    revalidatePath('/admin/products');
+    revalidateTag('products', 'max');
+    revalidateTag('featured-products', 'max');
+    revalidateTag('new-arrivals', 'max');
+    return { success: true };
+}

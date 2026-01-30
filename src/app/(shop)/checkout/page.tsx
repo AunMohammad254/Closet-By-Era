@@ -10,7 +10,7 @@ import { createClient } from '@/lib/supabase/client';
 import type { TablesInsert } from '@/types/supabase';
 import { getOrCreateCustomer } from '@/actions/customer';
 import { revalidateAccountPage } from '@/app/actions';
-import { validateCoupon } from '@/actions/coupons';
+import { validateCoupon, incrementCouponUsage } from '@/actions/coupons';
 import { awardLoyaltyPoints } from '@/actions/loyalty';
 import { validateGiftCard, redeemGiftCard, GiftCard } from '@/actions/gift-cards';
 
@@ -139,9 +139,21 @@ export default function CheckoutPage() {
             // 1. Try Coupon
             const couponResult = await validateCoupon(couponCode, subtotal);
 
-            if (couponResult.valid) {
-                setDiscount(couponResult.discount || 0);
-                setCouponMessage({ type: 'success', text: couponResult.message || 'Coupon applied!' });
+            if (couponResult.success && couponResult.data) {
+                const coupon = couponResult.data;
+                let calculatedDiscount = 0;
+
+                if (coupon.discount_type === 'percentage') {
+                    calculatedDiscount = (subtotal * coupon.discount_value) / 100;
+                } else {
+                    calculatedDiscount = coupon.discount_value;
+                }
+
+                // Ensure discount doesn't exceed subtotal
+                calculatedDiscount = Math.min(calculatedDiscount, subtotal);
+
+                setDiscount(calculatedDiscount);
+                setCouponMessage({ type: 'success', text: `Coupon applied: ${coupon.code}` });
             } else {
                 // 2. Try Gift Card
                 const giftCardResult = await validateGiftCard(couponCode);
@@ -156,15 +168,15 @@ export default function CheckoutPage() {
                         expires_at: null,
                         created_at: ''
                     });
-                    // We need to calculate amount but we do that in render or just here
-                    // But we can't fully know final total here easily without duplicating logic
                     setCouponMessage({ type: 'success', text: `Gift Card applied! Balance: PKR ${giftCardResult.balance?.toLocaleString()}` });
-                    setGiftCardAmount(giftCardResult.balance!); // This is just a flag, actual usage is calculated in render/placeOrder
+                    setGiftCardAmount(giftCardResult.balance!);
                 } else {
-                    // Both invalid
+                    // Both invalid. Show specific coupon error if available, else generic.
+                    // If couponResult had an error message, use it, unless it was just "Invalid coupon code" and we want to try gift card.
+                    // But since we tried generic fallback, we just say Invalid Code.
                     setDiscount(0);
                     setGiftCard(null);
-                    setCouponMessage({ type: 'error', text: 'Invalid code' });
+                    setCouponMessage({ type: 'error', text: couponResult.error || 'Invalid code' });
                 }
             }
         } catch (error) {
@@ -312,6 +324,9 @@ export default function CheckoutPage() {
                 if (amountToRedeem > 0) {
                     await redeemGiftCard(giftCard.code, amountToRedeem, orderData!.id);
                 }
+            } else if (discount > 0 && couponCode) {
+                // Increment coupon usage if it was a standard coupon
+                await incrementCouponUsage(couponCode);
             }
 
             // Clear cart and show success

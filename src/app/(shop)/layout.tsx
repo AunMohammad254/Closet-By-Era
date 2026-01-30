@@ -4,17 +4,21 @@ import CompareBar from '@/components/product/CompareBar';
 import ChatWidget from '@/components/chat/ChatWidget';
 import WhatsAppButton from '@/components/WhatsAppButton';
 
-export default function ShopLayout({
+import { getStoreSettings } from '@/actions/settings';
+
+export default async function ShopLayout({
     children,
 }: {
     children: React.ReactNode;
 }) {
+    const { data: settings } = await getStoreSettings();
+
     return (
         <>
-            <Navbar />
+            <Navbar announcement={settings?.content?.announcement_bar} />
             {children}
             <ChatWidget />
-            <WhatsAppButton 
+            <WhatsAppButton
                 phoneNumber={process.env.NEXT_PUBLIC_WHATSAPP_NUMBER || '923001234567'}
                 message="Hi! I'm interested in Closet By Era products. Can you help me?"
             />

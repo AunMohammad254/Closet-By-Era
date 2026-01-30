@@ -52,6 +52,37 @@ export async function getOrders(page = 1, pageSize = 10, status?: string) {
     return { data, count };
 }
 
+export async function getAllOrdersForExport(status?: string) {
+    const supabase = await createClient();
+
+    let query = supabase
+        .from('orders')
+        .select(`
+            *,
+            items:order_items(
+                *,
+                product:products(name)
+            ),
+            customer:customers(first_name, last_name, email)
+        `);
+
+    if (status && status !== 'All') {
+        query = query.eq('status', status.toLowerCase());
+    }
+
+    // Limit to 1000 for safety, can be increased or paginated if needed
+    const { data, error } = await query
+        .order('created_at', { ascending: false })
+        .limit(1000);
+
+    if (error) {
+        logger.error('Error fetching orders for export', error, { action: 'getAllOrdersForExport' });
+        return [];
+    }
+
+    return data;
+}
+
 export async function getOrderById(id: string) {
     const supabase = await createClient();
     const { data, error } = await supabase

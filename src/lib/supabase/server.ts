@@ -24,6 +24,24 @@ function getSupabaseConfig() {
     return { supabaseUrl, supabaseAnonKey };
 }
 
+export function createStaticClient() {
+    const { supabaseUrl, supabaseAnonKey } = getSupabaseConfig();
+    return createServerClient<Database>(
+        supabaseUrl,
+        supabaseAnonKey,
+        {
+            cookies: {
+                getAll() {
+                    return [];
+                },
+                setAll(cookiesToSet) {
+                    // Static client, no-op
+                },
+            },
+        }
+    );
+}
+
 export async function createClient() {
     const { supabaseUrl, supabaseAnonKey } = getSupabaseConfig();
     const cookieStore = await cookies();

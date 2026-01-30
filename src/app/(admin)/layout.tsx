@@ -9,7 +9,7 @@ export default function AdminLayout({
 }) {
   return (
     <AdminAuthGuard>
-      <div className="min-h-screen bg-gray-50 flex">
+      <div className="min-h-screen bg-[#0f172a] flex">
         <AdminSidebar />
         <div className="flex-1 flex flex-col min-w-0 transition-all duration-300 lg:ml-64 relative">
           <AdminHeader />

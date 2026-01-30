@@ -1,6 +1,6 @@
 'use server';
 
-import { createClient } from '@/lib/supabase/server';
+import { createStaticClient } from '@/lib/supabase/server';
 import { logger } from '@/lib/logger';
 import { unstable_cache } from 'next/cache';
 
@@ -33,7 +33,7 @@ interface RpcProductResult {
  */
 async function fetchFeaturedProductsInternal(limit: number): Promise<FeaturedProductData[]> {
     try {
-        const supabase = await createClient();
+        const supabase = createStaticClient();
         // Use optimized RPC function for better performance
         const { data, error } = await (supabase as any).rpc('get_featured_products_fast', {
             p_limit: limit
@@ -85,7 +85,7 @@ export async function getFeaturedProducts(limit = 8): Promise<FeaturedProductDat
  */
 async function fetchNewArrivalsInternal(limit: number): Promise<FeaturedProductData[]> {
     try {
-        const supabase = await createClient();
+        const supabase = createStaticClient();
         // Use optimized RPC function for better performance
         const { data, error } = await (supabase as any).rpc('get_new_arrivals_fast', {
             p_limit: limit
@@ -112,6 +112,7 @@ async function fetchNewArrivalsInternal(limit: number): Promise<FeaturedProductD
         logger.error('Unexpected error fetching new arrivals', error, { action: 'getNewArrivals' });
         return [];
     }
+
 }
 
 /**

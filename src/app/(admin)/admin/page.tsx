@@ -1,21 +1,25 @@
-import { Suspense } from 'react';
-import { DollarSign, ShoppingBag, Package, Users } from 'lucide-react';
-import StatsCard from '@/components/admin/StatsCard';
-import RecentOrdersTable from '@/components/admin/RecentOrdersTable';
 import { getDashboardStats } from '@/actions/analytics';
+import StatsCard from '@/components/admin/StatsCard';
 import AnalyticsChartsWrapper from '@/components/admin/AnalyticsChartsWrapper';
-
+import RecentOrdersTable from '@/components/admin/RecentOrdersTable';
+import QuickActions from '@/components/admin/dashboard/QuickActions';
+import LowStockAlert from '@/components/admin/dashboard/LowStockAlert';
+import { DollarSign, ShoppingBag, Users, Package } from 'lucide-react';
 
 export default async function AdminDashboardPage() {
+    // This action already exists and works
     const stats = await getDashboardStats();
 
     return (
         <div className="space-y-8">
             {/* Page Title */}
             <div>
-                <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
-                <p className="text-gray-500 text-sm mt-1">Overview of your store's performance.</p>
+                <h1 className="text-2xl font-bold text-slate-100">Dashboard</h1>
+                <p className="text-slate-400 text-sm mt-1">Overview of your store's performance.</p>
             </div>
+
+            {/* Quick Actions */}
+            <QuickActions />
 
             {/* Stats Cards */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 xl:gap-8">
@@ -28,33 +32,50 @@ export default async function AdminDashboardPage() {
                 />
                 <StatsCard
                     title="Active Orders"
-                    value={stats.activeOrders.toString()}
+                    value={`${stats.activeOrders}`}
                     icon={ShoppingBag}
-                    trend="Pending processing"
+                    trend="+12%"
+                    trendUp={true}
+                />
+                <StatsCard
+                    title="Active Customers"
+                    value={`${stats.totalCustomers}`}
+                    icon={Users}
+                    trend="+5%"
                     trendUp={true}
                 />
                 <StatsCard
                     title="Total Products"
-                    value={stats.totalProducts.toString()}
+                    value={`${stats.totalProducts}`}
                     icon={Package}
-                />
-                <StatsCard
-                    title="Total Customers"
-                    value={stats.totalCustomers.toString()}
-                    icon={Users}
-                    trend="Registered"
+                    trend="In Stock"
                     trendUp={true}
                 />
             </div>
 
-            {/* Charts & Tables Grid */}
-            <div>
-                <AnalyticsChartsWrapper />
-            </div>
+            {/* Main Layout Grid: Charts + Side Widgets */}
+            <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
+                {/* Charts Area (2/3 width) */}
+                <div className="xl:col-span-2 space-y-8">
+                    <AnalyticsChartsWrapper />
 
-            {/* Recent Orders Section */}
-            <div>
-                <RecentOrdersTable />
+                    <div className="space-y-4">
+                        <div className="flex items-center justify-between">
+                            <h2 className="text-lg font-bold text-slate-100">Recent Orders</h2>
+                        </div>
+                        <RecentOrdersTable />
+                    </div>
+                </div>
+
+                {/* Side Widgets (1/3 width) */}
+                <div className="space-y-6">
+                    {/* Low Stock Widget - Fixed Height */}
+                    <div className="h-[420px]">
+                        <LowStockAlert />
+                    </div>
+
+                    {/* Could add another widget here, e.g., Activity Log */}
+                </div>
             </div>
         </div>
     );

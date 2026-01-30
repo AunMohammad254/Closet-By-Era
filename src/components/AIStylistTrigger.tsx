@@ -101,7 +101,7 @@ export default function AIStylistTrigger() {
             <div
                 ref={buttonRef}
                 style={isCustomPosition ? { left: position.x, top: position.y, bottom: 'auto', right: 'auto' } : {}}
-                className={`fixed z-40 touch-none ${!isCustomPosition ? 'bottom-6 right-6' : ''}`}
+                className={`fixed z-40 touch-none ${!isCustomPosition ? 'top-32 right-6' : ''}`}
             >
                 <div className="relative group">
                     {/* Close Button (appears on hover or if dragging active?) */}
