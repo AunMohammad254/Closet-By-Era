@@ -88,6 +88,8 @@ export const PAYMENT_METHOD_LABELS: Record<PaymentMethod, string> = {
     cod: 'Cash on Delivery',
     bank_transfer: 'Bank Transfer',
     card: 'Credit/Debit Card',
+    jazzcash: 'JazzCash',
+    easypaisa: 'EasyPaisa',
 };
 
 // Product categories

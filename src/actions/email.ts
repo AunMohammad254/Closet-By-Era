@@ -8,7 +8,7 @@ import {
     type ShippingAddress,
     type OrderItem
 } from '@/lib/nodemailer';
-import { type Order } from '@/types/supabase';
+import { type Order } from '@/types/database';
 
 /**
  * Server action to send order confirmation email using Nodemailer

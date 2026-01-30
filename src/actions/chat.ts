@@ -28,7 +28,7 @@ export async function createTicket(message: string) {
     if (!user) throw new Error('Unauthorized');
 
     // Check for existing open ticket to avoid spam
-    const { data: existing } = await supabase
+    const { data: existing } = await (supabase as any)
         .from('support_tickets')
         .select('id')
         .eq('user_id', user.id)
@@ -38,7 +38,7 @@ export async function createTicket(message: string) {
     let ticketId = existing?.id;
 
     if (!ticketId) {
-        const { data: newTicket, error } = await supabase
+        const { data: newTicket, error } = await (supabase as any)
             .from('support_tickets')
             .insert({ user_id: user.id })
             .select()
@@ -60,7 +60,7 @@ export async function sendMessage(ticketId: string, message: string) {
     if (!user) throw new Error('Unauthorized');
 
     // Check if user is admin
-    const { data: profile } = await supabase
+    const { data: profile } = await (supabase as any)
         .from('profiles')
         .select('role')
         .eq('id', user.id)
@@ -68,7 +68,7 @@ export async function sendMessage(ticketId: string, message: string) {
 
     const isAdmin = profile?.role === 'admin';
 
-    const { error } = await supabase
+    const { error } = await (supabase as any)
         .from('support_messages')
         .insert({
             ticket_id: ticketId,
@@ -84,7 +84,7 @@ export async function sendMessage(ticketId: string, message: string) {
 
 export async function getTickets() {
     const supabase = await createClient();
-    const { data: tickets, error } = await supabase
+    const { data: tickets, error } = await (supabase as any)
         .from('support_tickets')
         .select('*')
         .order('updated_at', { ascending: false });
@@ -98,19 +98,19 @@ export async function getUserActiveTicket() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return null;
 
-    const { data: ticket } = await supabase
+    const { data: ticket } = await (supabase as any)
         .from('support_tickets')
         .select('*')
         .eq('user_id', user.id)
         .eq('status', 'open')
         .single();
 
-    return ticket as Ticket;
+    return (ticket || null) as Ticket | null;
 }
 
 export async function getMessages(ticketId: string) {
     const supabase = await createClient();
-    const { data: messages, error } = await supabase
+    const { data: messages, error } = await (supabase as any)
         .from('support_messages')
         .select('*')
         .eq('ticket_id', ticketId)

@@ -58,7 +58,7 @@ export default function Navbar() {
                         </button>
 
                         {/* Logo */}
-                        <Link href="/" className="flex-shrink-0">
+                        <Link href="/" className="shrink-0">
                             <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900">
                                 <span className="font-light">CLOSET</span>
                                 <span className="text-rose-600">BY</span>

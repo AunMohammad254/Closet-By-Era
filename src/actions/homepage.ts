@@ -35,8 +35,7 @@ async function fetchFeaturedProductsInternal(limit: number): Promise<FeaturedPro
     try {
         const supabase = await createClient();
         // Use optimized RPC function for better performance
-        // @ts-ignore - RPC function exists in DB but not in types yet
-        const { data, error } = await supabase.rpc('get_featured_products_fast', {
+        const { data, error } = await (supabase as any).rpc('get_featured_products_fast', {
             p_limit: limit
         });
 
@@ -88,8 +87,7 @@ async function fetchNewArrivalsInternal(limit: number): Promise<FeaturedProductD
     try {
         const supabase = await createClient();
         // Use optimized RPC function for better performance
-        // @ts-ignore - RPC function exists in DB but not in types yet
-        const { data, error } = await supabase.rpc('get_new_arrivals_fast', {
+        const { data, error } = await (supabase as any).rpc('get_new_arrivals_fast', {
             p_limit: limit
         });
 

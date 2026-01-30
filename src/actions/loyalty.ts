@@ -15,13 +15,13 @@ export async function getLoyaltyBalance() {
 
     if (!user) return 0;
 
-    const { data: profile } = await supabase
-        .from('profiles')
+    const { data: customer } = await supabase
+        .from('customers')
         .select('loyalty_points')
-        .eq('id', user.id)
+        .eq('auth_id', user.id)
         .single();
 
-    return profile?.loyalty_points || 0;
+    return customer?.loyalty_points || 0;
 }
 
 export async function getLoyaltyHistory() {
@@ -30,13 +30,22 @@ export async function getLoyaltyHistory() {
 
     if (!user) return [];
 
+    // First get the customer record to get their ID
+    const { data: customer } = await supabase
+        .from('customers')
+        .select('id')
+        .eq('auth_id', user.id)
+        .single();
+
+    if (!customer) return [];
+
     const { data: history } = await supabase
         .from('loyalty_history')
         .select('*')
-        .eq('user_id', user.id)
+        .eq('customer_id', customer.id)
         .order('created_at', { ascending: false });
 
-    return history as LoyaltyHistory[] || [];
+    return (history as LoyaltyHistory[]) || [];
 }
 
 export async function awardLoyaltyPoints(total: number) {
@@ -48,21 +57,26 @@ export async function awardLoyaltyPoints(total: number) {
     const pointsEarned = Math.floor(total / 100);
     if (pointsEarned <= 0) return;
 
-    // 1. Get current points
-    const { data: profile } = await supabase
-        .from('profiles')
-        .select('loyalty_points')
-        .eq('id', user.id)
+    // 1. Get current customer record with points
+    const { data: customer } = await supabase
+        .from('customers')
+        .select('id, loyalty_points')
+        .eq('auth_id', user.id)
         .single();
 
-    const currentPoints = profile?.loyalty_points || 0;
+    if (!customer) {
+        console.error('Error: Customer record not found for user', user.id);
+        return;
+    }
+
+    const currentPoints = customer.loyalty_points || 0;
     const newBalance = currentPoints + pointsEarned;
 
-    // 2. Update profile
+    // 2. Update customer loyalty points
     const { error: updateError } = await supabase
-        .from('profiles')
+        .from('customers')
         .update({ loyalty_points: newBalance })
-        .eq('id', user.id);
+        .eq('id', customer.id);
 
     if (updateError) {
         console.error('Error updating loyalty points:', updateError);
@@ -73,7 +87,7 @@ export async function awardLoyaltyPoints(total: number) {
     await supabase
         .from('loyalty_history')
         .insert({
-            user_id: user.id,
+            customer_id: customer.id,
             points: pointsEarned,
             reason: `Earned from purchase (Order)`
         });

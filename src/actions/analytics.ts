@@ -3,6 +3,19 @@
 import { createClient } from '@/lib/supabase/server';
 import { Json } from '@/types/supabase';
 
+interface AnalyticsSummary {
+    timeline: { date: string; views: number }[];
+    topProducts: { product_id: string; name: string; views: number }[];
+    totalViews: number;
+}
+
+interface DashboardStats {
+    totalRevenue: number;
+    activeOrders: number;
+    totalProducts: number;
+    totalCustomers: number;
+}
+
 export async function trackEvent(eventType: string, data: { pagePath?: string, productId?: string, meta?: Json }) {
     try {
         const supabase = await createClient();
@@ -18,7 +31,7 @@ export async function trackEvent(eventType: string, data: { pagePath?: string, p
     }
 }
 
-export async function getAnalyticsSummary(daysBack: number = 7) {
+export async function getAnalyticsSummary(daysBack: number = 7): Promise<AnalyticsSummary> {
     const supabase = await createClient();
     // Optimized: Use RPC function for database-side aggregation
     const { data, error } = await supabase.rpc('get_analytics_summary', {
@@ -34,7 +47,8 @@ export async function getAnalyticsSummary(daysBack: number = 7) {
         };
     }
 
-    const summary = data as Record<string, any>;
+    // The RPC returns a properly typed result
+    const summary = data as unknown as AnalyticsSummary;
     return {
         timeline: summary?.timeline || [],
         topProducts: summary?.topProducts || [],
@@ -42,7 +56,7 @@ export async function getAnalyticsSummary(daysBack: number = 7) {
     };
 }
 
-export async function getDashboardStats() {
+export async function getDashboardStats(): Promise<DashboardStats> {
     const supabase = await createClient();
     // Optimization: Use SQL RPC to calculate stats on the database side
     // This avoids fetching all orders to the server-side logic
@@ -59,9 +73,8 @@ export async function getDashboardStats() {
         };
     }
 
-    // RPC returns a JSON object (or single row)
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const stats = data as any;
+    // RPC returns a typed object
+    const stats = data as unknown as DashboardStats;
 
     return {
         totalRevenue: Number(stats?.totalRevenue) || 0,

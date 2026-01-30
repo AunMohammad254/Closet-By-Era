@@ -33,8 +33,16 @@ export default function Hero() {
 
             {/* Animated Background Pattern */}
             <div className="absolute inset-0 z-0">
+                <Image
+                    src={slide.image}
+                    alt={slide.title}
+                    fill
+                    className="object-cover object-center opacity-40 mix-blend-overlay"
+                    priority
+                    sizes="100vw"
+                />
                 <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_50%,rgba(244,63,94,0.1),transparent_50%)]" />
-                <div className="absolute inset-0 bg-gradient-to-br from-slate-900 via-slate-800 to-rose-950" />
+                <div className="absolute inset-0 bg-gradient-to-br from-slate-900 via-slate-800 to-rose-950 opacity-90" />
             </div>
 
             {/* Decorative Elements */}

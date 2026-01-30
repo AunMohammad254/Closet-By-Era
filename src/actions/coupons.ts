@@ -34,7 +34,11 @@ export async function createCoupon(data: CouponFormData): Promise<ActionResult> 
         const { error } = await supabase
             .from('coupons')
             .insert({
-                ...data,
+                code: data.code,
+                discount_type: data.discount_type,
+                discount_value: data.discount_value,
+                min_order_amount: data.min_order_amount,
+                is_active: data.is_active,
                 starts_at: data.start_date,
                 ends_at: data.end_date,
                 max_uses: data.usage_limit
@@ -56,14 +60,21 @@ export async function createCoupon(data: CouponFormData): Promise<ActionResult> 
 export async function updateCoupon(id: string, data: Partial<CouponFormData>): Promise<ActionResult> {
     try {
         const supabase = await createClient();
+
+        // Build update object with only valid database columns
+        const updateData: Record<string, unknown> = {};
+        if (data.code !== undefined) updateData.code = data.code;
+        if (data.discount_type !== undefined) updateData.discount_type = data.discount_type;
+        if (data.discount_value !== undefined) updateData.discount_value = data.discount_value;
+        if (data.min_order_amount !== undefined) updateData.min_order_amount = data.min_order_amount;
+        if (data.is_active !== undefined) updateData.is_active = data.is_active;
+        if (data.start_date !== undefined) updateData.starts_at = data.start_date;
+        if (data.end_date !== undefined) updateData.ends_at = data.end_date;
+        if (data.usage_limit !== undefined) updateData.max_uses = data.usage_limit;
+
         const { error } = await supabase
             .from('coupons')
-            .update({
-                ...data,
-                starts_at: data.start_date,
-                ends_at: data.end_date,
-                max_uses: data.usage_limit
-            })
+            .update(updateData)
             .eq('id', id);
 
         if (error) {

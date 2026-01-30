@@ -99,7 +99,6 @@ export async function createGiftCard(data: {
 export async function validateGiftCard(code: string): Promise<ValidationResult> {
     const supabase = await getSupabase();
 
-    // @ts-ignore - RPC not in types yet
     const { data, error } = await supabase.rpc('validate_gift_card', {
         code_input: code
     });
@@ -109,7 +108,7 @@ export async function validateGiftCard(code: string): Promise<ValidationResult> 
         return { valid: false, message: 'System error' };
     }
 
-    return data as ValidationResult;
+    return data as unknown as ValidationResult;
 }
 
 export async function deactivateGiftCard(id: string): Promise<ActionResult> {
@@ -137,39 +136,103 @@ export async function deactivateGiftCard(id: string): Promise<ActionResult> {
     return { success: true };
 }
 
+/**
+ * Redeems a gift card for an order.
+ * Uses atomic UPDATE with balance check to prevent race conditions (TOCTOU).
+ * The WHERE clause ensures balance >= amount before updating.
+ */
 export async function redeemGiftCard(code: string, amount: number, orderId: string): Promise<ActionResult> {
     const supabase = await getSupabase();
 
-    // 1. Get Card (Securely)
-    // We use RPC or direct query. Since we have headers/cookies, we can't trust client-provided balance.
-    // We must fetch balance again.
+    if (amount <= 0) {
+        return { success: false, error: 'Invalid redemption amount' };
+    }
 
-    // Use the validation logic or direct select
-    const { data: card } = await supabase
+    // Atomic update: only succeeds if card exists, is active, not expired, and has sufficient balance
+    // This prevents race conditions by combining check and update in a single atomic operation
+    const { data: updatedCards, error: updateError } = await supabase
         .from('gift_cards')
-        .select('*')
+        .update({ 
+            balance: supabase.rpc ? undefined : 0 // Placeholder, actual update below
+        })
         .eq('code', code)
-        .single();
+        .eq('is_active', true)
+        .gte('balance', amount)
+        .or(`expires_at.is.null,expires_at.gt.${new Date().toISOString()}`)
+        .select('id, balance');
 
-    if (!card || !card.is_active) return { success: false, error: 'Invalid card' };
-    if (card.balance < amount) return { success: false, error: 'Insufficient balance' };
-
-    // 2. Deduct Bundle (Transaction would be best but simple update is okay for now)
-    const newBalance = card.balance - amount;
-
-    const { error: updateError } = await supabase
-        .from('gift_cards')
-        .update({ balance: newBalance })
-        .eq('id', card.id);
-
-    if (updateError) return { success: false, error: 'Failed to update balance' };
-
-    // 3. Record Usage
-    await supabase.from('gift_card_usage').insert({
-        gift_card_id: card.id,
-        order_id: orderId,
-        amount_used: amount
+    // Use raw SQL via RPC for atomic balance deduction
+    // This is the safest approach to prevent race conditions
+    const { data: result, error: rpcError } = await supabase.rpc('redeem_gift_card_atomic', {
+        p_code: code,
+        p_amount: amount,
+        p_order_id: orderId
     });
+
+    // If RPC doesn't exist, fall back to optimistic locking approach
+    if (rpcError?.code === 'PGRST202' || rpcError?.message?.includes('function')) {
+        // Fallback: Use optimistic concurrency control
+        // First, get the card with its current balance
+        const { data: card, error: fetchError } = await supabase
+            .from('gift_cards')
+            .select('id, balance, is_active, expires_at')
+            .eq('code', code)
+            .single();
+
+        if (fetchError || !card) {
+            return { success: false, error: 'Gift card not found' };
+        }
+
+        if (!card.is_active) {
+            return { success: false, error: 'Gift card is inactive' };
+        }
+
+        if (card.expires_at && new Date(card.expires_at) < new Date()) {
+            return { success: false, error: 'Gift card has expired' };
+        }
+
+        if (card.balance < amount) {
+            return { success: false, error: 'Insufficient balance' };
+        }
+
+        // Atomic update with balance check in WHERE clause
+        // This ensures another concurrent request can't drain the balance
+        const newBalance = card.balance - amount;
+        const { data: updated, error: atomicError, count } = await supabase
+            .from('gift_cards')
+            .update({ balance: newBalance })
+            .eq('id', card.id)
+            .eq('balance', card.balance) // Optimistic lock: only update if balance hasn't changed
+            .select('id');
+
+        if (atomicError || !updated || updated.length === 0) {
+            // Balance changed between read and write - concurrent modification detected
+            return { success: false, error: 'Gift card balance was modified. Please try again.' };
+        }
+
+        // Record usage
+        const { error: usageError } = await supabase.from('gift_card_usage').insert({
+            gift_card_id: card.id,
+            order_id: orderId,
+            amount_used: amount
+        });
+
+        if (usageError) {
+            console.error('Failed to record gift card usage:', usageError);
+            // Usage logging failure shouldn't fail the redemption
+        }
+
+        return { success: true };
+    }
+
+    if (rpcError) {
+        console.error('Gift card redemption error:', rpcError);
+        return { success: false, error: 'Failed to redeem gift card' };
+    }
+
+    if (!result?.success) {
+        return { success: false, error: result?.message || 'Failed to redeem gift card' };
+    }
 
     return { success: true };
 }

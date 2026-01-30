@@ -2,25 +2,44 @@
 
 import { createClient } from '@/lib/supabase/server';
 import { ActionResult } from '@/types/shared';
+import type { Database } from '@/types/supabase';
 
-export async function getAdminCustomers(): Promise<ActionResult<any[]>> {
+type Customer = Database['public']['Tables']['customers']['Row'];
+
+/**
+ * Verifies the current user has admin role.
+ * Returns the customer record if admin, null otherwise.
+ */
+async function verifyAdminRole(supabase: Awaited<ReturnType<typeof createClient>>): Promise<Customer | null> {
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+
+    if (authError || !user) {
+        return null;
+    }
+
+    const { data: customer } = await supabase
+        .from('customers')
+        .select('*')
+        .eq('auth_id', user.id)
+        .single();
+
+    if (!customer || customer.role !== 'admin') {
+        return null;
+    }
+
+    return customer;
+}
+
+export async function getAdminCustomers(): Promise<ActionResult<Customer[]>> {
     const supabase = await createClient();
 
     try {
-        const { data: { user }, error: authError } = await supabase.auth.getUser();
+        const admin = await verifyAdminRole(supabase);
 
-        if (authError) {
-            console.error('getAdminCustomers: authError', authError);
-            throw new Error('Unauthorized: Auth Error');
+        if (!admin) {
+            console.error('getAdminCustomers: Unauthorized - user is not admin');
+            return { success: false, error: 'Forbidden: Admin access required' };
         }
-        if (!user) {
-            console.error('getAdminCustomers: No user found');
-            throw new Error('Unauthorized: No User');
-        }
-
-        // Optional: Check if user is admin via profiles table if needed
-        // const { data: profile } = await supabase.from('profiles').select('role').eq('id', user.id).single();
-        // if (profile?.role !== 'admin') throw new Error('Forbidden');
 
         const { data, error } = await supabase
             .from('customers')

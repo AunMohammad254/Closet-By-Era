@@ -13,8 +13,9 @@ const withPWA = require("@ducanh2912/next-pwa").default({
 });
 
 const nextConfig: NextConfig = {
-  // Enable Partial Prerendering (renamed from ppr to cacheComponents in Next.js 16.1.2)
-  // cacheComponents: true,
+  // cacheComponents: true, // Disabled due to build error in Next 16.0.10
+  experimental: {
+  },
 
   // Empty turbopack config to silence warning about PWA webpack config
   turbopack: {},

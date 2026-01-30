@@ -5,5 +5,11 @@
     ],
     "deno.config": "supabase/deno.json",
     "deno.unstable": true,
-    "deno.enable": true
+    "deno.enable": true,
+    "github.copilot.chat.mcpServers": {
+        "supabase": {
+            "type": "http",
+            "url": "https://mcp.supabase.com/mcp?project_ref=hdheoblrrnaejqalsmcg"
+        }
+    }
 }
