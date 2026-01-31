@@ -68,6 +68,10 @@ export function useAdminAuth(): UseAdminAuthReturn {
                 isAdmin: customer.role === 'admin'
             });
         } catch (err) {
+            // Silently ignore AbortError - happens during navigation
+            if (err instanceof Error && err.name === 'AbortError') {
+                return;
+            }
             console.error('Failed to fetch admin user:', err);
             setError('Failed to load user data');
             setAdminUser(null);

@@ -12,7 +12,12 @@ import {
     LogOut,
     Menu,
     X,
-    Ticket
+    Ticket,
+    Gift,
+    MessageCircle,
+    Star,
+    Coins,
+    BarChart3
 } from 'lucide-react';
 import { useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
@@ -23,8 +28,13 @@ const navigation = [
     { name: 'Products', href: '/admin/products', icon: ShoppingBag },
     { name: 'Categories', href: '/admin/categories', icon: FolderTree },
     { name: 'Coupons', href: '/admin/coupons', icon: Ticket },
+    { name: 'Gift Cards', href: '/admin/gift-cards', icon: Gift },
+    { name: 'Reviews', href: '/admin/reviews', icon: Star },
+    { name: 'Loyalty', href: '/admin/loyalty', icon: Coins },
+    { name: 'Analytics', href: '/admin/analytics', icon: BarChart3 },
     { name: 'Orders', href: '/admin/orders', icon: ShoppingCart },
     { name: 'Customers', href: '/admin/users', icon: Users },
+    { name: 'Support Chat', href: '/admin/chat', icon: MessageCircle },
     { name: 'Settings', href: '/admin/settings', icon: Settings },
 ];
 

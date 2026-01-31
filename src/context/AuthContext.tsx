@@ -21,22 +21,43 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        // Check active session
+        let isMounted = true;
+
+        // Check active session with error handling for aborts
         const checkSession = async () => {
-            const { data: { session } } = await supabase.auth.getSession();
-            setUser(session?.user ?? null);
-            setLoading(false);
+            try {
+                const { data: { session } } = await supabase.auth.getSession();
+                if (isMounted) {
+                    setUser(session?.user ?? null);
+                    setLoading(false);
+                }
+            } catch (error) {
+                // Silently ignore AbortError - happens during navigation
+                if (error instanceof Error && error.name === 'AbortError') {
+                    return;
+                }
+                // Log other errors for debugging
+                console.error('Auth check failed:', error);
+                if (isMounted) {
+                    setLoading(false);
+                }
+            }
         };
 
         checkSession();
 
         // Listen for auth changes
         const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-            setUser(session?.user ?? null);
-            setLoading(false);
+            if (isMounted) {
+                setUser(session?.user ?? null);
+                setLoading(false);
+            }
         });
 
-        return () => subscription.unsubscribe();
+        return () => {
+            isMounted = false;
+            subscription.unsubscribe();
+        };
     }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
     const signIn = async (email: string, password: string) => {

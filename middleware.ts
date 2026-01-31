@@ -91,24 +91,56 @@ export async function middleware(request: NextRequest) {
     } = await supabase.auth.getSession()
 
     // Define protected routes
-    const isAdminRoute = request.nextUrl.pathname.startsWith('/admin') ||
-        request.nextUrl.pathname.startsWith('/dashboard')
+    const isSuperAdminRoute = request.nextUrl.pathname.startsWith('/super-admin') &&
+        !request.nextUrl.pathname.startsWith('/super-admin/login')
+
+    const isAdminRoute = (request.nextUrl.pathname.startsWith('/admin') ||
+        request.nextUrl.pathname.startsWith('/dashboard')) &&
+        !request.nextUrl.pathname.startsWith('/super-admin')
 
     const isProtectedRoute = request.nextUrl.pathname.startsWith('/account') ||
         request.nextUrl.pathname.startsWith('/profile') ||
         request.nextUrl.pathname.startsWith('/checkout')
 
     // Redirect to login if accessing protected route without session
-    if ((isAdminRoute || isProtectedRoute) && !session) {
+    if ((isSuperAdminRoute || isAdminRoute || isProtectedRoute) && !session) {
         const redirectUrl = request.nextUrl.clone()
-        // ADMIN SPECIFIC: Use dedicated admin login
-        if (isAdminRoute) {
+        if (isSuperAdminRoute) {
+            redirectUrl.pathname = '/super-admin/login'
+        } else if (isAdminRoute) {
             redirectUrl.pathname = '/admin/login'
         } else {
             redirectUrl.pathname = '/auth/login'
         }
         redirectUrl.searchParams.set('redirectedFrom', request.nextUrl.pathname)
         return NextResponse.redirect(redirectUrl)
+    }
+
+    // Super-admin route protection - requires super_admin role AND matching email
+    if (isSuperAdminRoute && session) {
+        const superAdminEmail = process.env.SUPER_ADMIN_EMAIL || process.env['Super-Admin-Email'];
+
+        // Must match super-admin email from env
+        if (session.user.email !== superAdminEmail) {
+            const redirectUrl = request.nextUrl.clone()
+            redirectUrl.pathname = '/'
+            redirectUrl.searchParams.set('error', 'unauthorized')
+            return NextResponse.redirect(redirectUrl)
+        }
+
+        // Verify super_admin role in database
+        const { data: customer } = await supabase
+            .from('customers')
+            .select('role')
+            .eq('auth_id', session.user.id)
+            .maybeSingle()
+
+        if (customer?.role !== 'super_admin') {
+            const redirectUrl = request.nextUrl.clone()
+            redirectUrl.pathname = '/'
+            redirectUrl.searchParams.set('error', 'unauthorized')
+            return NextResponse.redirect(redirectUrl)
+        }
     }
 
     // If trying to access admin route, check for admin role
@@ -119,7 +151,7 @@ export async function middleware(request: NextRequest) {
         let isAdmin = false
 
         if (metadataRole !== undefined) {
-            isAdmin = metadataRole === 'admin'
+            isAdmin = metadataRole === 'admin' || metadataRole === 'super_admin'
         } else {
             // Fallback: Fetch customer role from database (Slower, handles legacy sessions)
             const { data: customer } = await supabase
@@ -128,13 +160,15 @@ export async function middleware(request: NextRequest) {
                 .eq('auth_id', session.user.id)
                 .maybeSingle()
 
-            isAdmin = customer?.role === 'admin'
+            isAdmin = customer?.role === 'admin' || customer?.role === 'super_admin'
         }
 
-        // STRICT: Enforce email match with env
+        // STRICT: Enforce email match with env (for regular admin)
         const envAdminEmail = process.env.ADMIN_EMAIL;
-        if (isAdmin && envAdminEmail && session.user.email !== envAdminEmail) {
-            // Role is admin but email doesn't match the one in .env -> DENY
+        const superAdminEmail = process.env.SUPER_ADMIN_EMAIL || process.env['Super-Admin-Email'];
+
+        // Allow if super-admin or if admin email matches
+        if (isAdmin && envAdminEmail && session.user.email !== envAdminEmail && session.user.email !== superAdminEmail) {
             isAdmin = false;
         }
 

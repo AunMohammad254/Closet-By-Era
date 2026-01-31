@@ -24,7 +24,24 @@ let client: ReturnType<typeof createBrowserClient<Database>> | undefined;
 export function createClient() {
     if (client) return client;
 
-    client = createBrowserClient<Database>(supabaseUrl!, supabaseAnonKey!);
+    client = createBrowserClient<Database>(supabaseUrl!, supabaseAnonKey!, {
+        // Use singleton pattern to avoid multiple clients
+        isSingleton: true,
+        auth: {
+            // Persist session in localStorage and sync across tabs
+            persistSession: true,
+            detectSessionInUrl: true,
+            // Suppress abort errors by disabling flow state
+            flowType: 'pkce',
+        },
+        global: {
+            headers: {
+                'X-Client-Info': 'closet-by-era',
+            },
+        },
+    });
 
     return client;
 }
+
+

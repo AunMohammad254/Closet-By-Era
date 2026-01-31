@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/client';
 import { getTickets, getMessages, sendMessage, Ticket, Message } from '@/actions/chat';
 import { useAuth } from '@/context/AuthContext';
 import { format } from 'date-fns';
+import { MessageCircle, Send } from 'lucide-react';
 
 export default function AdminChatInterface() {
     const { user } = useAuth();
@@ -83,35 +84,50 @@ export default function AdminChatInterface() {
     };
 
     return (
-        <div className="flex h-[calc(100vh-140px)] bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+        <div className="flex h-[calc(100vh-200px)] bg-[#1e293b] rounded-xl border border-slate-700/50 overflow-hidden">
             {/* Sidebar List */}
-            <div className="w-80 border-r border-gray-100 flex flex-col">
-                <div className="p-4 border-b border-gray-100 bg-gray-50">
-                    <h2 className="font-bold text-gray-900">Active Tickets</h2>
+            <div className="w-80 border-r border-slate-700/50 flex flex-col">
+                <div className="p-4 border-b border-slate-700/50 bg-slate-800/50">
+                    <h2 className="font-bold text-slate-200">Active Tickets</h2>
+                    <p className="text-xs text-slate-500 mt-0.5">{tickets.length} conversations</p>
                 </div>
                 <div className="flex-1 overflow-y-auto">
-                    {tickets.map((ticket) => (
-                        <button
-                            key={ticket.id}
-                            onClick={() => setSelectedTicketId(ticket.id)}
-                            className={`w-full text-left p-4 hover:bg-gray-50 transition-colors border-b border-gray-50 ${selectedTicketId === ticket.id ? 'bg-rose-50 border-l-4 border-l-rose-500' : ''
-                                }`}
-                        >
-                            <div className="flex justify-between items-start mb-1">
-                                <span className="font-medium text-gray-900 truncate w-32">User {ticket.user_id.slice(0, 8)}...</span>
-                                <span className="text-xs text-gray-400">{format(new Date(ticket.updated_at), 'MMM d, HH:mm')}</span>
-                            </div>
-                            <div className="flex items-center gap-2">
-                                <span className={`w-2 h-2 rounded-full ${ticket.status === 'open' ? 'bg-emerald-500' : 'bg-gray-300'}`} />
-                                <span className="text-xs text-gray-500 capitalize">{ticket.status}</span>
-                            </div>
-                        </button>
-                    ))}
+                    {tickets.length === 0 ? (
+                        <div className="p-6 text-center">
+                            <MessageCircle className="w-10 h-10 mx-auto text-slate-600 mb-2" />
+                            <p className="text-slate-500 text-sm">No support tickets</p>
+                        </div>
+                    ) : (
+                        tickets.map((ticket) => (
+                            <button
+                                key={ticket.id}
+                                onClick={() => setSelectedTicketId(ticket.id)}
+                                className={`w-full text-left p-4 hover:bg-slate-800/50 transition-colors border-b border-slate-700/30 ${selectedTicketId === ticket.id
+                                        ? 'bg-rose-500/10 border-l-4 border-l-rose-500'
+                                        : ''
+                                    }`}
+                            >
+                                <div className="flex justify-between items-start mb-1">
+                                    <span className="font-medium text-slate-200 truncate w-32">
+                                        User {ticket.user_id.slice(0, 8)}...
+                                    </span>
+                                    <span className="text-xs text-slate-500">
+                                        {format(new Date(ticket.updated_at), 'MMM d, HH:mm')}
+                                    </span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <span className={`w-2 h-2 rounded-full ${ticket.status === 'open' ? 'bg-emerald-400' : 'bg-slate-500'
+                                        }`} />
+                                    <span className="text-xs text-slate-400 capitalize">{ticket.status}</span>
+                                </div>
+                            </button>
+                        ))
+                    )}
                 </div>
             </div>
 
             {/* Chat Area */}
-            <div className="flex-1 flex flex-col bg-gray-50/50">
+            <div className="flex-1 flex flex-col bg-slate-800/30">
                 {selectedTicketId ? (
                     <>
                         {/* Messages */}
@@ -121,11 +137,11 @@ export default function AdminChatInterface() {
                                 return (
                                     <div key={msg.id} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
                                         <div className={`max-w-[70%] rounded-2xl px-5 py-3 ${isMe
-                                                ? 'bg-slate-900 text-white rounded-br-none'
-                                                : 'bg-white text-gray-800 border border-gray-100 rounded-bl-none shadow-sm'
+                                            ? 'bg-rose-500 text-white rounded-br-none'
+                                            : 'bg-slate-700 text-slate-200 rounded-bl-none'
                                             }`}>
                                             <p className="text-sm">{msg.message}</p>
-                                            <p className={`text-[10px] mt-1 ${isMe ? 'text-slate-400' : 'text-gray-400'}`}>
+                                            <p className={`text-[10px] mt-1 ${isMe ? 'text-rose-200' : 'text-slate-400'}`}>
                                                 {format(new Date(msg.created_at), 'HH:mm')}
                                             </p>
                                         </div>
@@ -136,31 +152,31 @@ export default function AdminChatInterface() {
                         </div>
 
                         {/* Input */}
-                        <div className="p-4 bg-white border-t border-gray-100">
+                        <div className="p-4 bg-slate-800/50 border-t border-slate-700/50">
                             <form onSubmit={handleSend} className="flex gap-4">
                                 <input
                                     type="text"
                                     value={input}
                                     onChange={(e) => setInput(e.target.value)}
                                     placeholder="Type your reply..."
-                                    className="flex-1 px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-rose-500 focus:border-transparent transition-all"
+                                    className="flex-1 px-4 py-3 bg-slate-800/50 border border-slate-700/50 text-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500/50 transition-all placeholder:text-slate-500"
                                 />
                                 <button
                                     type="submit"
                                     disabled={!input.trim()}
-                                    className="px-6 py-3 bg-slate-900 text-white font-medium rounded-xl hover:bg-slate-800 transition-colors disabled:opacity-50"
+                                    className="inline-flex items-center px-6 py-3 bg-rose-500 text-white font-medium rounded-xl hover:bg-rose-600 transition-colors disabled:opacity-50 shadow-lg shadow-rose-500/20"
                                 >
+                                    <Send className="w-4 h-4 mr-2" />
                                     Reply
                                 </button>
                             </form>
                         </div>
                     </>
                 ) : (
-                    <div className="flex-1 flex flex-col items-center justify-center text-gray-400">
-                        <svg className="w-16 h-16 mb-4 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-                        </svg>
-                        <p>Select a ticket to start chatting</p>
+                    <div className="flex-1 flex flex-col items-center justify-center text-slate-500">
+                        <MessageCircle className="w-16 h-16 mb-4 text-slate-600" />
+                        <p className="text-lg font-medium text-slate-400">Select a ticket</p>
+                        <p className="text-sm text-slate-500">Choose a conversation from the sidebar</p>
                     </div>
                 )}
             </div>
