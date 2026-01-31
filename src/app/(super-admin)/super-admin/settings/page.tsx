@@ -1,7 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { Settings, Save, Loader2, Database, Shield, Bell, Globe } from 'lucide-react';
+import { Settings, Save, Loader2, Database, Shield, Bell, Globe, AlertTriangle } from 'lucide-react';
+import toast from 'react-hot-toast';
 
 export default function SystemSettingsPage() {
     const [saving, setSaving] = useState(false);
@@ -15,10 +16,10 @@ export default function SystemSettingsPage() {
 
     const handleSave = async () => {
         setSaving(true);
-        // Simulate save
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        // TODO: Implement Supabase persistence for settings
+        await new Promise(resolve => setTimeout(resolve, 500));
         setSaving(false);
-        alert('Settings saved! (Demo only - not persisted)');
+        toast('Settings preview only - persistence coming soon', { icon: '⚠️' });
     };
 
     return (

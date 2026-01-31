@@ -2,23 +2,32 @@
 
 import { useState, useEffect } from 'react';
 import { getAuditLogs, type AuditLog } from '@/actions/super-admin';
-import { ScrollText, Shield, User, Package, ShoppingCart, Settings, Loader2, Filter } from 'lucide-react';
+import { ScrollText, Shield, User, Package, ShoppingCart, Settings, Loader2, Filter, Calendar, Search } from 'lucide-react';
+import toast from 'react-hot-toast';
 
 export default function AuditLogsPage() {
     const [logs, setLogs] = useState<AuditLog[]>([]);
     const [loading, setLoading] = useState(true);
     const [actionFilter, setActionFilter] = useState<string>('all');
+    const [startDate, setStartDate] = useState<string>('');
+    const [endDate, setEndDate] = useState<string>('');
 
     useEffect(() => {
         loadLogs();
     }, []);
 
     async function loadLogs() {
+        setLoading(true);
         try {
-            const data = await getAuditLogs({ limit: 200 });
+            const data = await getAuditLogs({
+                limit: 200,
+                startDate: startDate || undefined,
+                endDate: endDate ? `${endDate}T23:59:59` : undefined
+            });
             setLogs(data);
         } catch (error) {
             console.error('Failed to load audit logs:', error);
+            toast.error('Failed to load audit logs');
         } finally {
             setLoading(false);
         }
@@ -71,22 +80,52 @@ export default function AuditLogsPage() {
                 <p className="text-slate-400 mt-1">Track all administrative actions</p>
             </div>
 
-            {/* Filter */}
-            <div className="flex items-center gap-4">
-                <Filter className="w-5 h-5 text-slate-400" />
-                <select
-                    value={actionFilter}
-                    onChange={(e) => setActionFilter(e.target.value)}
-                    className="px-4 py-2 bg-slate-800/50 border border-slate-700/50 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
-                >
-                    <option value="all">All Actions</option>
-                    {uniqueActions.map(action => (
-                        <option key={action} value={action}>{action.replace(/_/g, ' ')}</option>
-                    ))}
-                </select>
-                <span className="text-slate-400 text-sm">
-                    Showing {filteredLogs.length} of {logs.length} entries
-                </span>
+            {/* Filters */}
+            <div className="bg-slate-800/50 border border-slate-700/50 rounded-xl p-4">
+                <div className="flex flex-wrap items-center gap-4">
+                    <div className="flex items-center gap-2">
+                        <Filter className="w-5 h-5 text-slate-400" />
+                        <select
+                            value={actionFilter}
+                            onChange={(e) => setActionFilter(e.target.value)}
+                            className="px-4 py-2 bg-slate-900/50 border border-slate-700/50 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+                        >
+                            <option value="all">All Actions</option>
+                            {uniqueActions.map(action => (
+                                <option key={action} value={action}>{action.replace(/_/g, ' ')}</option>
+                            ))}
+                        </select>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                        <Calendar className="w-5 h-5 text-slate-400" />
+                        <input
+                            type="date"
+                            value={startDate}
+                            onChange={(e) => setStartDate(e.target.value)}
+                            className="px-3 py-2 bg-slate-900/50 border border-slate-700/50 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+                        />
+                        <span className="text-slate-500">to</span>
+                        <input
+                            type="date"
+                            value={endDate}
+                            onChange={(e) => setEndDate(e.target.value)}
+                            className="px-3 py-2 bg-slate-900/50 border border-slate-700/50 rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+                        />
+                    </div>
+
+                    <button
+                        onClick={loadLogs}
+                        className="flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-sm font-medium transition-colors"
+                    >
+                        <Search className="w-4 h-4" />
+                        Apply Filters
+                    </button>
+
+                    <span className="text-slate-400 text-sm ml-auto">
+                        Showing {filteredLogs.length} entries
+                    </span>
+                </div>
             </div>
 
             {/* Logs List */}

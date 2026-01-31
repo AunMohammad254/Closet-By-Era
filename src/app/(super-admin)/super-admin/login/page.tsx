@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
+import { recordLogin } from '@/actions/super-admin';
 import { Shield, Eye, EyeOff, Loader2 } from 'lucide-react';
 
 export default function SuperAdminLoginPage() {
@@ -47,6 +48,9 @@ export default function SuperAdminLoginPage() {
                     return;
                 }
 
+                // Record login history
+                await recordLogin();
+
                 router.push('/super-admin');
                 router.refresh();
             }
@@ -82,6 +86,7 @@ export default function SuperAdminLoginPage() {
                                 Email
                             </label>
                             <input
+                                suppressHydrationWarning
                                 type="email"
                                 value={email}
                                 onChange={(e) => setEmail(e.target.value)}

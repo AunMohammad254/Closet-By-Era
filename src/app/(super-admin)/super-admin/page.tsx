@@ -1,18 +1,24 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { getSystemStats, type SystemStats } from '@/actions/super-admin';
+import Link from 'next/link';
+import { getSystemStats, getAnalyticsData, type SystemStats } from '@/actions/super-admin';
 import { Users, ShieldCheck, Shield, ShoppingCart, DollarSign, Package, TrendingUp, Loader2 } from 'lucide-react';
 
 export default function SuperAdminDashboard() {
     const [stats, setStats] = useState<SystemStats | null>(null);
+    const [analytics, setAnalytics] = useState<{ revenueData: { date: string, amount: number }[], growthData: { date: string, count: number }[] } | null>(null);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
         async function loadStats() {
             try {
-                const data = await getSystemStats();
-                setStats(data);
+                const [statsData, analyticsData] = await Promise.all([
+                    getSystemStats(),
+                    getAnalyticsData()
+                ]);
+                setStats(statsData);
+                setAnalytics(analyticsData);
             } catch (error) {
                 console.error('Failed to load stats:', error);
             } finally {
@@ -75,6 +81,9 @@ export default function SuperAdminDashboard() {
         }
     ];
 
+    const maxRevenue = Math.max(...(analytics?.revenueData.map(d => d.amount) || [0]));
+    const maxUsers = Math.max(...(analytics?.growthData.map(d => d.count) || [0]));
+
     return (
         <div className="space-y-8">
             {/* Header */}
@@ -110,31 +119,76 @@ export default function SuperAdminDashboard() {
                 })}
             </div>
 
+            {/* Analytics Charts */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* Revenue Chart */}
+                <div className="bg-slate-800/50 backdrop-blur-xl border border-slate-700/50 rounded-2xl p-6">
+                    <h3 className="text-lg font-semibold text-white mb-6">Revenue Trend (30 Days)</h3>
+                    <div className="h-64 flex items-end gap-1">
+                        {analytics?.revenueData.map((d) => (
+                            <div key={d.date} className="flex-1 flex flex-col items-center gap-2 group relative">
+                                <div
+                                    className="w-full bg-emerald-500/20 hover:bg-emerald-500/40 rounded-t transition-all duration-300 relative group-hover:scale-y-105 origin-bottom"
+                                    style={{ height: `${maxRevenue ? (d.amount / maxRevenue) * 100 : 0}%`, minHeight: '4px' }}
+                                >
+                                    {/* Tooltip */}
+                                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-slate-900 border border-slate-700 rounded text-xs text-white opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10 pointer-events-none">
+                                        <p>{d.date}</p>
+                                        <p className="font-bold">Rs. {d.amount.toLocaleString()}</p>
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+
+                {/* User Growth Chart */}
+                <div className="bg-slate-800/50 backdrop-blur-xl border border-slate-700/50 rounded-2xl p-6">
+                    <h3 className="text-lg font-semibold text-white mb-6">User Signups (30 Days)</h3>
+                    <div className="h-64 flex items-end gap-1">
+                        {analytics?.growthData.map((d) => (
+                            <div key={d.date} className="flex-1 flex flex-col items-center gap-2 group relative">
+                                <div
+                                    className="w-full bg-blue-500/20 hover:bg-blue-500/40 rounded-t transition-all duration-300 relative group-hover:scale-y-105 origin-bottom"
+                                    style={{ height: `${maxUsers ? (d.count / maxUsers) * 100 : 0}%`, minHeight: '4px' }}
+                                >
+                                    {/* Tooltip */}
+                                    <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-slate-900 border border-slate-700 rounded text-xs text-white opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10 pointer-events-none">
+                                        <p>{d.date}</p>
+                                        <p className="font-bold">{d.count} Users</p>
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            </div>
+
             {/* Quick Actions */}
             <div className="bg-slate-800/50 backdrop-blur-xl border border-slate-700/50 rounded-2xl p-6">
                 <h2 className="text-lg font-semibold text-white mb-4">Quick Actions</h2>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <a
+                    <Link
                         href="/super-admin/users"
                         className="flex items-center gap-3 p-4 bg-slate-900/50 rounded-xl hover:bg-slate-900/80 transition-colors border border-slate-700/50"
                     >
                         <Users className="w-5 h-5 text-blue-400" />
                         <span className="text-white">Manage User Roles</span>
-                    </a>
-                    <a
+                    </Link>
+                    <Link
                         href="/super-admin/audit"
                         className="flex items-center gap-3 p-4 bg-slate-900/50 rounded-xl hover:bg-slate-900/80 transition-colors border border-slate-700/50"
                     >
                         <Shield className="w-5 h-5 text-purple-400" />
                         <span className="text-white">View Audit Logs</span>
-                    </a>
-                    <a
+                    </Link>
+                    <Link
                         href="/admin"
                         className="flex items-center gap-3 p-4 bg-slate-900/50 rounded-xl hover:bg-slate-900/80 transition-colors border border-slate-700/50"
                     >
                         <ShieldCheck className="w-5 h-5 text-green-400" />
                         <span className="text-white">Go to Admin Panel</span>
-                    </a>
+                    </Link>
                 </div>
             </div>
         </div>
