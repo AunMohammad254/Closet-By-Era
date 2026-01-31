@@ -96,7 +96,7 @@ export default function ComparePage() {
                 <h1 className="text-3xl font-bold text-gray-900 mb-8">Compare Products</h1>
 
                 <div className="overflow-x-auto">
-                    <table className="w-full min-w-[800px] border-collapse">
+                    <table className="w-full min-w-200 border-collapse">
                         <thead>
                             <tr>
                                 <th className="p-4 text-left w-48 bg-gray-50 border border-gray-100">Feature</th>
@@ -111,7 +111,7 @@ export default function ComparePage() {
                                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M6 18L18 6M6 6l12 12" />
                                             </svg>
                                         </button>
-                                        <div className="relative aspect-[3/4] bg-gray-100 rounded-lg overflow-hidden mb-4">
+                                        <div className="relative aspect-3/4 bg-gray-100 rounded-lg overflow-hidden mb-4">
                                             {(product.images?.[0] || product.image) ? (
                                                 <Image
                                                     src={product.images?.[0] || product.image || '/placeholder.png'}

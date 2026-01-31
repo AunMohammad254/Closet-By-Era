@@ -164,7 +164,7 @@ export default function WomenPage() {
     return (
         <main className="min-h-screen bg-white">
             {/* Hero */}
-            <section className="pt-32 pb-16 bg-gradient-to-br from-rose-50 via-pink-50 to-amber-50 relative overflow-hidden">
+            <section className="pt-32 pb-16 bg-linear-to-br from-rose-50 via-pink-50 to-amber-50 relative overflow-hidden">
                 <div className="absolute top-0 right-0 w-96 h-96 bg-rose-200/30 rounded-full blur-3xl" />
                 <div className="absolute bottom-0 left-0 w-72 h-72 bg-amber-200/30 rounded-full blur-3xl" />
 
@@ -215,7 +215,7 @@ export default function WomenPage() {
                         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-x-4 gap-y-8 sm:gap-x-6 sm:gap-y-10">
                             {[...Array(8)].map((_, i) => (
                                 <div key={i} className="animate-pulse">
-                                    <div className="aspect-[3/4] bg-gray-200 rounded-xl mb-4"></div>
+                                    <div className="aspect-3/4 bg-gray-200 rounded-xl mb-4"></div>
                                     <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
                                     <div className="h-4 bg-gray-200 rounded w-1/2"></div>
                                 </div>
