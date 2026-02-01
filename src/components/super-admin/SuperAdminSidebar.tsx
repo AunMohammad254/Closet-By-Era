@@ -12,12 +12,16 @@ import {
     LogOut,
     Menu,
     X,
-    Shield
+    Shield,
+    UserCog,
+    Activity
 } from 'lucide-react';
 
 const navigation = [
     { name: 'Dashboard', href: '/super-admin', icon: LayoutDashboard },
     { name: 'User Management', href: '/super-admin/users', icon: Users },
+    { name: 'Staff Management', href: '/super-admin/staff', icon: UserCog },
+    { name: 'System Health', href: '/super-admin/health', icon: Activity },
     { name: 'Audit Logs', href: '/super-admin/audit', icon: ScrollText },
     { name: 'System Settings', href: '/super-admin/settings', icon: Settings },
 ];
@@ -64,8 +68,8 @@ export default function SuperAdminSidebar() {
                             href={item.href}
                             onClick={() => setMobileOpen(false)}
                             className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200 ${active
-                                    ? 'bg-gradient-to-r from-purple-600/30 to-pink-600/30 text-white border border-purple-500/30'
-                                    : 'text-slate-400 hover:text-white hover:bg-white/5'
+                                ? 'bg-gradient-to-r from-purple-600/30 to-pink-600/30 text-white border border-purple-500/30'
+                                : 'text-slate-400 hover:text-white hover:bg-white/5'
                                 }`}
                         >
                             <Icon className={`w-5 h-5 ${active ? 'text-purple-400' : ''}`} />

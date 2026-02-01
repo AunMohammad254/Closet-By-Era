@@ -241,3 +241,95 @@ export async function incrementCouponUsage(code: string): Promise<ActionResult> 
         return { success: false, error: error.message };
     }
 }
+
+// BULK ACTIONS
+
+/**
+ * Bulk toggle coupon active status
+ */
+export async function bulkToggleCoupons(
+    ids: string[],
+    isActive: boolean
+): Promise<ActionResult<{ updated: number }>> {
+    const supabase = await createClient();
+    try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return { success: false, error: 'Unauthorized' };
+        const { data: customer } = await supabase.from('customers').select('role').eq('auth_id', user.id).single();
+        if (customer?.role !== 'admin') return { success: false, error: 'Forbidden' };
+
+        if (ids.length > 50) return { success: false, error: 'Maximum 50 coupons at once' };
+
+        const { data, error } = await supabase
+            .from('coupons' as any)
+            .update({ is_active: isActive })
+            .in('id', ids)
+            .select('id');
+
+        if (error) throw error;
+
+        revalidatePath('/admin/coupons');
+        return { success: true, data: { updated: (data as any[])?.length || 0 } };
+    } catch (error: any) {
+        logger.error('Error bulk toggling coupons', error);
+        return { success: false, error: error.message };
+    }
+}
+
+/**
+ * Bulk delete coupons
+ */
+export async function bulkDeleteCoupons(ids: string[]): Promise<ActionResult> {
+    const supabase = await createClient();
+    try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return { success: false, error: 'Unauthorized' };
+        const { data: customer } = await supabase.from('customers').select('role').eq('auth_id', user.id).single();
+        if (customer?.role !== 'admin') return { success: false, error: 'Forbidden' };
+
+        if (ids.length > 50) return { success: false, error: 'Maximum 50 coupons at once' };
+
+        const { error } = await supabase
+            .from('coupons' as any)
+            .delete()
+            .in('id', ids);
+
+        if (error) throw error;
+
+        revalidatePath('/admin/coupons');
+        return { success: true };
+    } catch (error: any) {
+        logger.error('Error bulk deleting coupons', error);
+        return { success: false, error: error.message };
+    }
+}
+
+/**
+ * Bulk reset coupon usage counts
+ */
+export async function bulkResetCouponUsage(ids: string[]): Promise<ActionResult<{ updated: number }>> {
+    const supabase = await createClient();
+    try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return { success: false, error: 'Unauthorized' };
+        const { data: customer } = await supabase.from('customers').select('role').eq('auth_id', user.id).single();
+        if (customer?.role !== 'admin') return { success: false, error: 'Forbidden' };
+
+        if (ids.length > 50) return { success: false, error: 'Maximum 50 coupons at once' };
+
+        const { data, error } = await supabase
+            .from('coupons' as any)
+            .update({ uses_count: 0 })
+            .in('id', ids)
+            .select('id');
+
+        if (error) throw error;
+
+        revalidatePath('/admin/coupons');
+        return { success: true, data: { updated: (data as any[])?.length || 0 } };
+    } catch (error: any) {
+        logger.error('Error resetting coupon usage', error);
+        return { success: false, error: error.message };
+    }
+}
+

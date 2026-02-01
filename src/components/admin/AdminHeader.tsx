@@ -1,10 +1,11 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { Bell, Search, LogOut, User, ChevronDown } from 'lucide-react';
+import { Search, LogOut, User, ChevronDown } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useAdminAuth } from '@/hooks/useAdminAuth';
 import { createClient } from '@/lib/supabase/client';
+import NotificationsPanel from '@/components/admin/NotificationsPanel';
 
 export default function AdminHeader() {
     const router = useRouter();
@@ -66,10 +67,7 @@ export default function AdminHeader() {
             {/* Right Side Actions */}
             <div className="flex items-center space-x-4">
                 {/* Notifications */}
-                <button className="relative p-2 text-slate-400 hover:text-slate-200 hover:bg-slate-700/50 rounded-xl transition-colors">
-                    <Bell size={20} />
-                    <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-rose-500 rounded-full border-2 border-[#1e293b]"></span>
-                </button>
+                <NotificationsPanel />
 
                 {/* Profile Dropdown */}
                 <div className="relative pl-4 border-l border-slate-700/50" ref={dropdownRef}>

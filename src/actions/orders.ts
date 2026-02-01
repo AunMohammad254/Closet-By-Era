@@ -34,7 +34,10 @@ export async function getOrders(page = 1, pageSize = 10, status?: string) {
 
     let query = supabase
         .from('orders')
-        .select('*', { count: 'exact' });
+        .select(`
+            *,
+            customer:customers(first_name, last_name)
+        `, { count: 'exact' });
 
     if (status && status !== 'All') {
         const queryStatus = status.toLowerCase();
@@ -182,4 +185,71 @@ export async function updatePaymentStatus(id: string, newStatus: string): Promis
     revalidatePath('/admin/orders');
     revalidatePath(`/admin/orders/${id}`);
     return { success: true };
+}
+
+/**
+ * Bulk update order statuses
+ */
+export async function bulkUpdateOrderStatus(
+    orderIds: string[],
+    newStatus: string
+): Promise<ActionResult<{ updated: number; failed: number }>> {
+    if (!orderIds.length) {
+        return { success: false, error: 'No orders selected' };
+    }
+
+    if (orderIds.length > 100) {
+        return { success: false, error: 'Maximum 100 orders can be updated at once' };
+    }
+
+    const validStatuses = ['pending', 'packed', 'shipping', 'delivered', 'cancelled'];
+    const status = newStatus.toLowerCase();
+    if (!validStatuses.includes(status)) {
+        return { success: false, error: 'Invalid status' };
+    }
+
+    const supabase = await createClient();
+    const { data, error } = await supabase
+        .from('orders')
+        .update({ status: status as 'pending' | 'packed' | 'shipping' | 'delivered' | 'cancelled' })
+        .in('id', orderIds)
+        .select('id');
+
+    if (error) {
+        logger.error('Error bulk updating orders', error, { action: 'bulkUpdateOrderStatus', count: orderIds.length });
+        return { success: false, error: 'Failed to update orders' };
+    }
+
+    const updated = data?.length || 0;
+    const failed = orderIds.length - updated;
+
+    revalidatePath('/admin/orders');
+    return { success: true, data: { updated, failed } };
+}
+
+/**
+ * Delete multiple orders (for cancelled/old orders cleanup)
+ */
+export async function bulkDeleteOrders(orderIds: string[]): Promise<ActionResult<{ deleted: number }>> {
+    if (!orderIds.length) {
+        return { success: false, error: 'No orders selected' };
+    }
+
+    if (orderIds.length > 50) {
+        return { success: false, error: 'Maximum 50 orders can be deleted at once' };
+    }
+
+    const supabase = await createClient();
+    const { error, count } = await supabase
+        .from('orders')
+        .delete()
+        .in('id', orderIds);
+
+    if (error) {
+        logger.error('Error bulk deleting orders', error, { action: 'bulkDeleteOrders', count: orderIds.length });
+        return { success: false, error: 'Failed to delete orders' };
+    }
+
+    revalidatePath('/admin/orders');
+    return { success: true, data: { deleted: count || 0 } };
 }

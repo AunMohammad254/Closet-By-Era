@@ -1,59 +1,60 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { getAdminCustomers } from '@/actions/admin';
-import { Customer } from '@/types/supabase';
+import { Customer } from '@/types/database';
 import { Search, Loader2, RefreshCw, Eye } from 'lucide-react';
 import CustomerDetailsModal from '@/components/admin/users/CustomerDetailsModal';
 
 export default function UsersPage() {
     const [users, setUsers] = useState<Customer[]>([]);
-    const [filteredUsers, setFilteredUsers] = useState<Customer[]>([]);
+    const [total, setTotal] = useState(0);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
+    const [debouncedSearch, setDebouncedSearch] = useState('');
+    const [page, setPage] = useState(1);
+    const pageSize = 20;
 
     // Modal state
     const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
 
+    // Debounce search input
     useEffect(() => {
-        fetchUsers();
-    }, []);
+        const timer = setTimeout(() => {
+            setDebouncedSearch(searchTerm);
+            setPage(1); // Reset to first page on search
+        }, 300);
+        return () => clearTimeout(timer);
+    }, [searchTerm]);
 
-    useEffect(() => {
-        const lowerSearch = searchTerm.toLowerCase();
-        const filtered = users.filter(user =>
-            (user.first_name?.toLowerCase().includes(lowerSearch) || false) ||
-            (user.last_name?.toLowerCase().includes(lowerSearch) || false) ||
-            (user.email?.toLowerCase().includes(lowerSearch) || false)
-        );
-        setFilteredUsers(filtered);
-    }, [searchTerm, users]);
-
-    const fetchUsers = async () => {
+    const fetchUsers = useCallback(async () => {
         setLoading(true);
         try {
-            const result = await getAdminCustomers();
+            const offset = (page - 1) * pageSize;
+            const result = await getAdminCustomers({
+                offset,
+                limit: pageSize,
+                search: debouncedSearch || undefined
+            });
 
             if (!result.success) {
                 throw new Error(result.error);
             }
 
-            setUsers(result.data || []);
-            setFilteredUsers(result.data || []);
+            setUsers(result.data?.customers || []);
+            setTotal(result.data?.total || 0);
         } catch (error: any) {
             console.error('Error fetching users:', error.message || error);
         } finally {
             setLoading(false);
         }
-    };
+    }, [page, debouncedSearch]);
 
-    if (loading && users.length === 0) {
-        return (
-            <div className="flex items-center justify-center h-64">
-                <Loader2 className="animate-spin h-8 w-8 text-rose-500" />
-            </div>
-        );
-    }
+    useEffect(() => {
+        fetchUsers();
+    }, [fetchUsers]);
+
+    const totalPages = Math.ceil(total / pageSize);
 
     return (
         <div className="space-y-6">
@@ -63,7 +64,7 @@ export default function UsersPage() {
                     <p className="text-slate-400 text-sm mt-1">Manage your registered customers.</p>
                 </div>
                 <div className="text-sm text-slate-400 font-medium px-4 py-2 bg-[#1e293b] rounded-lg border border-slate-700/50 shadow-sm">
-                    Total: <span className="text-rose-400 ml-1">{users.length}</span>
+                    Total: <span className="text-rose-400 ml-1">{total}</span>
                 </div>
             </div>
 
@@ -101,7 +102,14 @@ export default function UsersPage() {
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-700/50">
-                            {filteredUsers.length === 0 ? (
+                            {loading && users.length === 0 ? (
+                                <tr>
+                                    <td colSpan={5} className="px-6 py-12 text-center">
+                                        <Loader2 className="animate-spin h-6 w-6 text-rose-500 mx-auto" />
+                                        <p className="text-slate-400 mt-2">Loading customers...</p>
+                                    </td>
+                                </tr>
+                            ) : users.length === 0 ? (
                                 <tr>
                                     <td colSpan={5} className="px-6 py-12 text-center text-slate-400">
                                         <div className="flex flex-col items-center gap-2">
@@ -111,7 +119,7 @@ export default function UsersPage() {
                                     </td>
                                 </tr>
                             ) : (
-                                filteredUsers.map((user) => (
+                                users.map((user) => (
                                     <tr
                                         key={user.id}
                                         onClick={() => setSelectedCustomerId(user.id)}
@@ -156,6 +164,32 @@ export default function UsersPage() {
                     </table>
                 </div>
             </div>
+
+            {/* Pagination */}
+            {totalPages > 1 && (
+                <div className="bg-[#1e293b] px-6 py-4 rounded-xl border border-slate-700/50 flex items-center justify-between">
+                    <p className="text-sm text-slate-400">
+                        Showing page <span className="font-medium text-slate-200">{page}</span> of <span className="font-medium text-slate-200">{totalPages}</span>
+                        <span className="ml-2 text-slate-500">({total} total)</span>
+                    </p>
+                    <div className="flex gap-2">
+                        <button
+                            onClick={() => setPage(p => Math.max(1, p - 1))}
+                            disabled={page <= 1 || loading}
+                            className="px-4 py-2 border border-slate-700/50 text-slate-300 rounded-xl hover:bg-slate-700/50 transition-colors disabled:opacity-50 disabled:pointer-events-none"
+                        >
+                            Previous
+                        </button>
+                        <button
+                            onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                            disabled={page >= totalPages || loading}
+                            className="px-4 py-2 bg-rose-500 text-white rounded-xl hover:bg-rose-600 transition-colors disabled:opacity-50 disabled:pointer-events-none"
+                        >
+                            Next
+                        </button>
+                    </div>
+                </div>
+            )}
 
             {/* Customer Details Modal */}
             <CustomerDetailsModal

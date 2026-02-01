@@ -316,3 +316,102 @@ export async function bulkDeleteProducts(ids: string[]): Promise<{ success: bool
     revalidateTag('new-arrivals', 'max');
     return { success: true };
 }
+
+/**
+ * Bulk update product active status
+ */
+export async function bulkUpdateProductStatus(
+    ids: string[],
+    isActive: boolean
+): Promise<{ success: boolean; updated: number; error?: string }> {
+    if (!ids || ids.length === 0) return { success: true, updated: 0 };
+    if (ids.length > 100) return { success: false, updated: 0, error: 'Maximum 100 products at once' };
+
+    const supabase = await createClient();
+    const { data, error } = await supabase
+        .from('products')
+        .update({ is_active: isActive })
+        .in('id', ids)
+        .select('id');
+
+    if (error) {
+        logger.error('Error bulk updating product status', error, { action: 'bulkUpdateProductStatus' });
+        return { success: false, updated: 0, error: 'Failed to update products' };
+    }
+
+    revalidatePath('/admin/products');
+    revalidateTag('products', 'max');
+    return { success: true, updated: data?.length || 0 };
+}
+
+/**
+ * Bulk update product category
+ */
+export async function bulkUpdateProductCategory(
+    ids: string[],
+    categoryId: string
+): Promise<{ success: boolean; updated: number; error?: string }> {
+    if (!ids || ids.length === 0) return { success: true, updated: 0 };
+    if (ids.length > 100) return { success: false, updated: 0, error: 'Maximum 100 products at once' };
+
+    const supabase = await createClient();
+    const { data, error } = await supabase
+        .from('products')
+        .update({ category_id: categoryId })
+        .in('id', ids)
+        .select('id');
+
+    if (error) {
+        logger.error('Error bulk updating product category', error, { action: 'bulkUpdateProductCategory' });
+        return { success: false, updated: 0, error: 'Failed to update products' };
+    }
+
+    revalidatePath('/admin/products');
+    revalidateTag('products', 'max');
+    return { success: true, updated: data?.length || 0 };
+}
+
+/**
+ * Bulk adjust product prices by percentage
+ */
+export async function bulkAdjustPrices(
+    ids: string[],
+    percentageChange: number
+): Promise<{ success: boolean; updated: number; error?: string }> {
+    if (!ids || ids.length === 0) return { success: true, updated: 0 };
+    if (ids.length > 100) return { success: false, updated: 0, error: 'Maximum 100 products at once' };
+    if (percentageChange < -90 || percentageChange > 500) {
+        return { success: false, updated: 0, error: 'Price change must be between -90% and +500%' };
+    }
+
+    const supabase = await createClient();
+
+    // Fetch current products
+    const { data: products, error: fetchError } = await supabase
+        .from('products')
+        .select('id, price')
+        .in('id', ids);
+
+    if (fetchError || !products) {
+        return { success: false, updated: 0, error: 'Failed to fetch products' };
+    }
+
+    // Update each product with new price
+    const multiplier = 1 + (percentageChange / 100);
+    let updated = 0;
+
+    for (const product of products) {
+        const newPrice = Math.round(product.price * multiplier);
+        const { error } = await supabase
+            .from('products')
+            .update({ price: newPrice })
+            .eq('id', product.id);
+
+        if (!error) updated++;
+    }
+
+    revalidatePath('/admin/products');
+    revalidateTag('products', 'max');
+    return { success: true, updated };
+}
+

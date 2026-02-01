@@ -1,6 +1,7 @@
 import AdminSidebar from '@/components/admin/AdminSidebar';
 import AdminHeader from '@/components/admin/AdminHeader';
 import AdminAuthGuard from '@/components/admin/AdminAuthGuard';
+import CommandPalette from '@/components/admin/CommandPalette';
 
 export default function AdminLayout({
   children,
@@ -17,6 +18,7 @@ export default function AdminLayout({
             {children}
           </main>
         </div>
+        <CommandPalette />
       </div>
     </AdminAuthGuard>
   );

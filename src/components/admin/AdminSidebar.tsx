@@ -17,7 +17,14 @@ import {
     MessageCircle,
     Star,
     Coins,
-    BarChart3
+    BarChart3,
+    RotateCcw,
+    Truck,
+    Receipt,
+    Zap,
+    Kanban,
+    FileText,
+    PieChart
 } from 'lucide-react';
 import { useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
@@ -27,13 +34,20 @@ const navigation = [
     { name: 'Dashboard', href: '/admin', icon: LayoutDashboard },
     { name: 'Products', href: '/admin/products', icon: ShoppingBag },
     { name: 'Categories', href: '/admin/categories', icon: FolderTree },
+    { name: 'Orders', href: '/admin/orders', icon: ShoppingCart },
+    { name: 'Order Kanban', href: '/admin/orders/kanban', icon: Kanban },
+    { name: 'Returns', href: '/admin/returns', icon: RotateCcw },
     { name: 'Coupons', href: '/admin/coupons', icon: Ticket },
+    { name: 'Promotions', href: '/admin/promotions', icon: Zap },
     { name: 'Gift Cards', href: '/admin/gift-cards', icon: Gift },
     { name: 'Reviews', href: '/admin/reviews', icon: Star },
     { name: 'Loyalty', href: '/admin/loyalty', icon: Coins },
-    { name: 'Analytics', href: '/admin/analytics', icon: BarChart3 },
-    { name: 'Orders', href: '/admin/orders', icon: ShoppingCart },
     { name: 'Customers', href: '/admin/users', icon: Users },
+    { name: 'Segments', href: '/admin/customers/segments', icon: PieChart },
+    { name: 'Shipping', href: '/admin/shipping', icon: Truck },
+    { name: 'Tax', href: '/admin/tax', icon: Receipt },
+    { name: 'CMS', href: '/admin/cms', icon: FileText },
+    { name: 'Analytics', href: '/admin/analytics', icon: BarChart3 },
     { name: 'Support Chat', href: '/admin/chat', icon: MessageCircle },
     { name: 'Settings', href: '/admin/settings', icon: Settings },
 ];

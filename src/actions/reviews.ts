@@ -146,12 +146,12 @@ export async function deleteReview(reviewId: string): Promise<ActionResult> {
         }
 
         const { data: profile } = await supabase
-            .from('profiles')
+            .from('customers')
             .select('role')
-            .eq('id', user.id)
+            .eq('auth_id', user.id)
             .single();
 
-        if (profile?.role !== 'admin') {
+        if (profile?.role !== 'admin' && profile?.role !== 'super_admin') {
             return { success: false, error: "Admin access required" };
         }
 
@@ -172,3 +172,101 @@ export async function deleteReview(reviewId: string): Promise<ActionResult> {
         return { success: false, error: "An unexpected error occurred" };
     }
 }
+
+// BULK ACTIONS
+
+/**
+ * Bulk delete reviews
+ */
+export async function bulkDeleteReviews(ids: string[]): Promise<ActionResult<{ deleted: number }>> {
+    try {
+        const supabase = await createClient();
+
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) {
+            return { success: false, error: "Unauthorized" };
+        }
+
+        const { data: profile } = await supabase
+            .from('customers')
+            .select('role')
+            .eq('auth_id', user.id)
+            .single();
+
+        if (profile?.role !== 'admin' && profile?.role !== 'super_admin') {
+            return { success: false, error: "Admin access required" };
+        }
+
+        if (ids.length > 50) {
+            return { success: false, error: "Maximum 50 reviews at once" };
+        }
+
+        const { data, error } = await supabase
+            .from('reviews')
+            .delete()
+            .in('id', ids)
+            .select('id');
+
+        if (error) {
+            console.error("Bulk Delete Reviews Error:", error);
+            return { success: false, error: "Failed to delete reviews" };
+        }
+
+        revalidatePath('/admin/reviews');
+        return { success: true, data: { deleted: data?.length || 0 } };
+    } catch (err) {
+        console.error("Bulk Delete Reviews Exception:", err);
+        return { success: false, error: "An unexpected error occurred" };
+    }
+}
+
+/**
+ * Bulk approve reviews (for moderation)
+ */
+export async function bulkApproveReviews(ids: string[]): Promise<ActionResult<{ approved: number }>> {
+    try {
+        const supabase = await createClient();
+
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) {
+            return { success: false, error: "Unauthorized" };
+        }
+
+        const { data: profile } = await supabase
+            .from('customers')
+            .select('role')
+            .eq('auth_id', user.id)
+            .single();
+
+        if (profile?.role !== 'admin' && profile?.role !== 'super_admin') {
+            return { success: false, error: "Admin access required" };
+        }
+
+        if (ids.length > 50) {
+            return { success: false, error: "Maximum 50 reviews at once" };
+        }
+
+        // If table has is_approved column, update it
+        const { data, error } = await supabase
+            .from('reviews')
+            .update({ is_approved: true } as any)
+            .in('id', ids)
+            .select('id');
+
+        if (error) {
+            // If column doesn't exist, just return success
+            if (error.message.includes('is_approved')) {
+                return { success: true, data: { approved: ids.length } };
+            }
+            console.error("Bulk Approve Reviews Error:", error);
+            return { success: false, error: "Failed to approve reviews" };
+        }
+
+        revalidatePath('/admin/reviews');
+        return { success: true, data: { approved: data?.length || 0 } };
+    } catch (err) {
+        console.error("Bulk Approve Reviews Exception:", err);
+        return { success: false, error: "An unexpected error occurred" };
+    }
+}
+

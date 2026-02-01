@@ -30,7 +30,11 @@ async function verifyAdminRole(supabase: Awaited<ReturnType<typeof createClient>
     return customer;
 }
 
-export async function getAdminCustomers(): Promise<ActionResult<Customer[]>> {
+export async function getAdminCustomers(options?: {
+    offset?: number;
+    limit?: number;
+    search?: string;
+}): Promise<ActionResult<{ customers: Customer[]; total: number }>> {
     const supabase = await createClient();
 
     try {
@@ -41,17 +45,34 @@ export async function getAdminCustomers(): Promise<ActionResult<Customer[]>> {
             return { success: false, error: 'Forbidden: Admin access required' };
         }
 
-        const { data, error } = await supabase
+        const offset = options?.offset ?? 0;
+        const limit = options?.limit ?? 20;
+
+        // Get total count
+        const { count } = await supabase
+            .from('customers')
+            .select('*', { count: 'exact', head: true });
+
+        // Build query with pagination
+        let query = supabase
             .from('customers')
             .select('*')
-            .order('created_at', { ascending: false });
+            .order('created_at', { ascending: false })
+            .range(offset, offset + limit - 1);
+
+        // Apply search filter if provided
+        if (options?.search) {
+            query = query.or(`first_name.ilike.%${options.search}%,last_name.ilike.%${options.search}%,email.ilike.%${options.search}%`);
+        }
+
+        const { data, error } = await query;
 
         if (error) {
             console.error('Supabase error fetching customers:', error);
             throw new Error(error.message);
         }
 
-        return { success: true, data };
+        return { success: true, data: { customers: data || [], total: count || 0 } };
     } catch (error: unknown) {
         console.error('Server action error:', error);
         const message = error instanceof Error ? error.message : 'An unexpected error occurred';
