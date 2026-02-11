@@ -84,8 +84,8 @@ export default function ComparePage() {
             price: product.price,
             image: product.image || product.images?.[0] || '',
             quantity: 1,
-            size: product.sizes?.[0], // Default to first size if available
-            color: product.colors?.[0]?.name, // Default to first color
+            size: product.sizes?.[0] || '',
+            color: product.colors?.[0]?.name || 'Default',
         });
         alert('Added to cart!');
     };
