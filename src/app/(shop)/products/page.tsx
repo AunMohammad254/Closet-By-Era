@@ -49,7 +49,7 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
         .eq('is_active', true)
         .order('display_order');
 
-    const categories = [...(categoriesData?.map((c: { name: string; slug: string }) => c.name) || [])];
+    const categories = Array.from(new Set(categoriesData?.map((c: { name: string; slug: string }) => c.name) || []));
 
     // 2. Parse Filters from URL
     const selectedCategories = typeof params.categories === 'string' ? params.categories.split(',') : [];

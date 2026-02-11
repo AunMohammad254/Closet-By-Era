@@ -251,7 +251,8 @@ export default function CheckoutPage() {
                 throw new Error(result.error || 'Failed to create order');
             }
 
-            const { orderId, orderNumber } = result.data;
+            const { orderId, orderNumber: createdOrderNumber } = result.data;
+            console.log('Order created:', { orderId, createdOrderNumber });
 
             // Prepare order data for email
             const emailOrderItems = items.map((item) => ({
@@ -266,7 +267,7 @@ export default function CheckoutPage() {
             // Format and send order confirmation email via Server Action
             sendOrderConfirmation(
                 {
-                    order_number: orderNumber,
+                    order_number: createdOrderNumber,
                     subtotal: subtotal,
                     shipping_cost: shipping + shippingMethodCost,
                     discount: discount,
@@ -306,6 +307,7 @@ export default function CheckoutPage() {
 
             // Clear cart and show success
             clearCart();
+            setOrderNumber(createdOrderNumber || orderId); // Fallback to orderId if orderNumber is empty
             setOrderComplete(true);
         } catch (error) {
             console.error('Order processing error:', error);
