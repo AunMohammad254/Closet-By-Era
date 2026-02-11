@@ -42,14 +42,14 @@ export default function Navbar({ announcement }: NavbarProps) {
 
     return (
         <>
-            <header className="fixed top-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-md border-b border-gray-100">
+            <header className="fixed top-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-md border-b border-border transition-colors duration-300">
                 <TopBanner text={announcement} />
 
                 <nav className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                     <div className="flex items-center justify-between h-16">
                         {/* Mobile Menu Button */}
                         <button
-                            className="lg:hidden p-2 rounded-md text-gray-600 hover:text-gray-900 hover:bg-gray-100 transition-colors"
+                            className="lg:hidden p-2 rounded-md text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
                             onClick={() => setIsMenuOpen(!isMenuOpen)}
                             aria-label="Toggle menu"
                         >
@@ -64,9 +64,9 @@ export default function Navbar({ announcement }: NavbarProps) {
 
                         {/* Logo */}
                         <Link href="/" className="shrink-0">
-                            <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900">
+                            <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground">
                                 <span className="font-light">CLOSET</span>
-                                <span className="text-rose-600">BY</span>
+                                <span className="text-primary">BY</span>
                                 <span className="font-light">ERA</span>
                             </h1>
                         </Link>

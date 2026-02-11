@@ -1,13 +1,13 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useCart } from '@/context/CartContext';
 import { useAuth } from '@/context/AuthContext';
 import { sendOrderConfirmation } from '@/actions/email';
 import { createClient } from '@/lib/supabase/client';
-import type { TablesInsert } from '@/types/supabase';
+import { createOrder, CreateOrderPayload } from '@/actions/orders';
 import { getOrCreateCustomer } from '@/actions/customer';
 import { revalidateAccountPage } from '@/app/actions';
 import { validateCoupon, incrementCouponUsage } from '@/actions/coupons';
@@ -153,7 +153,7 @@ export default function CheckoutPage() {
                 calculatedDiscount = Math.min(calculatedDiscount, subtotal);
 
                 setDiscount(calculatedDiscount);
-                setCouponMessage({ type: 'success', text: `Coupon applied: ${coupon.code}` });
+                setCouponMessage({ type: 'success', text: `Coupon applied: ${coupon.code} ` });
             } else {
                 // 2. Try Gift Card
                 const giftCardResult = await validateGiftCard(couponCode);
@@ -168,7 +168,7 @@ export default function CheckoutPage() {
                         expires_at: null,
                         created_at: ''
                     });
-                    setCouponMessage({ type: 'success', text: `Gift Card applied! Balance: PKR ${giftCardResult.balance?.toLocaleString()}` });
+                    setCouponMessage({ type: 'success', text: `Gift Card applied! Balance: PKR ${giftCardResult.balance?.toLocaleString()} ` });
                     setGiftCardAmount(giftCardResult.balance!);
                 } else {
                     // Both invalid. Show specific coupon error if available, else generic.
@@ -193,12 +193,6 @@ export default function CheckoutPage() {
         setOrderError(null);
 
         try {
-            // Generate order number logic moved to DB or we use what DB returns if generated
-            // If DB generates it, we don't send it. If we MUST send it, types are wrong.
-            // Assumption: DB generates it (types say it's not in Insert).
-
-            /* const newOrderNumber = ... removed */
-
             // Prepare shipping address
             const shippingAddress = {
                 firstName: formData.firstName,
@@ -226,57 +220,38 @@ export default function CheckoutPage() {
                 }
             }
 
-            // Create order in database
-            const { data: orderData, error: orderError } = await supabase
-                .from('orders')
-                .insert({
-                    // order_number: allowed by DB? Types say no. So we omit it.
-                    customer_id: customerId,
-                    status: 'pending',
-                    subtotal: subtotal,
-                    discount: discount,
-                    shipping_cost: shipping + shippingMethodCost,
-                    total: total,
-                    shipping_address: JSON.stringify(shippingAddress),
-                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                    payment_method: (total === 0 ? 'card' : formData.paymentMethod) as any,
-                    payment_status: total === 0 ? 'paid' : 'pending',
-                    notes: formData.notes || null,
-                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                } as any)
-                .select()
-                .single();
-
-            if (orderError) {
-                console.error('Error creating order:', orderError);
-                throw new Error(orderError.message || 'Failed to create order');
-            }
-
-            // Create order items in database
-            if (orderData && !orderError) {
-                const orderItems: TablesInsert<'order_items'>[] = items.map((item) => ({
-                    order_id: orderData.id,
+            // Prepare order payload
+            const orderPayload: CreateOrderPayload = {
+                customer_id: customerId,
+                customer_email: formData.email,
+                customer_name: `${formData.firstName} ${formData.lastName} `,
+                shipping_address: JSON.stringify(shippingAddress),
+                subtotal: subtotal,
+                discount: discount,
+                shipping_cost: shipping + shippingMethodCost,
+                payment_method: total === 0 ? 'card' : formData.paymentMethod as any,
+                payment_status: total === 0 ? 'paid' : 'pending',
+                notes: formData.notes || null,
+                items: items.map(item => ({
                     product_id: item.productId,
                     product_name: item.name,
-                    size: item.size,
-                    color: item.color,
+                    product_image: item.image,
                     quantity: item.quantity,
-                    unit_price: item.price,
-                    price_at_purchase: item.price, // Map for DB
-                    total_price: item.price * item.quantity,
-                }));
+                    price_at_purchase: item.price,
+                    size: item.size,
+                    color: item.color
+                }))
+            };
 
-                const { error: itemsError } = await supabase
-                    .from('order_items')
-                    .insert(orderItems);
+            // Create order using server action
+            const result = await createOrder(orderPayload);
 
-                if (itemsError) {
-                    console.error('Error creating order items:', itemsError);
-                }
+            if (!result.success || !result.data) {
+                console.error('Error creating order:', result.error);
+                throw new Error(result.error || 'Failed to create order');
             }
 
-            const finalOrderNumber = orderData!.order_number ?? `ORD-${orderData!.id.slice(0, 8)}`;
-            setOrderNumber(finalOrderNumber);
+            const { orderId, orderNumber } = result.data;
 
             // Prepare order data for email
             const emailOrderItems = items.map((item) => ({
@@ -291,7 +266,7 @@ export default function CheckoutPage() {
             // Format and send order confirmation email via Server Action
             sendOrderConfirmation(
                 {
-                    order_number: finalOrderNumber,
+                    order_number: orderNumber,
                     subtotal: subtotal,
                     shipping_cost: shipping + shippingMethodCost,
                     discount: discount,
@@ -299,7 +274,7 @@ export default function CheckoutPage() {
                 },
                 emailOrderItems,
                 formData.email,
-                `${formData.firstName} ${formData.lastName}`,
+                `${formData.firstName} ${formData.lastName} `,
                 shippingAddress,
                 total === 0 ? 'gift_card' : formData.paymentMethod
             ).then((result) => {
@@ -322,7 +297,7 @@ export default function CheckoutPage() {
                 const amountToRedeem = Math.min(giftCard.balance, finalTotalBeforeGiftCard);
 
                 if (amountToRedeem > 0) {
-                    await redeemGiftCard(giftCard.code, amountToRedeem, orderData!.id);
+                    await redeemGiftCard(giftCard.code, amountToRedeem, orderId);
                 }
             } else if (discount > 0 && couponCode) {
                 // Increment coupon usage if it was a standard coupon
@@ -342,10 +317,10 @@ export default function CheckoutPage() {
 
     if (items.length === 0 && !orderComplete) {
         return (
-            <main className="min-h-screen bg-white">
+            <main className="min-h-screen bg-background">
                 <section className="pt-32 pb-20">
                     <div className="max-w-md mx-auto px-4 text-center py-20">
-                        <h1 className="text-2xl font-bold text-gray-900 mb-4">Your cart is empty</h1>
+                        <h1 className="text-2xl font-bold text-foreground mb-4">Your cart is empty</h1>
                         <Link href="/products" className="text-rose-600 hover:text-rose-700 transition-colors">
                             Continue shopping
                         </Link>
@@ -357,36 +332,36 @@ export default function CheckoutPage() {
 
     if (orderComplete) {
         return (
-            <main className="min-h-screen bg-white">
+            <main className="min-h-screen bg-background">
                 <section className="pt-32 pb-20">
                     <div className="max-w-lg mx-auto px-4 text-center py-12">
                         {/* Success Icon */}
-                        <div className="w-20 h-20 mx-auto bg-emerald-100 rounded-full flex items-center justify-center mb-8">
-                            <svg className="w-10 h-10 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <div className="w-20 h-20 mx-auto bg-emerald-100 dark:bg-emerald-900/30 rounded-full flex items-center justify-center mb-8">
+                            <svg className="w-10 h-10 text-emerald-600 dark:text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                             </svg>
                         </div>
 
-                        <h1 className="text-3xl font-bold text-gray-900 mb-4">Order Confirmed!</h1>
-                        <p className="text-gray-600 mb-2">Thank you for your purchase.</p>
-                        <p className="text-gray-600 mb-8">
-                            Order number: <span className="font-semibold text-gray-900">{orderNumber}</span>
+                        <h1 className="text-3xl font-bold text-foreground mb-4">Order Confirmed!</h1>
+                        <p className="text-muted-foreground mb-2">Thank you for your purchase.</p>
+                        <p className="text-muted-foreground mb-8">
+                            Order number: <span className="font-semibold text-foreground">{orderNumber}</span>
                         </p>
 
-                        <p className="text-sm text-gray-500 mb-8">
-                            We&apos;ve sent a confirmation email to <span className="font-medium">{formData.email}</span>
+                        <p className="text-sm text-muted-foreground mb-8">
+                            We&apos;ve sent a confirmation email to <span className="font-medium text-foreground">{formData.email}</span>
                         </p>
 
                         <div className="flex flex-col sm:flex-row gap-4 justify-center">
                             <Link
                                 href="/products"
-                                className="px-8 py-4 bg-slate-900 text-white font-medium rounded-full hover:bg-slate-800 transition-colors"
+                                className="px-8 py-4 bg-primary text-primary-foreground font-medium rounded-full hover:bg-primary/90 transition-colors"
                             >
                                 Continue Shopping
                             </Link>
                             <Link
                                 href="/account?tab=orders"
-                                className="px-8 py-4 border border-gray-200 text-gray-700 font-medium rounded-full hover:border-gray-400 transition-colors"
+                                className="px-8 py-4 border border-border text-foreground font-medium rounded-full hover:bg-accent hover:text-accent-foreground transition-colors"
                             >
                                 View Orders
                             </Link>
@@ -398,39 +373,51 @@ export default function CheckoutPage() {
     }
 
     return (
-        <main className="min-h-screen bg-white">
+        <main className="min-h-screen bg-background">
 
             <section className="pt-32 pb-20">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                     {/* Progress Steps */}
-                    <div className="max-w-2xl mx-auto mb-12">
-                        <div className="flex items-center justify-between">
-                            {(['information', 'shipping', 'payment'] as CheckoutStep[]).map((s, index) => (
-                                <div key={s} className="flex items-center">
-                                    <div className={`flex items-center justify-center w-8 h-8 rounded-full text-sm font-medium ${step === s
-                                        ? 'bg-slate-900 text-white'
-                                        : index < ['information', 'shipping', 'payment'].indexOf(step)
-                                            ? 'bg-emerald-500 text-white'
-                                            : 'bg-gray-200 text-gray-500'
-                                        }`}>
-                                        {index < ['information', 'shipping', 'payment'].indexOf(step) ? (
-                                            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                                                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                                            </svg>
-                                        ) : (
-                                            index + 1
-                                        )}
-                                    </div>
-                                    <span className={`ml-2 text-sm font-medium capitalize hidden sm:inline ${step === s ? 'text-gray-900' : 'text-gray-500'
-                                        }`}>
-                                        {s}
-                                    </span>
-                                    {index < 2 && (
-                                        <div className={`w-16 sm:w-24 h-px mx-4 ${index < ['information', 'shipping', 'payment'].indexOf(step) ? 'bg-emerald-500' : 'bg-gray-200'
-                                            }`} />
-                                    )}
-                                </div>
-                            ))}
+                    <div className="max-w-4xl mx-auto mb-16">
+                        <div className="relative">
+                            {/* Connecting Line */}
+                            <div className="absolute top-1/2 left-0 w-full h-1 bg-muted -translate-y-1/2 rounded-full z-0"></div>
+                            <div className="absolute top-1/2 left-0 h-1 bg-primary -translate-y-1/2 rounded-full z-0 transition-all duration-500 ease-in-out" style={{ width: `${(Math.max(0, ['information', 'shipping', 'payment'].indexOf(step)) / 2) * 100}%` }}></div>
+
+                            <div className="relative z-10 flex justify-between w-full">
+                                {(['information', 'shipping', 'payment'] as CheckoutStep[]).map((s, index) => {
+                                    const stepIndex = ['information', 'shipping', 'payment'].indexOf(step);
+                                    const isActive = index <= stepIndex;
+                                    const isCompleted = index < stepIndex;
+
+                                    return (
+                                        <div key={s} className="flex flex-col items-center group">
+                                            <div className={`
+                                                w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold border-4 transition-all duration-300
+                                                ${isActive
+                                                    ? 'bg-primary border-background text-primary-foreground shadow-[0_0_0_4px_rgba(225,29,72,0.2)] scale-110'
+                                                    : 'bg-background border-muted text-muted-foreground'
+                                                }
+                                                ${isCompleted ? 'bg-primary border-background text-primary-foreground' : ''}
+                                            `}>
+                                                {isCompleted ? (
+                                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                                    </svg>
+                                                ) : (
+                                                    index + 1
+                                                )}
+                                            </div>
+                                            <span className={`
+                                                mt-3 text-xs font-semibold uppercase tracking-wider transition-colors duration-300
+                                                ${isActive ? 'text-primary' : 'text-muted-foreground'}
+                                            `}>
+                                                {s}
+                                            </span>
+                                        </div>
+                                    );
+                                })}
+                            </div>
                         </div>
                     </div>
 
@@ -441,111 +428,105 @@ export default function CheckoutPage() {
                             {step === 'information' && (
                                 <div className="space-y-8">
                                     <div>
-                                        <h2 className="text-xl font-bold text-gray-900 mb-6">Contact Information</h2>
+                                        <h2 className="text-xl font-bold text-foreground mb-6">Contact Information</h2>
                                         <div className="space-y-4">
                                             <div>
-                                                <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                                                <label className="block text-sm font-medium text-foreground mb-1">Email</label>
                                                 <input
                                                     type="email"
                                                     name="email"
                                                     value={formData.email}
                                                     onChange={handleInputChange}
                                                     suppressHydrationWarning
-                                                    className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-rose-500 ${errors.email ? 'border-rose-500' : 'border-gray-200'
-                                                        }`}
+                                                    className={`w-full px-4 py-3 bg-muted/30 border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all duration-200 ${errors.email ? 'border-destructive' : 'border-white/10 focus:border-primary'} `}
                                                     placeholder="your@email.com"
                                                 />
-                                                {errors.email && <p className="mt-1 text-sm text-rose-500">{errors.email}</p>}
+                                                {errors.email && <p className="mt-1 text-sm text-destructive">{errors.email}</p>}
                                             </div>
                                             <div>
-                                                <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
+                                                <label className="block text-sm font-medium text-foreground mb-1">Phone</label>
                                                 <input
                                                     type="tel"
                                                     name="phone"
                                                     value={formData.phone}
                                                     onChange={handleInputChange}
-                                                    className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-rose-500 ${errors.phone ? 'border-rose-500' : 'border-gray-200'
-                                                        }`}
+                                                    className={`w-full px-4 py-3 bg-muted/30 border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all duration-200 ${errors.phone ? 'border-destructive' : 'border-white/10 focus:border-primary'} `}
                                                     placeholder="+92 300 1234567"
                                                 />
-                                                {errors.phone && <p className="mt-1 text-sm text-rose-500">{errors.phone}</p>}
+                                                {errors.phone && <p className="mt-1 text-sm text-destructive">{errors.phone}</p>}
                                             </div>
                                         </div>
                                     </div>
 
                                     <div>
-                                        <h2 className="text-xl font-bold text-gray-900 mb-6">Shipping Address</h2>
+                                        <h2 className="text-xl font-bold text-foreground mb-6">Shipping Address</h2>
                                         <div className="space-y-4">
                                             <div className="grid grid-cols-2 gap-4">
                                                 <div>
-                                                    <label className="block text-sm font-medium text-gray-700 mb-1">First Name</label>
+                                                    <label className="block text-sm font-medium text-foreground mb-1">First Name</label>
                                                     <input
                                                         type="text"
                                                         name="firstName"
                                                         value={formData.firstName}
                                                         onChange={handleInputChange}
-                                                        className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-rose-500 ${errors.firstName ? 'border-rose-500' : 'border-gray-200'
-                                                            }`}
+                                                        className={`w-full px-4 py-3 bg-muted/30 border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all duration-200 ${errors.firstName ? 'border-destructive' : 'border-white/10 focus:border-primary'} `}
                                                     />
-                                                    {errors.firstName && <p className="mt-1 text-sm text-rose-500">{errors.firstName}</p>}
+                                                    {errors.firstName && <p className="mt-1 text-sm text-destructive">{errors.firstName}</p>}
                                                 </div>
                                                 <div>
-                                                    <label className="block text-sm font-medium text-gray-700 mb-1">Last Name</label>
+                                                    <label className="block text-sm font-medium text-foreground mb-1">Last Name</label>
                                                     <input
                                                         type="text"
                                                         name="lastName"
                                                         value={formData.lastName}
                                                         onChange={handleInputChange}
-                                                        className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-rose-500 ${errors.lastName ? 'border-rose-500' : 'border-gray-200'
-                                                            }`}
+                                                        className={`w-full px-4 py-3 bg-muted/30 border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all duration-200 ${errors.lastName ? 'border-destructive' : 'border-white/10 focus:border-primary'} `}
                                                     />
-                                                    {errors.lastName && <p className="mt-1 text-sm text-rose-500">{errors.lastName}</p>}
+                                                    {errors.lastName && <p className="mt-1 text-sm text-destructive">{errors.lastName}</p>}
                                                 </div>
                                             </div>
                                             <div>
-                                                <label className="block text-sm font-medium text-gray-700 mb-1">Address</label>
+                                                <label className="block text-sm font-medium text-foreground mb-1">Address</label>
                                                 <input
                                                     type="text"
                                                     name="address"
                                                     value={formData.address}
                                                     onChange={handleInputChange}
-                                                    className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-rose-500 ${errors.address ? 'border-rose-500' : 'border-gray-200'
-                                                        }`}
+                                                    className={`w-full px-4 py-3 bg-muted/30 border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all duration-200 ${errors.address ? 'border-destructive' : 'border-white/10 focus:border-primary'} `}
                                                     placeholder="Street address"
                                                 />
-                                                {errors.address && <p className="mt-1 text-sm text-rose-500">{errors.address}</p>}
+                                                {errors.address && <p className="mt-1 text-sm text-destructive">{errors.address}</p>}
                                             </div>
                                             <div>
-                                                <label className="block text-sm font-medium text-gray-700 mb-1">Apartment, suite, etc. (optional)</label>
+                                                <label className="block text-sm font-medium text-foreground mb-1">Apartment, suite, etc. (optional)</label>
                                                 <input
                                                     type="text"
                                                     name="apartment"
                                                     value={formData.apartment}
                                                     onChange={handleInputChange}
-                                                    className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-rose-500"
+                                                    className="w-full px-4 py-3 bg-muted/30 border border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all duration-200"
                                                 />
                                             </div>
                                             <div className="grid grid-cols-2 gap-4">
                                                 <div>
-                                                    <label className="block text-sm font-medium text-gray-700 mb-1">City</label>
+                                                    <label className="block text-sm font-medium text-foreground mb-1">City</label>
                                                     <input
                                                         type="text"
                                                         name="city"
                                                         value={formData.city}
                                                         onChange={handleInputChange}
-                                                        className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-rose-500 ${errors.city ? 'border-rose-500' : 'border-gray-200'
-                                                            }`}
+                                                        className={`w-full px-4 py-3 bg-muted/30 border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all duration-200 ${errors.city ? 'border-destructive' : 'border-white/10 focus:border-primary'} `}
                                                     />
-                                                    {errors.city && <p className="mt-1 text-sm text-rose-500">{errors.city}</p>}
+                                                    {errors.city && <p className="mt-1 text-sm text-destructive">{errors.city}</p>}
                                                 </div>
                                                 <div>
-                                                    <label className="block text-sm font-medium text-gray-700 mb-1">Postal Code</label>
+                                                    <label className="block text-sm font-medium text-foreground mb-1">Postal Code</label>
                                                     <input
                                                         type="text"
                                                         name="postalCode"
                                                         value={formData.postalCode}
                                                         onChange={handleInputChange}
-                                                        className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-rose-500"
+                                                        className="w-full px-4 py-3 bg-muted/30 border border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary transition-all duration-200"
                                                     />
                                                 </div>
                                             </div>
@@ -557,10 +538,10 @@ export default function CheckoutPage() {
                             {/* Shipping Step */}
                             {step === 'shipping' && (
                                 <div>
-                                    <h2 className="text-xl font-bold text-gray-900 mb-6">Shipping Method</h2>
+                                    <h2 className="text-xl font-bold text-foreground mb-6">Shipping Method</h2>
                                     <div className="space-y-4">
-                                        <label className={`flex items-center p-4 border rounded-xl cursor-pointer transition-colors ${formData.shippingMethod === 'standard' ? 'border-slate-900 bg-slate-50' : 'border-gray-200 hover:border-gray-400'
-                                            }`}>
+                                        <label className={`flex items-center p-4 border rounded-xl cursor-pointer transition-all duration-200 ${formData.shippingMethod === 'standard' ? 'border-primary bg-primary/10 backdrop-blur-sm' : 'border-white/10 bg-muted/30 hover:border-primary/50'
+                                            } `}>
                                             <input
                                                 type="radio"
                                                 name="shippingMethod"
@@ -569,23 +550,23 @@ export default function CheckoutPage() {
                                                 onChange={handleInputChange}
                                                 className="sr-only"
                                             />
-                                            <div className={`w-5 h-5 rounded-full border-2 mr-4 flex items-center justify-center ${formData.shippingMethod === 'standard' ? 'border-slate-900' : 'border-gray-300'
-                                                }`}>
+                                            <div className={`w-5 h-5 rounded-full border-2 mr-4 flex items-center justify-center transition-colors duration-200 ${formData.shippingMethod === 'standard' ? 'border-primary' : 'border-muted-foreground'
+                                                } `}>
                                                 {formData.shippingMethod === 'standard' && (
-                                                    <div className="w-2.5 h-2.5 rounded-full bg-slate-900" />
+                                                    <div className="w-2.5 h-2.5 rounded-full bg-primary" />
                                                 )}
                                             </div>
                                             <div className="flex-1">
-                                                <p className="font-medium text-gray-900">Standard Shipping</p>
-                                                <p className="text-sm text-gray-500">3-5 business days</p>
+                                                <p className="font-medium text-foreground">Standard Shipping</p>
+                                                <p className="text-sm text-muted-foreground">3-5 business days</p>
                                             </div>
-                                            <span className="font-medium text-gray-900">
-                                                {shipping === 0 ? 'Free' : `PKR ${shipping}`}
+                                            <span className="font-medium text-foreground">
+                                                {shipping === 0 ? 'Free' : `PKR ${shipping} `}
                                             </span>
                                         </label>
 
-                                        <label className={`flex items-center p-4 border rounded-xl cursor-pointer transition-colors ${formData.shippingMethod === 'express' ? 'border-slate-900 bg-slate-50' : 'border-gray-200 hover:border-gray-400'
-                                            }`}>
+                                        <label className={`flex items-center p-4 border rounded-xl cursor-pointer transition-all duration-200 ${formData.shippingMethod === 'express' ? 'border-primary bg-primary/10 backdrop-blur-sm' : 'border-white/10 bg-muted/30 hover:border-primary/50'
+                                            } `}>
                                             <input
                                                 type="radio"
                                                 name="shippingMethod"
@@ -594,29 +575,29 @@ export default function CheckoutPage() {
                                                 onChange={handleInputChange}
                                                 className="sr-only"
                                             />
-                                            <div className={`w-5 h-5 rounded-full border-2 mr-4 flex items-center justify-center ${formData.shippingMethod === 'express' ? 'border-slate-900' : 'border-gray-300'
-                                                }`}>
+                                            <div className={`w-5 h-5 rounded-full border-2 mr-4 flex items-center justify-center transition-colors duration-200 ${formData.shippingMethod === 'express' ? 'border-primary' : 'border-muted-foreground'
+                                                } `}>
                                                 {formData.shippingMethod === 'express' && (
-                                                    <div className="w-2.5 h-2.5 rounded-full bg-slate-900" />
+                                                    <div className="w-2.5 h-2.5 rounded-full bg-primary" />
                                                 )}
                                             </div>
                                             <div className="flex-1">
-                                                <p className="font-medium text-gray-900">Express Shipping</p>
-                                                <p className="text-sm text-gray-500">1-2 business days</p>
+                                                <p className="font-medium text-foreground">Express Shipping</p>
+                                                <p className="text-sm text-muted-foreground">1-2 business days</p>
                                             </div>
-                                            <span className="font-medium text-gray-900">PKR 300</span>
+                                            <span className="font-medium text-foreground">PKR 300</span>
                                         </label>
                                     </div>
 
                                     {/* Order Notes */}
                                     <div className="mt-8">
-                                        <label className="block text-sm font-medium text-gray-700 mb-1">Order Notes (optional)</label>
+                                        <label className="block text-sm font-medium text-foreground mb-1">Order Notes (optional)</label>
                                         <textarea
                                             name="notes"
                                             value={formData.notes}
                                             onChange={handleInputChange}
                                             rows={3}
-                                            className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-rose-500 resize-none"
+                                            className="w-full px-4 py-3 bg-muted/30 border border-white/10 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary resize-none transition-all duration-200"
                                             placeholder="Special instructions for your order..."
                                         />
                                     </div>
@@ -626,10 +607,10 @@ export default function CheckoutPage() {
                             {/* Payment Step */}
                             {step === 'payment' && (
                                 <div>
-                                    <h2 className="text-xl font-bold text-gray-900 mb-6">Payment Method</h2>
+                                    <h2 className="text-xl font-bold text-foreground mb-6">Payment Method</h2>
                                     <div className="space-y-4">
-                                        <label className={`flex items-center p-4 border rounded-xl cursor-pointer transition-colors ${formData.paymentMethod === 'cod' ? 'border-slate-900 bg-slate-50' : 'border-gray-200 hover:border-gray-400'
-                                            }`}>
+                                        <label className={`flex items-center p-4 border rounded-xl cursor-pointer transition-all duration-200 ${formData.paymentMethod === 'cod' ? 'border-primary bg-primary/10 backdrop-blur-sm' : 'border-white/10 bg-muted/30 hover:border-primary/50'
+                                            } `}>
                                             <input
                                                 type="radio"
                                                 name="paymentMethod"
@@ -638,20 +619,20 @@ export default function CheckoutPage() {
                                                 onChange={handleInputChange}
                                                 className="sr-only"
                                             />
-                                            <div className={`w-5 h-5 rounded-full border-2 mr-4 flex items-center justify-center ${formData.paymentMethod === 'cod' ? 'border-slate-900' : 'border-gray-300'
-                                                }`}>
+                                            <div className={`w-5 h-5 rounded-full border-2 mr-4 flex items-center justify-center transition-colors duration-200 ${formData.paymentMethod === 'cod' ? 'border-primary' : 'border-muted-foreground'
+                                                } `}>
                                                 {formData.paymentMethod === 'cod' && (
-                                                    <div className="w-2.5 h-2.5 rounded-full bg-slate-900" />
+                                                    <div className="w-2.5 h-2.5 rounded-full bg-primary" />
                                                 )}
                                             </div>
                                             <div className="flex-1">
-                                                <p className="font-medium text-gray-900">Cash on Delivery</p>
-                                                <p className="text-sm text-gray-500">Pay when you receive your order</p>
+                                                <p className="font-medium text-foreground">Cash on Delivery</p>
+                                                <p className="text-sm text-muted-foreground">Pay when you receive your order</p>
                                             </div>
                                         </label>
 
-                                        <label className={`flex items-center p-4 border rounded-xl cursor-pointer transition-colors ${formData.paymentMethod === 'card' ? 'border-slate-900 bg-slate-50' : 'border-gray-200 hover:border-gray-400'
-                                            }`}>
+                                        <label className={`flex items-center p-4 border rounded-xl cursor-pointer transition-all duration-200 ${formData.paymentMethod === 'card' ? 'border-primary bg-primary/10 backdrop-blur-sm' : 'border-white/10 bg-muted/30 hover:border-primary/50'
+                                            } `}>
                                             <input
                                                 type="radio"
                                                 name="paymentMethod"
@@ -660,72 +641,69 @@ export default function CheckoutPage() {
                                                 onChange={handleInputChange}
                                                 className="sr-only"
                                             />
-                                            <div className={`w-5 h-5 rounded-full border-2 mr-4 flex items-center justify-center ${formData.paymentMethod === 'card' ? 'border-slate-900' : 'border-gray-300'
-                                                }`}>
+                                            <div className={`w-5 h-5 rounded-full border-2 mr-4 flex items-center justify-center transition-colors duration-200 ${formData.paymentMethod === 'card' ? 'border-primary' : 'border-muted-foreground'
+                                                } `}>
                                                 {formData.paymentMethod === 'card' && (
-                                                    <div className="w-2.5 h-2.5 rounded-full bg-slate-900" />
+                                                    <div className="w-2.5 h-2.5 rounded-full bg-primary" />
                                                 )}
                                             </div>
                                             <div className="flex-1">
-                                                <p className="font-medium text-gray-900">Credit/Debit Card</p>
-                                                <p className="text-sm text-gray-500">Visa, Mastercard, etc.</p>
+                                                <p className="font-medium text-foreground">Credit/Debit Card</p>
+                                                <p className="text-sm text-muted-foreground">Visa, Mastercard, etc.</p>
                                             </div>
                                         </label>
 
                                         {formData.paymentMethod === 'card' && (
-                                            <div className="mt-4 p-4 bg-gray-50 rounded-xl space-y-4">
+                                            <div className="mt-4 p-4 bg-muted/50 rounded-xl space-y-4">
                                                 <div>
-                                                    <label className="block text-sm font-medium text-gray-700 mb-1">Card Number</label>
+                                                    <label className="block text-sm font-medium text-foreground mb-1">Card Number</label>
                                                     <input
                                                         type="text"
                                                         name="cardNumber"
                                                         value={formData.cardNumber}
                                                         onChange={handleInputChange}
-                                                        className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-rose-500 ${errors.cardNumber ? 'border-rose-500' : 'border-gray-200'
-                                                            }`}
+                                                        className={`w-full px-4 py-3 bg-muted/30 border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all duration-200 ${errors.cardNumber ? 'border-destructive' : 'border-white/10 focus:border-primary'} `}
                                                         placeholder="1234 5678 9012 3456"
                                                     />
-                                                    {errors.cardNumber && <p className="mt-1 text-sm text-rose-500">{errors.cardNumber}</p>}
+                                                    {errors.cardNumber && <p className="mt-1 text-sm text-destructive">{errors.cardNumber}</p>}
                                                 </div>
                                                 <div className="grid grid-cols-2 gap-4">
                                                     <div>
-                                                        <label className="block text-sm font-medium text-gray-700 mb-1">Expiry Date</label>
+                                                        <label className="block text-sm font-medium text-foreground mb-1">Expiry Date</label>
                                                         <input
                                                             type="text"
                                                             name="cardExpiry"
                                                             value={formData.cardExpiry}
                                                             onChange={handleInputChange}
-                                                            className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-rose-500 ${errors.cardExpiry ? 'border-rose-500' : 'border-gray-200'
-                                                                }`}
+                                                            className={`w-full px-4 py-3 bg-muted/30 border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all duration-200 ${errors.cardExpiry ? 'border-destructive' : 'border-white/10 focus:border-primary'} `}
                                                             placeholder="MM/YY"
                                                         />
-                                                        {errors.cardExpiry && <p className="mt-1 text-sm text-rose-500">{errors.cardExpiry}</p>}
+                                                        {errors.cardExpiry && <p className="mt-1 text-sm text-destructive">{errors.cardExpiry}</p>}
                                                     </div>
                                                     <div>
-                                                        <label className="block text-sm font-medium text-gray-700 mb-1">CVC</label>
+                                                        <label className="block text-sm font-medium text-foreground mb-1">CVC</label>
                                                         <input
                                                             type="text"
                                                             name="cardCvc"
                                                             value={formData.cardCvc}
                                                             onChange={handleInputChange}
-                                                            className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-rose-500 ${errors.cardCvc ? 'border-rose-500' : 'border-gray-200'
-                                                                }`}
+                                                            className={`w-full px-4 py-3 bg-muted/30 border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all duration-200 ${errors.cardCvc ? 'border-destructive' : 'border-white/10 focus:border-primary'} `}
                                                             placeholder="123"
                                                         />
-                                                        {errors.cardCvc && <p className="mt-1 text-sm text-rose-500">{errors.cardCvc}</p>}
+                                                        {errors.cardCvc && <p className="mt-1 text-sm text-destructive">{errors.cardCvc}</p>}
                                                     </div>
                                                 </div>
                                             </div>
                                         )}
 
                                         {/* Mobile Wallets Section */}
-                                        <div className="pt-4 border-t border-gray-100">
-                                            <p className="text-xs text-gray-500 uppercase tracking-wider mb-3 font-medium">Mobile Wallets</p>
+                                        <div className="pt-4 border-t border-border">
+                                            <p className="text-xs text-muted-foreground uppercase tracking-wider mb-3 font-medium">Mobile Wallets</p>
                                         </div>
 
                                         {/* JazzCash Option */}
-                                        <label className={`flex items-center p-4 border rounded-xl cursor-pointer transition-colors ${formData.paymentMethod === 'jazzcash' ? 'border-red-500 bg-red-50' : 'border-gray-200 hover:border-gray-400'
-                                            }`}>
+                                        <label className={`flex items-center p-4 border rounded-xl cursor-pointer transition-all duration-200 ${formData.paymentMethod === 'jazzcash' ? 'border-red-500 bg-red-500/10 backdrop-blur-sm' : 'border-white/10 bg-muted/30 hover:border-red-500/50'
+                                            } `}>
                                             <input
                                                 type="radio"
                                                 name="paymentMethod"
@@ -734,25 +712,25 @@ export default function CheckoutPage() {
                                                 onChange={handleInputChange}
                                                 className="sr-only"
                                             />
-                                            <div className={`w-5 h-5 rounded-full border-2 mr-4 flex items-center justify-center ${formData.paymentMethod === 'jazzcash' ? 'border-red-500' : 'border-gray-300'
-                                                }`}>
+                                            <div className={`w-5 h-5 rounded-full border-2 mr-4 flex items-center justify-center transition-colors duration-200 ${formData.paymentMethod === 'jazzcash' ? 'border-red-500' : 'border-muted-foreground'
+                                                } `}>
                                                 {formData.paymentMethod === 'jazzcash' && (
                                                     <div className="w-2.5 h-2.5 rounded-full bg-red-500" />
                                                 )}
                                             </div>
-                                            <div className="w-10 h-10 mr-3 bg-red-600 rounded-lg flex items-center justify-center">
+                                            <div className="w-10 h-10 mr-3 bg-red-600 rounded-lg flex items-center justify-center shadow-lg">
                                                 <span className="text-white font-bold text-xs">JC</span>
                                             </div>
                                             <div className="flex-1">
-                                                <p className="font-medium text-gray-900">JazzCash</p>
-                                                <p className="text-sm text-gray-500">Pay via JazzCash mobile wallet</p>
+                                                <p className="font-medium text-foreground">JazzCash</p>
+                                                <p className="text-sm text-muted-foreground">Pay via JazzCash mobile wallet</p>
                                             </div>
                                         </label>
 
                                         {formData.paymentMethod === 'jazzcash' && (
-                                            <div className="mt-2 p-4 bg-red-50 rounded-xl border border-red-100">
-                                                <p className="text-sm text-red-800 font-medium mb-2">JazzCash Payment Instructions:</p>
-                                                <ol className="text-sm text-red-700 list-decimal list-inside space-y-1">
+                                            <div className="mt-2 p-4 bg-red-50 dark:bg-red-900/10 rounded-xl border border-red-100 dark:border-red-900/30">
+                                                <p className="text-sm text-red-800 dark:text-red-300 font-medium mb-2">JazzCash Payment Instructions:</p>
+                                                <ol className="text-sm text-red-700 dark:text-red-400 list-decimal list-inside space-y-1">
                                                     <li>Send payment to: <span className="font-bold">0300-1234567</span></li>
                                                     <li>Use order number as reference</li>
                                                     <li>Send screenshot via WhatsApp</li>
@@ -761,8 +739,8 @@ export default function CheckoutPage() {
                                         )}
 
                                         {/* EasyPaisa Option */}
-                                        <label className={`flex items-center p-4 border rounded-xl cursor-pointer transition-colors ${formData.paymentMethod === 'easypaisa' ? 'border-green-500 bg-green-50' : 'border-gray-200 hover:border-gray-400'
-                                            }`}>
+                                        <label className={`flex items-center p-4 border rounded-xl cursor-pointer transition-all duration-200 ${formData.paymentMethod === 'easypaisa' ? 'border-green-500 bg-green-500/10 backdrop-blur-sm' : 'border-white/10 bg-muted/30 hover:border-green-500/50'
+                                            } `}>
                                             <input
                                                 type="radio"
                                                 name="paymentMethod"
@@ -771,25 +749,25 @@ export default function CheckoutPage() {
                                                 onChange={handleInputChange}
                                                 className="sr-only"
                                             />
-                                            <div className={`w-5 h-5 rounded-full border-2 mr-4 flex items-center justify-center ${formData.paymentMethod === 'easypaisa' ? 'border-green-500' : 'border-gray-300'
-                                                }`}>
+                                            <div className={`w-5 h-5 rounded-full border-2 mr-4 flex items-center justify-center transition-colors duration-200 ${formData.paymentMethod === 'easypaisa' ? 'border-green-500' : 'border-muted-foreground'
+                                                } `}>
                                                 {formData.paymentMethod === 'easypaisa' && (
                                                     <div className="w-2.5 h-2.5 rounded-full bg-green-500" />
                                                 )}
                                             </div>
-                                            <div className="w-10 h-10 mr-3 bg-green-600 rounded-lg flex items-center justify-center">
+                                            <div className="w-10 h-10 mr-3 bg-green-600 rounded-lg flex items-center justify-center shadow-lg">
                                                 <span className="text-white font-bold text-xs">EP</span>
                                             </div>
                                             <div className="flex-1">
-                                                <p className="font-medium text-gray-900">EasyPaisa</p>
-                                                <p className="text-sm text-gray-500">Pay via EasyPaisa mobile wallet</p>
+                                                <p className="font-medium text-foreground">EasyPaisa</p>
+                                                <p className="text-sm text-muted-foreground">Pay via EasyPaisa mobile wallet</p>
                                             </div>
                                         </label>
 
                                         {formData.paymentMethod === 'easypaisa' && (
-                                            <div className="mt-2 p-4 bg-green-50 rounded-xl border border-green-100">
-                                                <p className="text-sm text-green-800 font-medium mb-2">EasyPaisa Payment Instructions:</p>
-                                                <ol className="text-sm text-green-700 list-decimal list-inside space-y-1">
+                                            <div className="mt-2 p-4 bg-green-50 dark:bg-green-900/10 rounded-xl border border-green-100 dark:border-green-900/30">
+                                                <p className="text-sm text-green-800 dark:text-green-300 font-medium mb-2">EasyPaisa Payment Instructions:</p>
+                                                <ol className="text-sm text-green-700 dark:text-green-400 list-decimal list-inside space-y-1">
                                                     <li>Send payment to: <span className="font-bold">0345-1234567</span></li>
                                                     <li>Use order number as reference</li>
                                                     <li>Send screenshot via WhatsApp</li>
@@ -798,8 +776,8 @@ export default function CheckoutPage() {
                                         )}
 
                                         {/* Bank Transfer Option */}
-                                        <label className={`flex items-center p-4 border rounded-xl cursor-pointer transition-colors ${formData.paymentMethod === 'bank_transfer' ? 'border-slate-900 bg-slate-50' : 'border-gray-200 hover:border-gray-400'
-                                            }`}>
+                                        <label className={`flex items-center p-4 border rounded-xl cursor-pointer transition-all duration-200 ${formData.paymentMethod === 'bank_transfer' ? 'border-primary bg-primary/10 backdrop-blur-sm' : 'border-white/10 bg-muted/30 hover:border-primary/50'
+                                            } `}>
                                             <input
                                                 type="radio"
                                                 name="paymentMethod"
@@ -808,32 +786,38 @@ export default function CheckoutPage() {
                                                 onChange={handleInputChange}
                                                 className="sr-only"
                                             />
-                                            <div className={`w-5 h-5 rounded-full border-2 mr-4 flex items-center justify-center ${formData.paymentMethod === 'bank_transfer' ? 'border-slate-900' : 'border-gray-300'
-                                                }`}>
+                                            <div className={`w-5 h-5 rounded-full border-2 mr-4 flex items-center justify-center transition-colors duration-200 ${formData.paymentMethod === 'bank_transfer' ? 'border-primary' : 'border-muted-foreground'
+                                                } `}>
                                                 {formData.paymentMethod === 'bank_transfer' && (
-                                                    <div className="w-2.5 h-2.5 rounded-full bg-slate-900" />
+                                                    <div className="w-2.5 h-2.5 rounded-full bg-primary" />
                                                 )}
                                             </div>
-                                            <div className="w-10 h-10 mr-3 bg-slate-700 rounded-lg flex items-center justify-center">
+                                            <div className="w-10 h-10 mr-3 bg-slate-700 rounded-lg flex items-center justify-center shadow-lg">
                                                 <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
                                                 </svg>
                                             </div>
                                             <div className="flex-1">
-                                                <p className="font-medium text-gray-900">Bank Transfer</p>
-                                                <p className="text-sm text-gray-500">Transfer to our bank account</p>
+                                                <p className="font-medium text-foreground">Bank Transfer</p>
+                                                <p className="text-sm text-muted-foreground">Transfer to our bank account</p>
                                             </div>
                                         </label>
 
                                         {formData.paymentMethod === 'bank_transfer' && (
-                                            <div className="mt-2 p-4 bg-slate-50 rounded-xl border border-slate-200">
-                                                <p className="text-sm text-slate-800 font-medium mb-2">Bank Account Details:</p>
-                                                <div className="text-sm text-slate-600 space-y-1">
+                                            <div className="mt-2 p-4 bg-muted/50 rounded-xl border border-border">
+                                                <p className="text-sm text-foreground font-medium mb-2">Bank Account Details:</p>
+                                                <div className="text-sm text-muted-foreground space-y-1 mb-3">
                                                     <p><span className="font-medium">Bank:</span> HBL</p>
                                                     <p><span className="font-medium">Account Title:</span> Closet By Era</p>
                                                     <p><span className="font-medium">Account No:</span> 1234567890123</p>
                                                     <p><span className="font-medium">IBAN:</span> PK36HABB0001234567890123</p>
                                                 </div>
+                                                <p className="text-sm text-foreground font-medium mb-2">Instructions:</p>
+                                                <ol className="text-sm text-muted-foreground list-decimal list-inside space-y-1">
+                                                    <li>Transfer the total amount to the account above.</li>
+                                                    <li>Use your Order Number as the payment reference.</li>
+                                                    <li>Send a screenshot of the payment confirmation via WhatsApp.</li>
+                                                </ol>
                                             </div>
                                         )}
                                     </div>
@@ -845,7 +829,7 @@ export default function CheckoutPage() {
                                 {step !== 'information' ? (
                                     <button
                                         onClick={handleBack}
-                                        className="flex items-center text-gray-600 hover:text-gray-900 transition-colors"
+                                        className="flex items-center text-muted-foreground hover:text-foreground transition-colors"
                                     >
                                         <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
@@ -853,7 +837,7 @@ export default function CheckoutPage() {
                                         Back
                                     </button>
                                 ) : (
-                                    <Link href="/cart" className="flex items-center text-gray-600 hover:text-gray-900 transition-colors">
+                                    <Link href="/cart" className="flex items-center text-muted-foreground hover:text-foreground transition-colors">
                                         <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
                                         </svg>
@@ -864,7 +848,8 @@ export default function CheckoutPage() {
                                 {step !== 'payment' ? (
                                     <button
                                         onClick={handleContinue}
-                                        className="px-8 py-4 bg-slate-900 text-white font-medium rounded-full hover:bg-slate-800 transition-colors"
+                                        disabled={isProcessing}
+                                        className="bg-primary hover:bg-primary/90 text-primary-foreground px-8 py-3 rounded-xl font-medium transition-all duration-200 shadow-lg hover:shadow-primary/20 hover:-translate-y-0.5"
                                     >
                                         Continue
                                     </button>
@@ -872,7 +857,7 @@ export default function CheckoutPage() {
                                     <button
                                         onClick={handlePlaceOrder}
                                         disabled={isProcessing}
-                                        className="px-8 py-4 bg-rose-600 text-white font-medium rounded-full hover:bg-rose-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
+                                        className="bg-primary hover:bg-primary/90 text-primary-foreground px-8 py-3 rounded-xl font-medium transition-all duration-200 shadow-lg hover:shadow-primary/20 hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
                                     >
                                         {isProcessing ? (
                                             <>
@@ -883,7 +868,7 @@ export default function CheckoutPage() {
                                                 Processing...
                                             </>
                                         ) : (
-                                            `Place Order — PKR ${total.toLocaleString()}`
+                                            `Place Order — PKR ${total.toLocaleString()} `
                                         )}
                                     </button>
                                 )}
@@ -892,46 +877,51 @@ export default function CheckoutPage() {
 
                         {/* Order Summary Sidebar */}
                         <div className="lg:col-span-1">
-                            <div className="sticky top-32 p-6 bg-gray-50 rounded-2xl">
-                                <h3 className="text-lg font-bold text-gray-900 mb-4">Order Summary</h3>
+                            <div className="sticky top-32 p-6 bg-card/40 backdrop-blur-md border border-white/10 rounded-2xl shadow-xl">
+                                <h3 className="text-xl font-bold text-foreground mb-6 flex items-center gap-2">
+                                    <svg className="w-5 h-5 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+                                    </svg>
+                                    Order Summary
+                                </h3>
 
                                 {/* Cart Items */}
                                 <div className="space-y-4 max-h-64 overflow-y-auto mb-4">
                                     {items.map((item) => (
                                         <div key={item.id} className="flex gap-3">
-                                            <div className="w-16 h-20 bg-gray-200 rounded-lg shrink-0 flex items-center justify-center relative">
-                                                <svg className="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <div className="w-16 h-20 bg-muted rounded-lg shrink-0 flex items-center justify-center relative">
+                                                <svg className="w-6 h-6 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                                                 </svg>
-                                                <span className="absolute -top-2 -right-2 w-5 h-5 bg-slate-900 text-white text-xs rounded-full flex items-center justify-center">
+                                                <span className="absolute -top-2 -right-2 w-5 h-5 bg-primary text-primary-foreground text-xs rounded-full flex items-center justify-center">
                                                     {item.quantity}
                                                 </span>
                                             </div>
                                             <div className="flex-1 min-w-0">
-                                                <p className="text-sm font-medium text-gray-900 truncate">{item.name}</p>
-                                                <p className="text-xs text-gray-500">{item.size} / {item.color}</p>
-                                                <p className="text-sm font-medium text-gray-900 mt-1">PKR {(item.price * item.quantity).toLocaleString()}</p>
+                                                <p className="text-sm font-medium text-foreground truncate">{item.name}</p>
+                                                <p className="text-xs text-muted-foreground">{item.size} / {item.color}</p>
+                                                <p className="text-sm font-medium text-foreground mt-1">PKR {(item.price * item.quantity).toLocaleString()}</p>
                                             </div>
                                         </div>
                                     ))}
                                 </div>
 
                                 {/* Totals */}
-                                <div className="border-t border-gray-200 pt-4 space-y-2 text-sm">
+                                <div className="border-t border-border pt-4 space-y-2 text-sm">
                                     <div className="flex justify-between">
-                                        <span className="text-gray-600">Subtotal</span>
-                                        <span className="font-medium">PKR {subtotal.toLocaleString()}</span>
+                                        <span className="text-muted-foreground">Subtotal</span>
+                                        <span className="font-medium text-foreground">PKR {subtotal.toLocaleString()}</span>
                                     </div>
                                     <div className="flex justify-between">
-                                        <span className="text-gray-600">Shipping</span>
-                                        <span className="font-medium">
-                                            {shipping === 0 ? 'Free' : `PKR ${(shipping + shippingMethodCost).toLocaleString()}`}
+                                        <span className="text-muted-foreground">Shipping</span>
+                                        <span className="font-medium text-foreground">
+                                            {shipping === 0 ? 'Free' : `PKR ${(shipping + shippingMethodCost).toLocaleString()} `}
                                         </span>
                                     </div>
 
                                     {/* Discount Line */}
                                     {discount > 0 && (
-                                        <div className="flex justify-between text-green-600">
+                                        <div className="flex justify-between text-green-600 dark:text-green-400">
                                             <span className="font-medium">Discount</span>
                                             <span className="font-medium">- PKR {discount.toLocaleString()}</span>
                                         </div>
@@ -939,38 +929,38 @@ export default function CheckoutPage() {
 
                                     {/* Gift Card Line */}
                                     {giftCard && potentialGiftCardUsage > 0 && (
-                                        <div className="flex justify-between text-emerald-600">
+                                        <div className="flex justify-between text-emerald-600 dark:text-emerald-400">
                                             <span className="font-medium">Gift Card ({giftCard.code})</span>
                                             <span className="font-medium">- PKR {potentialGiftCardUsage.toLocaleString()}</span>
                                         </div>
                                     )}
 
-                                    <div className="flex justify-between pt-2 border-t border-gray-200">
-                                        <span className="font-bold text-gray-900">Total to Pay</span>
-                                        <span className="text-lg font-bold text-gray-900">PKR {total.toLocaleString()}</span>
+                                    <div className="flex justify-between pt-2 border-t border-border">
+                                        <span className="font-bold text-foreground">Total to Pay</span>
+                                        <span className="text-lg font-bold text-foreground">PKR {total.toLocaleString()}</span>
                                     </div>
 
                                     {/* Coupon Input */}
-                                    <div className="pt-4 border-t border-gray-200 mt-4">
-                                        <label className="block text-xs font-medium text-gray-700 mb-2">Discount Code</label>
+                                    <div className="pt-4 border-t border-border mt-4">
+                                        <label className="block text-xs font-medium text-foreground mb-2">Discount Code</label>
                                         <div className="flex gap-2">
                                             <input
                                                 type="text"
                                                 value={couponCode}
                                                 onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
                                                 placeholder="Enter code"
-                                                className="flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-slate-900 uppercase"
+                                                className="flex-1 px-4 py-2.5 bg-background/50 border border-white/10 rounded-xl text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary uppercase transition-all duration-200 placeholder:text-muted-foreground/50"
                                             />
                                             <button
                                                 onClick={handleApplyCoupon}
                                                 disabled={isValidatingCoupon || !couponCode}
-                                                className="px-4 py-2 bg-gray-200 text-gray-800 text-sm font-medium rounded-md hover:bg-gray-300 disabled:opacity-50"
+                                                className="px-6 py-2.5 bg-primary/10 hover:bg-primary/20 text-primary border border-primary/20 text-sm font-medium rounded-xl transition-all duration-200 disabled:opacity-50"
                                             >
                                                 {isValidatingCoupon ? '...' : 'Apply'}
                                             </button>
                                         </div>
                                         {couponMessage && (
-                                            <p className={`text-xs mt-2 ${couponMessage.type === 'success' ? 'text-green-600' : 'text-red-500'}`}>
+                                            <p className={`text - xs mt - 2 ${couponMessage.type === 'success' ? 'text-green-600 dark:text-green-400' : 'text-destructive'} `}>
                                                 {couponMessage.text}
                                             </p>
                                         )}

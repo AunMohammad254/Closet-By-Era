@@ -18,20 +18,20 @@ async function FeaturedProductsContent() {
 
 export default function FeaturedProducts() {
     return (
-        <section className="py-20 bg-gray-50">
+        <section className="py-20 bg-muted/30">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 {/* Section Header */}
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end mb-12">
                     <div>
-                        <span className="text-rose-600 text-sm font-medium tracking-widest uppercase">Trending Now</span>
-                        <h2 className="mt-3 text-4xl font-bold text-gray-900">Featured Products</h2>
-                        <p className="mt-4 text-gray-600 max-w-lg">
+                        <span className="text-primary text-sm font-medium tracking-widest uppercase">Trending Now</span>
+                        <h2 className="mt-3 text-4xl font-bold text-foreground">Featured Products</h2>
+                        <p className="mt-4 text-muted-foreground max-w-lg">
                             Handpicked selections that define contemporary style
                         </p>
                     </div>
                     <Link
                         href="/products"
-                        className="mt-6 sm:mt-0 inline-flex items-center text-sm font-medium text-gray-900 hover:text-rose-600 transition-colors group"
+                        className="mt-6 sm:mt-0 inline-flex items-center text-sm font-medium text-foreground hover:text-primary transition-colors group"
                     >
                         View All Products
                         <svg className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -51,7 +51,7 @@ export default function FeaturedProducts() {
                 <div className="mt-14 text-center">
                     <Link
                         href="/products"
-                        className="inline-flex items-center justify-center px-8 py-4 border-2 border-gray-900 text-gray-900 font-medium rounded-full hover:bg-gray-900 hover:text-white transition-all duration-300"
+                        className="inline-flex items-center justify-center px-8 py-4 border-2 border-foreground text-foreground font-medium rounded-full hover:bg-foreground hover:text-background transition-all duration-300"
                     >
                         Load More Products
                     </Link>

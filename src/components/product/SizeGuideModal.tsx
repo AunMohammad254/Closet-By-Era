@@ -45,14 +45,14 @@ export default function SizeGuideModal({ isOpen, onClose, defaultCategory = 'men
                             leaveFrom="opacity-100 scale-100"
                             leaveTo="opacity-0 scale-95"
                         >
-                            <Dialog.Panel className="w-full max-w-2xl transform overflow-hidden rounded-2xl bg-white p-6 text-left align-middle shadow-xl transition-all">
+                            <Dialog.Panel className="w-full max-w-2xl transform overflow-hidden rounded-2xl bg-white dark:bg-slate-900 p-6 text-left align-middle shadow-xl transition-all">
                                 <div className="flex justify-between items-center mb-6">
-                                    <Dialog.Title as="h3" className="text-xl font-bold text-gray-900">
+                                    <Dialog.Title as="h3" className="text-xl font-bold text-gray-900 dark:text-white">
                                         Size Guide
                                     </Dialog.Title>
                                     <button
                                         onClick={onClose}
-                                        className="text-gray-400 hover:text-gray-500 transition-colors"
+                                        className="text-gray-400 hover:text-gray-500 dark:text-gray-500 dark:hover:text-gray-400 transition-colors"
                                     >
                                         <span className="sr-only">Close</span>
                                         <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor">
@@ -62,7 +62,7 @@ export default function SizeGuideModal({ isOpen, onClose, defaultCategory = 'men
                                 </div>
 
                                 <Tab.Group defaultIndex={categories.indexOf(initialCategory)}>
-                                    <Tab.List className="flex space-x-1 rounded-xl bg-slate-100 p-1 mb-6 overflow-x-auto">
+                                    <Tab.List className="flex space-x-1 rounded-xl bg-slate-100 dark:bg-slate-800 p-1 mb-6 overflow-x-auto">
                                         {categories.map((key) => (
                                             <Tab
                                                 key={key}
@@ -70,8 +70,8 @@ export default function SizeGuideModal({ isOpen, onClose, defaultCategory = 'men
                                                     classNames(
                                                         'w-full min-w-fit rounded-lg py-2.5 px-4 text-sm font-medium leading-5 transition-all whitespace-nowrap',
                                                         selected
-                                                            ? 'bg-white text-slate-900 shadow'
-                                                            : 'text-gray-600 hover:bg-white/[0.12] hover:text-slate-800'
+                                                            ? 'bg-white text-slate-900 shadow dark:bg-slate-700 dark:text-white'
+                                                            : 'text-gray-600 hover:bg-white/[0.12] hover:text-slate-800 dark:text-gray-400 dark:hover:bg-slate-700/50 dark:hover:text-slate-200'
                                                     )
                                                 }
                                             >
@@ -85,15 +85,15 @@ export default function SizeGuideModal({ isOpen, onClose, defaultCategory = 'men
                                             const chart = SIZE_DATA[key];
                                             return (
                                                 <Tab.Panel key={key} className="focus:outline-none">
-                                                    <p className="text-sm text-gray-500 mb-4">{chart.description}</p>
+                                                    <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">{chart.description}</p>
                                                     <div className="overflow-x-auto">
-                                                        <table className="min-w-full divide-y divide-gray-200 border border-gray-100 rounded-lg">
-                                                            <thead className="bg-gray-50">
+                                                        <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-800 border border-gray-100 dark:border-gray-800 rounded-lg">
+                                                            <thead className="bg-gray-50 dark:bg-slate-800/50">
                                                                 <tr>
                                                                     {chart.headers.map((header) => (
                                                                         <th
                                                                             key={header}
-                                                                            className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider"
+                                                                            className="px-6 py-3 text-left text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider"
                                                                         >
                                                                             {header}
                                                                         </th>

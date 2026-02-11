@@ -286,9 +286,9 @@ function AccountPageContent() {
     // Show loading state
     if (loading) {
         return (
-            <main className="min-h-screen bg-white">
+            <main className="min-h-screen bg-background">
                 <div className="pt-32 pb-20 flex items-center justify-center">
-                    <div className="animate-spin w-8 h-8 border-2 border-gray-200 border-t-rose-600 rounded-full"></div>
+                    <div className="animate-spin w-8 h-8 border-2 border-border border-t-primary rounded-full"></div>
                 </div>
             </main>
         );
@@ -297,27 +297,27 @@ function AccountPageContent() {
     // Redirect if not logged in
     if (!user) {
         return (
-            <main className="min-h-screen bg-white">
+            <main className="min-h-screen bg-background">
                 <section className="pt-32 pb-20">
                     <div className="max-w-md mx-auto px-4 text-center py-20">
-                        <div className="w-20 h-20 mx-auto bg-gray-100 rounded-full flex items-center justify-center mb-6">
-                            <svg className="w-10 h-10 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <div className="w-20 h-20 mx-auto bg-muted rounded-full flex items-center justify-center mb-6">
+                            <svg className="w-10 h-10 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                             </svg>
                         </div>
-                        <h1 className="text-2xl font-bold text-gray-900 mb-4">Sign in to view your account</h1>
-                        <p className="text-gray-600 mb-8">
+                        <h1 className="text-2xl font-bold text-foreground mb-4">Sign in to view your account</h1>
+                        <p className="text-muted-foreground mb-8">
                             Access your orders, wishlist, and manage your profile.
                         </p>
                         <Link
                             href="/auth/login"
-                            className="inline-flex items-center justify-center px-8 py-4 bg-slate-900 text-white font-medium rounded-full hover:bg-slate-800 transition-colors"
+                            className="inline-flex items-center justify-center px-8 py-4 bg-primary text-primary-foreground font-medium rounded-full hover:bg-primary/90 transition-colors"
                         >
                             Sign In
                         </Link>
-                        <p className="mt-4 text-sm text-gray-500">
+                        <p className="mt-4 text-sm text-muted-foreground">
                             Don&apos;t have an account?{' '}
-                            <Link href="/auth/register" className="text-rose-600 hover:text-rose-700">
+                            <Link href="/auth/register" className="text-primary hover:text-primary/80">
                                 Create one
                             </Link>
                         </p>
@@ -329,11 +329,11 @@ function AccountPageContent() {
 
     const getStatusBadge = (status: string) => {
         const styles = {
-            pending: 'bg-yellow-100 text-yellow-700',
-            processing: 'bg-blue-100 text-blue-700',
-            shipped: 'bg-purple-100 text-purple-700',
-            delivered: 'bg-emerald-100 text-emerald-700',
-            cancelled: 'bg-gray-100 text-gray-700',
+            pending: 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400',
+            processing: 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400',
+            shipped: 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400',
+            delivered: 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400',
+            cancelled: 'bg-muted text-muted-foreground',
         };
         return styles[status as keyof typeof styles] || styles.pending;
     };
@@ -352,22 +352,22 @@ function AccountPageContent() {
     };
 
     return (
-        <main className="min-h-screen bg-gray-50">
+        <main className="min-h-screen bg-background">
 
             <section className="pt-32 pb-20">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                     <div className="flex flex-col lg:flex-row gap-8">
                         {/* Sidebar */}
-                        <aside className="lg:w-64 flex-shrink-0">
-                            <div className="bg-white rounded-2xl p-6 shadow-sm">
+                        <aside className="lg:w-64 shrink-0">
+                            <div className="bg-card rounded-2xl p-6 shadow-sm border border-border">
                                 {/* User Info */}
-                                <div className="flex items-center gap-4 mb-6 pb-6 border-b border-gray-100">
-                                    <div className="w-14 h-14 flex-shrink-0 bg-gradient-to-br from-rose-400 to-rose-600 rounded-full flex items-center justify-center text-white text-xl font-bold">
+                                <div className="flex items-center gap-4 mb-6 pb-6 border-b border-border">
+                                    <div className="w-14 h-14 shrink-0 bg-linear-to-br from-rose-400 to-rose-600 rounded-full flex items-center justify-center text-white text-xl font-bold">
                                         {getInitials()}
                                     </div>
                                     <div className="min-w-0 flex-1">
-                                        <p className="font-semibold text-gray-900 truncate" title={getDisplayName()}>{getDisplayName()}</p>
-                                        <p className="text-sm text-gray-500 truncate" title={user.email || ''}>{user.email}</p>
+                                        <p className="font-semibold text-foreground truncate" title={getDisplayName()}>{getDisplayName()}</p>
+                                        <p className="text-sm text-muted-foreground truncate" title={user.email || ''}>{user.email}</p>
                                     </div>
                                 </div>
 
@@ -384,8 +384,8 @@ function AccountPageContent() {
                                             key={item.id}
                                             onClick={() => handleTabChange(item.id as AccountTab)}
                                             className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-colors ${activeTab === item.id
-                                                ? 'bg-slate-900 text-white'
-                                                : 'text-gray-600 hover:bg-gray-100'
+                                                ? 'bg-primary text-primary-foreground'
+                                                : 'text-muted-foreground hover:bg-muted hover:text-foreground'
                                                 }`}
                                         >
                                             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -399,7 +399,7 @@ function AccountPageContent() {
                                 {/* Sign Out */}
                                 <button
                                     onClick={handleSignOut}
-                                    className="w-full mt-6 flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-rose-600 hover:bg-rose-50 transition-colors"
+                                    className="w-full mt-6 flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-destructive hover:bg-destructive/10 transition-colors"
                                 >
                                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
@@ -413,12 +413,12 @@ function AccountPageContent() {
                         <div className="flex-1">
                             {/* Profile Tab */}
                             {activeTab === 'profile' && (
-                                <div className="bg-white rounded-2xl p-6 sm:p-8 shadow-sm">
+                                <div className="bg-card rounded-2xl p-6 sm:p-8 shadow-sm border border-border">
                                     <div className="flex items-center justify-between mb-6">
-                                        <h2 className="text-xl font-bold text-gray-900">My Profile</h2>
+                                        <h2 className="text-xl font-bold text-foreground">My Profile</h2>
                                         <button
                                             onClick={() => setIsEditing(!isEditing)}
-                                            className="text-sm text-rose-600 font-medium hover:text-rose-700 transition-colors"
+                                            className="text-sm text-primary font-medium hover:text-primary/80 transition-colors"
                                         >
                                             {isEditing ? 'Cancel' : 'Edit'}
                                         </button>
@@ -426,46 +426,46 @@ function AccountPageContent() {
 
                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                                         <div>
-                                            <label className="block text-sm font-medium text-gray-500 mb-1">First Name</label>
+                                            <label className="block text-sm font-medium text-muted-foreground mb-1">First Name</label>
                                             {isEditing ? (
                                                 <input
                                                     type="text"
                                                     value={profile.firstName}
                                                     onChange={(e) => setProfile({ ...profile, firstName: e.target.value })}
-                                                    className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-rose-500"
+                                                    className="w-full px-4 py-3 bg-background border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-foreground"
                                                 />
                                             ) : (
-                                                <p className="text-gray-900">{profile.firstName || '-'}</p>
+                                                <p className="text-foreground">{profile.firstName || '-'}</p>
                                             )}
                                         </div>
                                         <div>
-                                            <label className="block text-sm font-medium text-gray-500 mb-1">Last Name</label>
+                                            <label className="block text-sm font-medium text-muted-foreground mb-1">Last Name</label>
                                             {isEditing ? (
                                                 <input
                                                     type="text"
                                                     value={profile.lastName}
                                                     onChange={(e) => setProfile({ ...profile, lastName: e.target.value })}
-                                                    className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-rose-500"
+                                                    className="w-full px-4 py-3 bg-background border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-foreground"
                                                 />
                                             ) : (
-                                                <p className="text-gray-900">{profile.lastName || '-'}</p>
+                                                <p className="text-foreground">{profile.lastName || '-'}</p>
                                             )}
                                         </div>
                                         <div>
-                                            <label className="block text-sm font-medium text-gray-500 mb-1">Email</label>
-                                            <p className="text-gray-900">{profile.email}</p>
+                                            <label className="block text-sm font-medium text-muted-foreground mb-1">Email</label>
+                                            <p className="text-foreground">{profile.email}</p>
                                         </div>
                                         <div>
-                                            <label className="block text-sm font-medium text-gray-500 mb-1">Phone</label>
+                                            <label className="block text-sm font-medium text-muted-foreground mb-1">Phone</label>
                                             {isEditing ? (
                                                 <input
                                                     type="tel"
                                                     value={profile.phone}
                                                     onChange={(e) => setProfile({ ...profile, phone: e.target.value })}
-                                                    className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-rose-500"
+                                                    className="w-full px-4 py-3 bg-background border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-foreground"
                                                 />
                                             ) : (
-                                                <p className="text-gray-900">{profile.phone || '-'}</p>
+                                                <p className="text-foreground">{profile.phone || '-'}</p>
                                             )}
                                         </div>
                                     </div>
@@ -474,11 +474,11 @@ function AccountPageContent() {
                                         <button
                                             onClick={handleSaveProfile}
                                             disabled={isSaving}
-                                            className="mt-6 px-6 py-3 bg-slate-900 text-white font-medium rounded-lg hover:bg-slate-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
+                                            className="mt-6 px-6 py-3 bg-primary text-primary-foreground font-medium rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
                                         >
                                             {isSaving ? (
                                                 <>
-                                                    <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+                                                    <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-primary-foreground" fill="none" viewBox="0 0 24 24">
                                                         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                                                         <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                                                     </svg>
@@ -495,30 +495,30 @@ function AccountPageContent() {
                             {/* Orders Tab */}
                             {activeTab === 'orders' && (
                                 <div className="space-y-4">
-                                    <h2 className="text-xl font-bold text-gray-900 mb-6">My Orders</h2>
+                                    <h2 className="text-xl font-bold text-foreground mb-6">My Orders</h2>
 
                                     {ordersLoading ? (
-                                        <div className="bg-white rounded-2xl p-12 shadow-sm text-center">
-                                            <div className="animate-spin w-8 h-8 border-2 border-gray-200 border-t-rose-600 rounded-full mx-auto"></div>
-                                            <p className="mt-4 text-gray-500">Loading orders...</p>
+                                        <div className="bg-card rounded-2xl p-12 shadow-sm border border-border text-center">
+                                            <div className="animate-spin w-8 h-8 border-2 border-border border-t-primary rounded-full mx-auto"></div>
+                                            <p className="mt-4 text-muted-foreground">Loading orders...</p>
                                         </div>
                                     ) : orders.length === 0 ? (
-                                        <div className="bg-white rounded-2xl p-12 shadow-sm text-center">
-                                            <svg className="w-12 h-12 mx-auto text-gray-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <div className="bg-card rounded-2xl p-12 shadow-sm border border-border text-center">
+                                            <svg className="w-12 h-12 mx-auto text-muted-foreground/50 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
                                             </svg>
-                                            <p className="text-gray-500 mb-4">No orders yet</p>
-                                            <Link href="/products" className="text-rose-600 font-medium hover:text-rose-700">
+                                            <p className="text-muted-foreground mb-4">No orders yet</p>
+                                            <Link href="/products" className="text-primary font-medium hover:text-primary/80">
                                                 Start shopping
                                             </Link>
                                         </div>
                                     ) : (
                                         orders.map((order) => (
-                                            <div key={order.id} className="bg-white rounded-2xl p-6 shadow-sm">
-                                                <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 pb-4 border-b border-gray-100">
+                                            <div key={order.id} className="bg-card rounded-2xl p-6 shadow-sm border border-border">
+                                                <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 pb-4 border-b border-border">
                                                     <div>
-                                                        <p className="font-semibold text-gray-900">Order {order.order_number}</p>
-                                                        <p className="text-sm text-gray-500">{new Date(order.created_at).toLocaleDateString('en-US', { dateStyle: 'long' })}</p>
+                                                        <p className="font-semibold text-foreground">Order {order.order_number}</p>
+                                                        <p className="text-sm text-muted-foreground">{new Date(order.created_at).toLocaleDateString('en-US', { dateStyle: 'long' })}</p>
                                                     </div>
                                                     <span className={`mt-2 sm:mt-0 inline-flex px-3 py-1 rounded-full text-xs font-medium capitalize ${getStatusBadge(order.status || 'pending')}`}>
                                                         {order.status || 'pending'}
@@ -534,17 +534,17 @@ function AccountPageContent() {
                                                 <div className="space-y-3 mb-4">
                                                     {order.items.map((item, index) => (
                                                         <div key={index} className="flex justify-between text-sm">
-                                                            <span className="text-gray-600">
+                                                            <span className="text-muted-foreground">
                                                                 {item.product_name} {item.size && `(${item.size}`}{item.color && `, ${item.color}`}{(item.size || item.color) && ')'} x{item.quantity}
                                                             </span>
-                                                            <span className="text-gray-900 font-medium">PKR {(item.price_at_purchase * item.quantity).toLocaleString()}</span>
+                                                            <span className="text-foreground font-medium">PKR {(item.price_at_purchase * item.quantity).toLocaleString()}</span>
                                                         </div>
                                                     ))}
                                                 </div>
 
-                                                <div className="flex items-center justify-between pt-4 border-t border-gray-100">
-                                                    <span className="font-semibold text-gray-900">Total: PKR {(order.total ?? order.total_amount ?? 0).toLocaleString()}</span>
-                                                    <button className="text-sm text-rose-600 font-medium hover:text-rose-700 transition-colors">
+                                                <div className="flex items-center justify-between pt-4 border-t border-border">
+                                                    <span className="font-semibold text-foreground">Total: PKR {(order.total ?? order.total_amount ?? 0).toLocaleString()}</span>
+                                                    <button className="text-sm text-primary font-medium hover:text-primary/80 transition-colors">
                                                         View Details
                                                     </button>
                                                 </div>
@@ -556,39 +556,39 @@ function AccountPageContent() {
 
                             {/* Addresses Tab */}
                             {activeTab === 'addresses' && (
-                                <div className="bg-white rounded-2xl p-6 sm:p-8 shadow-sm">
+                                <div className="bg-card rounded-2xl p-6 sm:p-8 shadow-sm border border-border">
                                     <div className="flex items-center justify-between mb-6">
-                                        <h2 className="text-xl font-bold text-gray-900">Saved Addresses</h2>
-                                        <button className="text-sm text-rose-600 font-medium hover:text-rose-700 transition-colors">
+                                        <h2 className="text-xl font-bold text-foreground">Saved Addresses</h2>
+                                        <button className="text-sm text-primary font-medium hover:text-primary/80 transition-colors">
                                             + Add New
                                         </button>
                                     </div>
 
                                     {addresses.length === 0 ? (
                                         <div className="text-center py-12">
-                                            <svg className="w-12 h-12 mx-auto text-gray-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <svg className="w-12 h-12 mx-auto text-muted-foreground/50 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
                                             </svg>
-                                            <p className="text-gray-500 mb-4">No saved addresses</p>
-                                            <p className="text-sm text-gray-400">Addresses from your orders will appear here</p>
+                                            <p className="text-muted-foreground mb-4">No saved addresses</p>
+                                            <p className="text-sm text-muted-foreground/70">Addresses from your orders will appear here</p>
                                         </div>
                                     ) : (
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                             {addresses.map((address) => (
-                                                <div key={address.id} className="p-4 border border-gray-200 rounded-xl relative">
+                                                <div key={address.id} className="p-4 border border-border rounded-xl relative">
                                                     {address.isDefault && (
-                                                        <span className="absolute top-4 right-4 px-2 py-0.5 bg-slate-900 text-white text-xs rounded">Default</span>
+                                                        <span className="absolute top-4 right-4 px-2 py-0.5 bg-primary text-primary-foreground text-xs rounded">Default</span>
                                                     )}
-                                                    <p className="font-medium text-gray-900 mb-1">{address.label}</p>
-                                                    <p className="text-sm text-gray-600">
+                                                    <p className="font-medium text-foreground mb-1">{address.label}</p>
+                                                    <p className="text-sm text-muted-foreground">
                                                         {address.firstName} {address.lastName}<br />
                                                         {address.address}{address.apartment && `, ${address.apartment}`}<br />
                                                         {address.city}{address.state && `, ${address.state}`} {address.postalCode}<br />
                                                         {address.phone}
                                                     </p>
                                                     <div className="mt-4 flex gap-4">
-                                                        <button className="text-sm text-gray-500 hover:text-gray-700">Edit</button>
-                                                        <button className="text-sm text-rose-500 hover:text-rose-700">Delete</button>
+                                                        <button className="text-sm text-muted-foreground hover:text-foreground">Edit</button>
+                                                        <button className="text-sm text-destructive hover:text-destructive/80">Delete</button>
                                                     </div>
                                                 </div>
                                             ))}
@@ -599,14 +599,14 @@ function AccountPageContent() {
 
                             {/* Wishlist Tab */}
                             {activeTab === 'wishlist' && (
-                                <div className="bg-white rounded-2xl p-6 sm:p-8 shadow-sm">
-                                    <h2 className="text-xl font-bold text-gray-900 mb-6">My Wishlist</h2>
+                                <div className="bg-card rounded-2xl p-6 sm:p-8 shadow-sm border border-border">
+                                    <h2 className="text-xl font-bold text-foreground mb-6">My Wishlist</h2>
                                     <div className="text-center py-12">
-                                        <svg className="w-12 h-12 mx-auto text-gray-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <svg className="w-12 h-12 mx-auto text-muted-foreground/50 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
                                         </svg>
-                                        <p className="text-gray-500 mb-4">Your wishlist is empty</p>
-                                        <Link href="/products" className="text-rose-600 font-medium hover:text-rose-700">
+                                        <p className="text-muted-foreground mb-4">Your wishlist is empty</p>
+                                        <Link href="/products" className="text-primary font-medium hover:text-primary/80">
                                             Discover products
                                         </Link>
                                     </div>
@@ -617,41 +617,41 @@ function AccountPageContent() {
                             {activeTab === 'loyalty' && (
                                 <div className="space-y-6">
                                     {/* Balance Card */}
-                                    <div className="bg-gradient-to-br from-slate-900 to-slate-800 rounded-2xl p-8 text-white shadow-lg overflow-hidden relative">
-                                        <div className="absolute top-0 right-0 -mt-4 -mr-4 w-32 h-32 bg-white/10 rounded-full blur-2xl"></div>
+                                    <div className="bg-linear-to-br from-slate-900 to-slate-800 dark:from-background dark:to-muted border border-border rounded-2xl p-8 text-white dark:text-foreground shadow-lg overflow-hidden relative">
+                                        <div className="absolute top-0 right-0 -mt-4 -mr-4 w-32 h-32 bg-white/10 dark:bg-primary/10 rounded-full blur-2xl"></div>
                                         <div className="relative z-10">
-                                            <h2 className="text-lg font-medium text-slate-300 mb-2">My Loyalty Points</h2>
+                                            <h2 className="text-lg font-medium text-slate-300 dark:text-muted-foreground mb-2">My Loyalty Points</h2>
                                             <div className="flex items-baseline gap-2">
                                                 <span className="text-5xl font-bold">{loyaltyPoints}</span>
-                                                <span className="text-xl text-slate-400">pts</span>
+                                                <span className="text-xl text-slate-400 dark:text-muted-foreground">pts</span>
                                             </div>
-                                            <p className="mt-4 text-sm text-slate-400 max-w-sm">
+                                            <p className="mt-4 text-sm text-slate-400 dark:text-muted-foreground max-w-sm">
                                                 Earn 1 point for every 100 PKR spent. Redeem your points for exclusive discounts on your next purchase.
                                             </p>
                                         </div>
                                     </div>
 
                                     {/* History */}
-                                    <div className="bg-white rounded-2xl p-6 sm:p-8 shadow-sm">
-                                        <h3 className="text-xl font-bold text-gray-900 mb-6">Points History</h3>
+                                    <div className="bg-card rounded-2xl p-6 sm:p-8 shadow-sm border border-border">
+                                        <h3 className="text-xl font-bold text-foreground mb-6">Points History</h3>
 
                                         {loyaltyLoading ? (
                                             <div className="text-center py-8">
-                                                <div className="animate-spin w-6 h-6 border-2 border-gray-200 border-t-rose-600 rounded-full mx-auto"></div>
+                                                <div className="animate-spin w-6 h-6 border-2 border-border border-t-primary rounded-full mx-auto"></div>
                                             </div>
                                         ) : loyaltyHistory.length === 0 ? (
-                                            <div className="text-center py-12 text-gray-500">
+                                            <div className="text-center py-12 text-muted-foreground">
                                                 No history yet. Start shopping to earn points!
                                             </div>
                                         ) : (
-                                            <div className="divide-y divide-gray-100">
+                                            <div className="divide-y divide-border">
                                                 {loyaltyHistory.map((item) => (
                                                     <div key={item.id} className="py-4 flex items-center justify-between">
                                                         <div>
-                                                            <p className="font-medium text-gray-900">{item.reason}</p>
-                                                            <p className="text-sm text-gray-500">{new Date(item.created_at).toLocaleDateString()}</p>
+                                                            <p className="font-medium text-foreground">{item.reason}</p>
+                                                            <p className="text-sm text-muted-foreground">{new Date(item.created_at).toLocaleDateString()}</p>
                                                         </div>
-                                                        <span className={`font-medium ${item.points > 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+                                                        <span className={`font-medium ${item.points > 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-destructive'}`}>
                                                             {item.points > 0 ? '+' : ''}{item.points} pts
                                                         </span>
                                                     </div>
@@ -674,9 +674,9 @@ function AccountPageContent() {
 export default function AccountPage() {
     return (
         <Suspense fallback={
-            <main className="min-h-screen bg-gray-50">
+            <main className="min-h-screen bg-background">
                 <div className="pt-32 pb-20 flex items-center justify-center">
-                    <div className="animate-spin w-8 h-8 border-2 border-gray-200 border-t-rose-600 rounded-full"></div>
+                    <div className="animate-spin w-8 h-8 border-2 border-border border-t-primary rounded-full"></div>
                 </div>
             </main>
         }>
@@ -684,4 +684,3 @@ export default function AccountPage() {
         </Suspense>
     );
 }
-

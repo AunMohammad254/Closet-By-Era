@@ -45,9 +45,9 @@ export default function RecentlyViewed() {
     if (isLoading || products.length === 0) return null;
 
     return (
-        <section className="py-12 border-t border-gray-100">
+        <section className="py-12 border-t border-border">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                <h2 className="text-xl font-bold text-gray-900 mb-6">Recently Viewed</h2>
+                <h2 className="text-xl font-bold text-foreground mb-6">Recently Viewed</h2>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
                     {products.filter(p => {
                         const img = p.images?.[0] || p.image;
@@ -58,7 +58,7 @@ export default function RecentlyViewed() {
                             href={`/product/${product.slug}`}
                             className="group block"
                         >
-                            <div className="relative aspect-[3/4] bg-gray-100 rounded-lg overflow-hidden mb-3">
+                            <div className="relative aspect-3/4 bg-muted rounded-lg overflow-hidden mb-3">
                                 <Image
                                     src={product.images?.[0] || product.image}
                                     alt={product.name}
@@ -66,10 +66,10 @@ export default function RecentlyViewed() {
                                     className="object-cover group-hover:scale-105 transition-transform duration-300"
                                 />
                             </div>
-                            <h3 className="text-sm font-medium text-gray-900 group-hover:text-rose-600 transition-colors truncate">
+                            <h3 className="text-sm font-medium text-foreground group-hover:text-primary transition-colors truncate">
                                 {product.name}
                             </h3>
-                            <p className="text-sm text-gray-500 mt-1">
+                            <p className="text-sm text-muted-foreground mt-1">
                                 PKR {product.price.toLocaleString()}
                             </p>
                         </Link>

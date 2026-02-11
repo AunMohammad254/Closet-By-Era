@@ -111,7 +111,7 @@ export default function AIStylistTrigger() {
                             e.stopPropagation();
                             setIsVisible(false);
                         }}
-                        className="absolute -top-2 -right-2 bg-gray-200 text-gray-500 hover:bg-red-100 hover:text-red-500 rounded-full p-1 shadow-md opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity z-50"
+                        className="absolute -top-2 -right-2 bg-gray-200 dark:bg-slate-700 text-gray-500 dark:text-gray-300 hover:bg-red-100 dark:hover:bg-red-900/50 hover:text-red-500 dark:hover:text-red-400 rounded-full p-1 shadow-md opacity-100 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity z-50"
                         title="Remove button"
                         aria-label="Remove AI Stylist button"
                     >

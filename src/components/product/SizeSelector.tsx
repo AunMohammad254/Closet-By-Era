@@ -13,10 +13,10 @@ export default function SizeSelector({ sizes, selectedSize, onSelect, onSizeGuid
     return (
         <div className="mt-8">
             <div className="flex items-center justify-between">
-                <span className="text-sm font-medium text-gray-900">Size</span>
+                <span className="text-sm font-medium text-gray-900 dark:text-white">Size</span>
                 <button
                     onClick={onSizeGuideClick}
-                    className="text-sm text-gray-500 underline hover:text-gray-900 transition-colors flex items-center gap-1"
+                    className="text-sm text-gray-500 dark:text-gray-400 underline hover:text-gray-900 dark:hover:text-white transition-colors flex items-center gap-1"
                 >
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 6l3 1m0 0l-3 9a5.002 5.002 0 006.001 0M6 7l3 9M6 7l6-2m6 2l3-1m-3 1l-3 9a5.002 5.002 0 006.001 0M18 7l3 9m-3-9l-6-2m0-2v2m0 16V5m0 16H9m3 0h3" />
@@ -30,8 +30,8 @@ export default function SizeSelector({ sizes, selectedSize, onSelect, onSizeGuid
                         key={size}
                         onClick={() => onSelect(size)}
                         className={`px-4 py-2 text-sm font-medium rounded-lg border transition-all ${selectedSize === size
-                            ? 'border-slate-900 bg-slate-900 text-white'
-                            : 'border-gray-200 text-gray-700 hover:border-gray-400'
+                            ? 'border-slate-900 bg-slate-900 text-white dark:border-white dark:bg-white dark:text-slate-900'
+                            : 'border-gray-200 text-gray-700 hover:border-gray-400 dark:border-slate-700 dark:text-slate-300 dark:hover:border-slate-500'
                             }`}
                     >
                         {size}

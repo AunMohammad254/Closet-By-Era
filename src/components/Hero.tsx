@@ -31,9 +31,9 @@ export default function Hero({ title, subtitle }: { title?: string, subtitle?: s
     const displaySubtitle = subtitle || slide.subtitle;
 
     return (
-        <section className="relative h-screen min-h-[600px] max-h-[900px] overflow-hidden">
+        <section className="relative h-screen min-h-150 max-h-225 overflow-hidden">
             {/* Background Gradient Overlay */}
-            <div className="absolute inset-0 bg-gradient-to-r from-slate-900/90 via-slate-900/50 to-transparent z-10" />
+            <div className="absolute inset-0 bg-linear-to-r from-slate-900/90 via-slate-900/50 to-transparent z-10" />
 
             {/* Animated Background Pattern */}
             <div className="absolute inset-0 z-0">
@@ -46,7 +46,7 @@ export default function Hero({ title, subtitle }: { title?: string, subtitle?: s
                     sizes="100vw"
                 />
                 <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_50%,rgba(244,63,94,0.1),transparent_50%)]" />
-                <div className="absolute inset-0 bg-gradient-to-br from-slate-900 via-slate-800 to-rose-950 opacity-90" />
+                <div className="absolute inset-0 bg-linear-to-br from-slate-900 via-slate-800 to-rose-950 opacity-90" />
             </div>
 
             {/* Decorative Elements */}
@@ -65,8 +65,8 @@ export default function Hero({ title, subtitle }: { title?: string, subtitle?: s
 
                         {/* Title */}
                         <h1 className="text-5xl sm:text-6xl lg:text-7xl font-bold text-white leading-tight mb-6">
-                            <span className="block font-light">{displayTitle.split(' ')[0]}</span>
-                            <span className="block bg-gradient-to-r from-rose-400 via-rose-500 to-amber-400 bg-clip-text text-transparent">
+                            <span className="block font-light text-white/90">{displayTitle.split(' ')[0]}</span>
+                            <span className="block bg-linear-to-r from-primary via-rose-500 to-amber-400 bg-clip-text text-transparent">
                                 {displayTitle.split(' ').slice(1).join(' ')}
                             </span>
                         </h1>
@@ -80,7 +80,7 @@ export default function Hero({ title, subtitle }: { title?: string, subtitle?: s
                         <div className="flex flex-col sm:flex-row gap-4">
                             <Link
                                 href={slide.link}
-                                className="group inline-flex items-center justify-center px-8 py-4 bg-white text-slate-900 font-medium rounded-full hover:bg-rose-50 transition-all duration-300 shadow-lg hover:shadow-xl hover:-translate-y-0.5"
+                                className="group inline-flex items-center justify-center px-8 py-4 bg-foreground text-background font-medium rounded-full hover:bg-primary hover:text-primary-foreground transition-all duration-300 shadow-lg hover:shadow-xl hover:-translate-y-0.5"
                             >
                                 {slide.buttonText}
                                 <svg className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -89,7 +89,7 @@ export default function Hero({ title, subtitle }: { title?: string, subtitle?: s
                             </Link>
                             <Link
                                 href="/lookbook"
-                                className="inline-flex items-center justify-center px-8 py-4 border border-white/30 text-white font-medium rounded-full hover:bg-white/10 backdrop-blur-sm transition-all duration-300"
+                                className="inline-flex items-center justify-center px-8 py-4 border border-foreground/30 text-foreground dark:text-white font-medium rounded-full hover:bg-foreground/10 backdrop-blur-sm transition-all duration-300"
                             >
                                 View Lookbook
                             </Link>

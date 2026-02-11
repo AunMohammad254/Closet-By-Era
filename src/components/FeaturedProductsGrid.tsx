@@ -15,7 +15,7 @@ interface FeaturedProductsGridProps {
 function FeaturedProductsGrid({ products }: FeaturedProductsGridProps) {
     if (products.length === 0) {
         return (
-            <div className="col-span-full text-center py-10 text-gray-500">
+            <div className="col-span-full text-center py-10 text-gray-500 dark:text-gray-400">
                 No featured products found.
             </div>
         );
