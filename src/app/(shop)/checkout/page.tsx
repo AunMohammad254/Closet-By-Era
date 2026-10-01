@@ -13,6 +13,7 @@ import { revalidateAccountPage } from '@/app/actions';
 import { validateCoupon, incrementCouponUsage } from '@/actions/coupons';
 import { awardLoyaltyPoints } from '@/actions/loyalty';
 import { validateGiftCard, redeemGiftCard, GiftCard } from '@/actions/gift-cards';
+import { logger } from "@/lib/logger";
 
 type CheckoutStep = 'information' | 'shipping' | 'payment';
 
@@ -248,7 +249,7 @@ export default function CheckoutPage() {
                 .single();
 
             if (orderError) {
-                console.error('Error creating order:', orderError);
+                logger.error('Error creating order', orderError);
                 throw new Error(orderError.message || 'Failed to create order');
             }
 
@@ -271,7 +272,7 @@ export default function CheckoutPage() {
                     .insert(orderItems);
 
                 if (itemsError) {
-                    console.error('Error creating order items:', itemsError);
+                    logger.error('Error creating order items', itemsError);
                 }
             }
 
@@ -333,7 +334,7 @@ export default function CheckoutPage() {
             clearCart();
             setOrderComplete(true);
         } catch (error) {
-            console.error('Order processing error:', error);
+            logger.error('Order processing error', error);
             setOrderError('There was an error processing your order. Please try again.');
         } finally {
             setIsProcessing(false);
