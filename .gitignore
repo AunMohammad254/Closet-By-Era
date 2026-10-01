@@ -54,3 +54,6 @@ errors/
 build-*.txt
 lint_*.txt
 scripts/
+
+playwright-report/
+test-results/
