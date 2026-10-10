@@ -97,7 +97,7 @@ export default function ReviewForm({ productId }: { productId: string }) {
                 setImages([]);
                 setPreviewUrls([]);
             }
-        } catch (error) {
+        } catch {
             setMessage({ type: 'error', text: 'An unexpected error occurred.' });
         } finally {
             setIsSubmitting(false);

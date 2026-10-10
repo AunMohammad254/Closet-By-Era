@@ -1,3 +1,4 @@
+import type { ComponentProps } from 'react';
 import { getProducts } from '@/actions/products';
 import ProductsTable from '@/components/admin/products/ProductsTable';
 import Link from 'next/link';
@@ -54,7 +55,7 @@ export default async function ProductsPage({
                 </div>
             </div>
 
-            <ProductsTable products={products as any[]} />
+            <ProductsTable products={products as unknown as ComponentProps<typeof ProductsTable>['products']} />
 
             {/* Pagination */}
             {totalPages > 1 && (

@@ -20,15 +20,10 @@ export default function SystemHealthPage() {
     const [refreshing, setRefreshing] = useState(false);
     const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
 
-    const loadHealth = async (showRefresh = false) => {
-        if (showRefresh) setRefreshing(true);
-        else setLoading(true);
-
-        const [healthResult, statsResult] = await Promise.all([
-            getSystemHealth(),
-            getTableStats()
-        ]);
-
+    const fetchHealth = () => Promise.all([
+        getSystemHealth(),
+        getTableStats()
+    ]).then(([healthResult, statsResult]) => {
         if (healthResult.success && healthResult.data) {
             setHealth(healthResult.data);
         }
@@ -39,12 +34,21 @@ export default function SystemHealthPage() {
         setLastUpdate(new Date());
         setLoading(false);
         setRefreshing(false);
+    });
+
+    const refreshHealth = () => {
+        setRefreshing(true);
+        return fetchHealth();
     };
 
     useEffect(() => {
-        loadHealth();
+        // `loading` starts true, so the initial load doesn't need to set it.
+        fetchHealth();
         // Refresh every 30 seconds
-        const interval = setInterval(() => loadHealth(true), 30000);
+        const interval = setInterval(() => {
+            setRefreshing(true);
+            fetchHealth();
+        }, 30000);
         return () => clearInterval(interval);
     }, []);
 
@@ -80,7 +84,7 @@ export default function SystemHealthPage() {
                         </p>
                     )}
                     <button
-                        onClick={() => loadHealth(true)}
+                        onClick={refreshHealth}
                         disabled={refreshing}
                         className="px-4 py-2 bg-slate-800/50 text-slate-400 rounded-xl hover:text-slate-200 transition-colors flex items-center gap-2"
                     >

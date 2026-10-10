@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Filter, Download, Loader2, Search, X, Check } from 'lucide-react';
+import { Filter, Download, Loader2, Search, Check } from 'lucide-react';
 import { getAllOrdersForExport } from '@/actions/orders';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { getOrderCustomerEmail, getOrderCustomerName, toCsvCell } from '@/lib/order-display';
@@ -55,7 +55,7 @@ export default function OrdersToolbar() {
 
             // Convert to CSV
             const headers = ['Order ID', 'Date', 'Customer Name', 'Email', 'Status', 'Total', 'Items Count'];
-            const csvData = orders.map((order: any) => [
+            const csvData = orders.map((order) => [
                 order.order_number || order.id,
                 new Date(order.created_at).toLocaleDateString(),
                 getOrderCustomerName(order),

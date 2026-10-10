@@ -72,7 +72,7 @@ export async function importProductsFromCSV(formData: FormData): Promise<{ succe
             // For now, if not found, we'll try to create it or skip. Let's create it.
             if (!categoryId) {
                 const slug = row.category.toLowerCase().replace(/[^a-z0-9]+/g, '-');
-                const { data: newCat, error: catError } = await supabase
+                const { data: newCat } = await supabase
                     .from('categories')
                     .insert({ name: row.category, slug, description: 'Imported' })
                     .select('id')

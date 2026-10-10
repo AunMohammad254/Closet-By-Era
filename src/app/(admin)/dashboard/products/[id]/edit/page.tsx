@@ -14,5 +14,5 @@ export default async function EditProductPage({ params }: EditProductPageProps) 
     notFound();
   }
 
-  return <EditProductUI product={product as any} />;
+  return <EditProductUI product={product} />;
 }

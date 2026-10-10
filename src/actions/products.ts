@@ -3,7 +3,6 @@
 import { createClient } from '@/lib/supabase/server';
 import { getAdminContext, FORBIDDEN } from '@/lib/auth';
 import { revalidatePath, revalidateTag } from 'next/cache';
-import { redirect } from 'next/navigation';
 import { ProductFormSchema } from '@/lib/validations';
 import { logger } from '@/lib/logger';
 
@@ -27,7 +26,7 @@ export async function getProductsByIds(ids: string[]) {
     // Maintain order
     return ids
         .map(id => data.find(p => p.id === id))
-        .filter(Boolean);
+        .filter((p): p is NonNullable<typeof p> => Boolean(p));
 }
 
 export async function getLowStockProducts(threshold = 5) {
@@ -173,7 +172,7 @@ export async function createProduct(data: ProductFormData): Promise<{ success: b
     const validData = validation.data;
     const slug = validData.name.toLowerCase().replace(/ /g, '-').replace(/[^\w-]+/g, '');
 
-    const { data: newProduct, error } = await supabase
+    const { error } = await supabase
         .from('products')
         .insert({
             name: validData.name,

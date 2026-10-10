@@ -1,6 +1,6 @@
 'use client';
 
-import { Fragment, useState } from 'react';
+import { Fragment } from 'react';
 import { Dialog, Transition, Tab } from '@headlessui/react';
 import { SIZE_DATA } from '@/lib/size-data';
 

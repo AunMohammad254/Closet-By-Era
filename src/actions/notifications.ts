@@ -28,7 +28,7 @@ export async function getAdminNotifications(options?: {
 
     try {
         // Using any to handle table that may not exist in types yet
-        let query = (supabase as any)
+        let query = supabase
             .from('admin_notifications')
             .select('*')
             .order('created_at', { ascending: false })
@@ -61,7 +61,7 @@ export async function getUnreadNotificationCount(): Promise<number> {
     const { supabase } = ctx;
 
     try {
-        const { count, error } = await (supabase as any)
+        const { count, error } = await supabase
             .from('admin_notifications')
             .select('*', { count: 'exact', head: true })
             .eq('is_read', false);
@@ -86,7 +86,7 @@ export async function markNotificationAsRead(notificationId: string): Promise<{ 
     const { supabase } = ctx;
 
     try {
-        const { error } = await (supabase as any)
+        const { error } = await supabase
             .from('admin_notifications')
             .update({ is_read: true })
             .eq('id', notificationId);
@@ -111,7 +111,7 @@ export async function markAllNotificationsAsRead(): Promise<{ success: boolean }
     const { supabase } = ctx;
 
     try {
-        const { error } = await (supabase as any)
+        const { error } = await supabase
             .from('admin_notifications')
             .update({ is_read: true })
             .eq('is_read', false);
@@ -142,7 +142,7 @@ export async function createNotification(notification: {
     const { supabase } = ctx;
 
     try {
-        const { error } = await (supabase as any)
+        const { error } = await supabase
             .from('admin_notifications')
             .insert({
                 type: notification.type,

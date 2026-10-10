@@ -5,7 +5,6 @@ import { getProductsByIds } from '@/actions/products';
 import { useEffect, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import AddToCompareButton from '@/components/product/AddToCompareButton';
 import { useCart } from '@/context/CartContext';
 
 // Type for products returned from getProductsByIds
@@ -68,7 +67,7 @@ export default function ComparePage() {
             <div className="min-h-screen pt-32 pb-16 px-4 bg-background">
                 <div className="max-w-7xl mx-auto text-center">
                     <h1 className="text-3xl font-bold text-foreground mb-4">Compare Products</h1>
-                    <p className="text-muted-foreground mb-8">You haven't selected any products to compare.</p>
+                    <p className="text-muted-foreground mb-8">You haven&apos;t selected any products to compare.</p>
                     <Link href="/products" className="inline-block bg-primary text-primary-foreground px-8 py-3 rounded-full font-medium hover:bg-primary/90 transition-colors">
                         Browse Products
                     </Link>

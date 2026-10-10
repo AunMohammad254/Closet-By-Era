@@ -17,8 +17,6 @@ interface ProductGridProps {
     initialProducts: ProductUI[];
 }
 
-const sortOptions = ['Newest', 'Price: Low to High', 'Price: High to Low', 'Best Selling'];
-
 export default function ProductGrid({ initialProducts }: ProductGridProps) {
     // We rely on server-side filtering now, so initialProducts is already filtered
     const products = initialProducts;

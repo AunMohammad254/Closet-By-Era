@@ -74,7 +74,6 @@ export default function SalePage() {
                         price: p.price,
                         originalPrice: p.original_price || undefined,
                         image: p.image_url || (p.images && p.images[0]) || '/products/placeholder.png',
-                        // @ts-ignore - Supabase join types
                         category: p.categories?.name || 'Uncategorized',
                         isNew: p.is_new || false,
                         isSale: p.is_sale || false,

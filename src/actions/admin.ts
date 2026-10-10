@@ -5,6 +5,13 @@ import { ActionResult } from '@/types/shared';
 import type { Database } from '@/types/supabase';
 
 type Customer = Database['public']['Tables']['customers']['Row'];
+type Order = Database['public']['Tables']['orders']['Row'];
+type OrderItem = Database['public']['Tables']['order_items']['Row'];
+
+export type CustomerDetails = Customer & {
+    orders: (Order & { items: OrderItem[] })[];
+    stats: { totalSpent: number; totalOrders: number };
+};
 
 /** Strip characters that have meaning inside a PostgREST or() filter. */
 function sanitizeSearch(term: string): string {
@@ -51,7 +58,7 @@ export async function getAdminCustomers(options?: {
     }
 }
 
-export async function getCustomerDetails(customerId: string): Promise<ActionResult<any>> {
+export async function getCustomerDetails(customerId: string): Promise<ActionResult<CustomerDetails>> {
     const ctx = await getAdminContext();
     if (!ctx) return { success: false, error: FORBIDDEN };
     const { supabase } = ctx;
@@ -94,8 +101,8 @@ export async function getCustomerDetails(customerId: string): Promise<ActionResu
             }
         };
 
-    } catch (error: any) {
+    } catch (error) {
         console.error('Error fetching customer details:', error);
-        return { success: false, error: error.message };
+        return { success: false, error: (error as Error).message };
     }
 }

@@ -177,9 +177,9 @@ export async function getCustomerRFMAnalysis(): Promise<ActionResult<{
                 segments
             }
         };
-    } catch (error: any) {
+    } catch (error) {
         console.error('RFM Analysis Error:', error);
-        return { success: false, error: error.message };
+        return { success: false, error: (error as Error).message };
     }
 }
 

@@ -139,7 +139,7 @@ export async function getSalesByCategory(daysBack: number = 30): Promise<Categor
     const ordersByCategory = new Map<string, Set<string>>();
 
     for (const order of orders) {
-        const items = (order.order_items || []) as any[];
+        const items = order.order_items || [];
         for (const item of items) {
             const product = item.products;
             const category = product?.categories;
@@ -244,7 +244,7 @@ export async function getOrdersExportData(daysBack: number = 30): Promise<string
     const rows: string[] = ['Order ID,Customer,Email,Status,Total,Date'];
 
     for (const order of orders) {
-        const customer = order.customer as any;
+        const customer = order.customer;
         const customerName = customer ? `${customer.first_name || ''} ${customer.last_name || ''}`.trim() : 'Guest';
         const email = customer?.email || 'N/A';
         const date = new Date(order.created_at!).toLocaleDateString('en-PK');

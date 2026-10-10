@@ -1,17 +1,15 @@
 'use client';
 
 import { useTheme } from 'next-themes';
-import { useEffect, useState } from 'react';
+import { useSyncExternalStore } from 'react';
 import { Moon, Sun } from 'lucide-react';
 
-export default function ThemeToggle() {
-    const { theme, setTheme, resolvedTheme } = useTheme();
-    const [mounted, setMounted] = useState(false);
+const noopSubscribe = () => () => {};
 
-    // Prevent hydration mismatch
-    useEffect(() => {
-        setMounted(true);
-    }, []);
+export default function ThemeToggle() {
+    const { setTheme, resolvedTheme } = useTheme();
+    // Prevent hydration mismatch: false during SSR and hydration, true afterwards.
+    const mounted = useSyncExternalStore(noopSubscribe, () => true, () => false);
 
     if (!mounted) {
         return <div className="w-9 h-9" />; // Placeholder to avoid layout shift

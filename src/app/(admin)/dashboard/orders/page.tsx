@@ -1,5 +1,4 @@
 import { getOrders } from '@/actions/orders';
-import type { Order } from '@/types/database';
 import OrdersPageUI from './OrdersPageUI';
 import OrdersTableClient from './OrdersTableClient';
 

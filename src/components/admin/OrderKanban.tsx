@@ -29,17 +29,21 @@ export default function OrderKanban() {
     const [draggedOrder, setDraggedOrder] = useState<Order | null>(null);
     const [updatingId, setUpdatingId] = useState<string | null>(null);
 
-    const fetchOrders = async () => {
-        setLoading(true);
-        const result = await getOrders(1, 100); // Get up to 100 orders for kanban
+    // `loading` starts true, so the initial load doesn't need to set it.
+    const loadOrders = () => getOrders(1, 100).then(result => { // Get up to 100 orders for kanban
         if (result && Array.isArray(result.data)) {
             setOrders((result.data as unknown as Order[]).filter(o => o.status !== 'cancelled'));
         }
         setLoading(false);
+    });
+
+    const fetchOrders = () => {
+        setLoading(true);
+        return loadOrders();
     };
 
     useEffect(() => {
-        fetchOrders();
+        loadOrders();
     }, []);
 
     const getOrdersByStatus = (status: OrderStatus) => {

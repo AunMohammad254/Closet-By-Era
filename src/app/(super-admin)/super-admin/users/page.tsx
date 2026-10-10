@@ -4,6 +4,14 @@ import { useState, useEffect } from 'react';
 import { getAllUsersWithRoles, updateUserRole, exportUsersCSV, getUserActivity, bulkUpdateUserRoles, getLoginHistory, type UserWithRole } from '@/actions/super-admin';
 import { Users, Search, Shield, ShieldCheck, User, Loader2, ChevronDown, RefreshCw, Download, Eye, X, Clock, ShoppingBag, FileText, CheckSquare, Monitor } from 'lucide-react';
 import toast from 'react-hot-toast';
+import type { Tables } from '@/types/supabase';
+
+interface ActivityData {
+    // getUserActivity selects orders.total_amount, which is not in the generated types.
+    orders: { id: string; total_amount: number | null; status: string | null; created_at: string }[];
+    logs: Tables<'audit_logs'>[];
+    logins: Tables<'login_history'>[];
+}
 
 const PAGE_SIZE = 20;
 
@@ -19,7 +27,7 @@ export default function UserManagementPage() {
     // Activity Modal State
     const [showActivityModal, setShowActivityModal] = useState(false);
     const [fetchActivityLoading, setFetchActivityLoading] = useState(false);
-    const [activityData, setActivityData] = useState<any>(null);
+    const [activityData, setActivityData] = useState<ActivityData | null>(null);
 
     // Bulk Actions State
     const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
@@ -41,7 +49,7 @@ export default function UserManagementPage() {
             setActivityData({
                 ...activity,
                 logins: loginHistory
-            });
+            } as unknown as ActivityData);
         } catch (error) {
             console.error('Failed to load activity:', error);
             toast.error('Failed to load activity');
@@ -53,7 +61,8 @@ export default function UserManagementPage() {
 
     async function loadUsers(reset = false) {
         const isLoadingMore = !reset && users.length > 0;
-        isLoadingMore ? setLoadingMore(true) : setLoading(true);
+        if (isLoadingMore) setLoadingMore(true);
+        else setLoading(true);
 
         try {
             const offset = reset ? 0 : users.length;
@@ -167,28 +176,6 @@ export default function UserManagementPage() {
 
         return matchesSearch && matchesRole;
     });
-
-    const getRoleIcon = (role: string) => {
-        switch (role) {
-            case 'super_admin':
-                return <Shield className="w-4 h-4 text-purple-400" />;
-            case 'admin':
-                return <ShieldCheck className="w-4 h-4 text-green-400" />;
-            default:
-                return <User className="w-4 h-4 text-slate-400" />;
-        }
-    };
-
-    const getRoleBadgeClass = (role: string) => {
-        switch (role) {
-            case 'super_admin':
-                return 'bg-purple-500/20 text-purple-400 border-purple-500/30';
-            case 'admin':
-                return 'bg-green-500/20 text-green-400 border-green-500/30';
-            default:
-                return 'bg-slate-500/20 text-slate-400 border-slate-500/30';
-        }
-    };
 
     if (loading) {
         return (
@@ -452,7 +439,7 @@ export default function UserManagementPage() {
                                             {activityData?.orders?.length === 0 ? (
                                                 <p className="text-slate-500 text-sm italic">No orders found.</p>
                                             ) : (
-                                                activityData?.orders?.map((order: any) => (
+                                                activityData?.orders?.map((order) => (
                                                     <div key={order.id} className="bg-slate-800/50 p-4 rounded-xl border border-slate-700/50 flex items-center justify-between">
                                                         <div>
                                                             <p className="text-white font-medium">Order #{order.id.slice(0, 8)}</p>
@@ -483,7 +470,7 @@ export default function UserManagementPage() {
                                             {activityData?.logs?.length === 0 ? (
                                                 <p className="text-slate-500 text-sm italic">No logs found.</p>
                                             ) : (
-                                                activityData?.logs?.map((log: any) => (
+                                                activityData?.logs?.map((log) => (
                                                     <div key={log.id} className="bg-slate-800/50 p-4 rounded-xl border border-slate-700/50">
                                                         <div className="flex items-center justify-between mb-1">
                                                             <span className="text-purple-400 font-medium text-sm capitalize">{log.action.replace(/_/g, ' ')}</span>
@@ -513,11 +500,11 @@ export default function UserManagementPage() {
                                             {activityData?.logins?.length === 0 ? (
                                                 <p className="text-slate-500 text-sm italic">No login history found.</p>
                                             ) : (
-                                                activityData?.logins?.map((login: any) => (
+                                                activityData?.logins?.map((login) => (
                                                     <div key={login.id} className="bg-slate-800/50 p-4 rounded-xl border border-slate-700/50 flex items-center justify-between">
                                                         <div>
                                                             <p className="text-white font-medium text-sm">{login.ip_address}</p>
-                                                            <p className="text-slate-500 text-xs mt-0.5 truncate max-w-[200px]" title={login.user_agent}>
+                                                            <p className="text-slate-500 text-xs mt-0.5 truncate max-w-[200px]" title={login.user_agent ?? undefined}>
                                                                 {login.user_agent}
                                                             </p>
                                                         </div>

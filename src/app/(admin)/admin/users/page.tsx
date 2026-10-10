@@ -43,8 +43,8 @@ export default function UsersPage() {
 
             setUsers(result.data?.customers || []);
             setTotal(result.data?.total || 0);
-        } catch (error: any) {
-            console.error('Error fetching users:', error.message || error);
+        } catch (error) {
+            console.error('Error fetching users:', (error as Error).message || error);
         } finally {
             setLoading(false);
         }

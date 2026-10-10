@@ -12,7 +12,6 @@ export default function ChatWidget() {
     const [messages, setMessages] = useState<Message[]>([]);
     const [input, setInput] = useState('');
     const [ticketId, setTicketId] = useState<string | null>(null);
-    const [loading, setLoading] = useState(false);
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const supabase = createClient();
 

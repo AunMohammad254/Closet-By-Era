@@ -54,7 +54,7 @@ export function createStaticClient() {
                 getAll() {
                     return [];
                 },
-                setAll(cookiesToSet) {
+                setAll() {
                     // Static client, no-op
                 },
             },

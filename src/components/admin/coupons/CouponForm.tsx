@@ -46,11 +46,7 @@ export default function CouponForm({ coupon, onClose }: CouponFormProps) {
                 result = await updateCoupon(coupon.id, data);
             } else {
                 // Create implementation
-                result = await createCoupon({
-                    ...data,
-                    created_at: '', // ignore
-                    uses_count: 0 // ignore
-                } as any);
+                result = await createCoupon(data);
             }
 
             if (result.success) {
@@ -58,8 +54,8 @@ export default function CouponForm({ coupon, onClose }: CouponFormProps) {
             } else {
                 setError(result.error || 'Failed to save coupon');
             }
-        } catch (err: any) {
-            setError('An unexpected error occurred: ' + err.message);
+        } catch (err) {
+            setError('An unexpected error occurred: ' + (err as Error).message);
         } finally {
             setSubmitting(false);
         }

@@ -52,7 +52,7 @@ export default function AIStylistModal({ isOpen, onClose }: AIStylistModalProps)
                         </div>
                         <h2 className="text-2xl font-bold">Style By Era</h2>
                     </div>
-                    <p className="text-indigo-100">Tell us the occasion, and we'll curate the perfect look for you.</p>
+                    <p className="text-indigo-100">Tell us the occasion, and we&apos;ll curate the perfect look for you.</p>
                 </div>
 
                 {/* Body */}
@@ -135,7 +135,7 @@ export default function AIStylistModal({ isOpen, onClose }: AIStylistModalProps)
                                 </div>
                             ) : (
                                 <div className="text-center py-8 text-gray-500 dark:text-gray-400">
-                                    <p>No specific products found, but we're constantly updating our collection!</p>
+                                    <p>No specific products found, but we&apos;re constantly updating our collection!</p>
                                     <button onClick={() => setResult(null)} className="mt-4 text-violet-600 dark:text-violet-400 hover:underline">Try another search</button>
                                 </div>
                             )}

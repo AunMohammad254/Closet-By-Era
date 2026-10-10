@@ -10,7 +10,7 @@ interface NavIconsProps {
     onSearchToggle: () => void;
 }
 
-export default function NavIcons({ itemCount, isSearchOpen, onSearchToggle }: NavIconsProps) {
+export default function NavIcons({ itemCount, onSearchToggle }: NavIconsProps) {
     return (
         <div className="flex items-center space-x-2 sm:space-x-4">
             <div className="hidden sm:block">

@@ -10,11 +10,11 @@ import {
 } from '@/actions/analytics';
 import {
     AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-    BarChart, Bar, Cell, PieChart, Pie
+    BarChart, Bar, Cell
 } from 'recharts';
 import {
     Calendar, ChevronDown, Download, Loader2, RefreshCw,
-    TrendingUp, BarChart3, PieChartIcon, DollarSign, Package
+    TrendingUp, BarChart3, DollarSign, Package
 } from 'lucide-react';
 
 const COLORS = ['#e11d48', '#f43f5e', '#fb7185', '#fda4af', '#fecdd3', '#ffe4e6'];
@@ -27,20 +27,29 @@ export default function AnalyticsPage() {
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
     const [exporting, setExporting] = useState(false);
 
-    const fetchData = useCallback(async () => {
-        setLoading(true);
-        const [catSales, trend] = await Promise.all([
-            getSalesByCategory(days),
-            getRevenueTrend(days)
-        ]);
+    // Callers set `loading` before this runs; it starts true for the initial load.
+    const loadData = useCallback(() => Promise.all([
+        getSalesByCategory(days),
+        getRevenueTrend(days)
+    ]).then(([catSales, trend]) => {
         setCategorySales(catSales);
         setRevenueTrend(trend);
         setLoading(false);
-    }, [days]);
+    }), [days]);
 
     useEffect(() => {
-        fetchData();
-    }, [fetchData]);
+        loadData();
+    }, [loadData]);
+
+    const fetchData = () => {
+        setLoading(true);
+        return loadData();
+    };
+
+    const changeDays = (value: number) => {
+        if (value !== days) setLoading(true);
+        setDays(value);
+    };
 
     const handleExport = async () => {
         setExporting(true);
@@ -96,7 +105,7 @@ export default function AnalyticsPage() {
                                     {ranges.map((range) => (
                                         <button
                                             key={range.value}
-                                            onClick={() => { setDays(range.value); setIsDropdownOpen(false); }}
+                                            onClick={() => { changeDays(range.value); setIsDropdownOpen(false); }}
                                             className={`w-full text-left px-4 py-2 text-sm transition-colors ${days === range.value
                                                 ? 'bg-rose-500/10 text-rose-400 font-medium'
                                                 : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'

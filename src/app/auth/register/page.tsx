@@ -2,11 +2,9 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 
 export default function RegisterPage() {
-    const router = useRouter();
     const { signUp } = useAuth();
 
     const [formData, setFormData] = useState({

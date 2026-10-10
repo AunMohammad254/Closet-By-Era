@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Settings, Save, Loader2, Database, Shield, Bell, Globe, AlertTriangle } from 'lucide-react';
+import { Settings, Save, Loader2, Database, Shield, Bell, Globe } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 export default function SystemSettingsPage() {

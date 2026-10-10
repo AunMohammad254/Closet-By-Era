@@ -22,7 +22,7 @@ export default async function NewProductPage() {
                 <h1 className="text-2xl font-bold text-gray-900">Add New Product</h1>
             </div>
 
-            <ProductForm categories={categories as any[]} />
+            <ProductForm categories={categories} />
         </div>
     );
 }

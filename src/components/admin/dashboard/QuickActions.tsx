@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { Plus, Package, ShoppingBag, TrendingUp, Users } from 'lucide-react';
+import { Plus, Package, ShoppingBag, Users } from 'lucide-react';
 
 export default function QuickActions() {
     const actions = [

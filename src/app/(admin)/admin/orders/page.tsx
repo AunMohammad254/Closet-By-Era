@@ -12,15 +12,15 @@ export const dynamic = 'force-dynamic';
 
 interface Order {
     id: string;
-    order_number: string;
+    order_number: string | null;
     created_at: string;
     status: string;
-    total: number;
+    total: number | null;
     customer_name?: string | null;
     customer_email?: string | null;
     shipping_address: unknown;
     customer?: { first_name: string | null; last_name: string | null; email?: string | null } | null;
-    items?: any[];
+    items?: unknown[];
 }
 
 export default async function OrdersPage({
@@ -94,7 +94,7 @@ export default async function OrdersPage({
                                     </td>
                                 </tr>
                             ) : (
-                                orders.map((order: any) => (
+                                orders.map((order: Order) => (
                                     <tr key={order.id} className="hover:bg-slate-800/30 transition-colors group">
                                         <td className="px-6 py-4 font-medium text-slate-200">
                                             #{order.order_number}

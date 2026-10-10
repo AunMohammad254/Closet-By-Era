@@ -59,7 +59,7 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
                             </h3>
                         </div>
                         <div className="divide-y divide-gray-100">
-                            {order.items?.map((item: any) => (
+                            {order.items?.map((item) => (
                                 <div key={item.id} className="p-6 flex gap-4">
                                     {/* Placeholder image if we had one */}
                                     <div className="w-20 h-24 bg-gray-100 rounded-lg shrink-0"></div>

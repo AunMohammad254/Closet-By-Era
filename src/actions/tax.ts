@@ -22,7 +22,7 @@ export async function getTaxRules(): Promise<ActionResult<TaxRule[]>> {
     const supabase = await createClient();
 
     try {
-        const { data, error } = await (supabase as any)
+        const { data, error } = await supabase
             .from('tax_rules')
             .select('*')
             .order('name', { ascending: true });
@@ -32,7 +32,7 @@ export async function getTaxRules(): Promise<ActionResult<TaxRule[]>> {
             return { success: false, error: 'Failed to fetch tax rules' };
         }
 
-        return { success: true, data: data || [] };
+        return { success: true, data: (data || []) as TaxRule[] };
     } catch {
         return { success: false, error: 'An unexpected error occurred' };
     }
@@ -52,7 +52,7 @@ export async function createTaxRule(data: {
     const { supabase } = ctx;
 
     try {
-        const { data: rule, error } = await (supabase as any)
+        const { data: rule, error } = await supabase
             .from('tax_rules')
             .insert({
                 name: data.name,
@@ -84,7 +84,7 @@ export async function toggleTaxRule(ruleId: string, isActive: boolean): Promise<
     const { supabase } = ctx;
 
     try {
-        const { error } = await (supabase as any)
+        const { error } = await supabase
             .from('tax_rules')
             .update({ is_active: isActive })
             .eq('id', ruleId);
@@ -110,7 +110,7 @@ export async function deleteTaxRule(ruleId: string): Promise<ActionResult> {
     const { supabase } = ctx;
 
     try {
-        const { error } = await (supabase as any)
+        const { error } = await supabase
             .from('tax_rules')
             .delete()
             .eq('id', ruleId);

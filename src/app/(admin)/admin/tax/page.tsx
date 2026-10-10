@@ -24,17 +24,21 @@ export default function TaxPage() {
     const [rate, setRate] = useState('');
     const [appliesTo, setAppliesTo] = useState<'all' | 'products' | 'shipping'>('all');
 
-    const fetchRules = async () => {
-        setLoading(true);
-        const result = await getTaxRules();
+    // `loading` starts true, so the initial load doesn't need to set it.
+    const loadRules = () => getTaxRules().then(result => {
         if (result.success && result.data) {
             setRules(result.data);
         }
         setLoading(false);
+    });
+
+    const fetchRules = () => {
+        setLoading(true);
+        return loadRules();
     };
 
     useEffect(() => {
-        fetchRules();
+        loadRules();
     }, []);
 
     const handleCreate = async () => {

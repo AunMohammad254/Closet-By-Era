@@ -10,18 +10,28 @@ export default function CouponsPage() {
     const [editingCoupon, setEditingCoupon] = useState<Coupon | undefined>(undefined);
     const [isLoading, setIsLoading] = useState(true);
 
-    const fetchCoupons = useCallback(async () => {
-        setIsLoading(true);
-        const result = await getCoupons();
+    // `isLoading` starts true, so the initial load doesn't need to set it.
+    const loadCoupons = useCallback(() => getCoupons().then(result => {
         if (result.success && result.data) {
             setCoupons(result.data);
         }
         setIsLoading(false);
-    }, []);
+    }), []);
+
+    const fetchCoupons = () => {
+        setIsLoading(true);
+        return loadCoupons();
+    };
 
     useEffect(() => {
-        fetchCoupons();
-    }, [fetchCoupons, isFormOpen]);
+        loadCoupons();
+    }, [loadCoupons]);
+
+    // Refresh the list whenever the form opens or closes (e.g. after a save).
+    const setFormOpen = (open: boolean) => {
+        if (open !== isFormOpen) fetchCoupons();
+        setIsFormOpen(open);
+    };
 
     const handleDelete = async (id: string) => {
         if (confirm('Are you sure you want to delete this coupon?')) {
@@ -32,16 +42,16 @@ export default function CouponsPage() {
 
     const handleEdit = (coupon: Coupon) => {
         setEditingCoupon(coupon);
-        setIsFormOpen(true);
+        setFormOpen(true);
     };
 
     const handleNew = () => {
         setEditingCoupon(undefined);
-        setIsFormOpen(true);
+        setFormOpen(true);
     };
 
     const handleClose = () => {
-        setIsFormOpen(false);
+        setFormOpen(false);
         setEditingCoupon(undefined);
     };
 

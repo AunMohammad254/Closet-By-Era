@@ -11,16 +11,20 @@ export default function GiftCardsPage() {
     const [newValue, setNewValue] = useState(1000);
     const [newCode, setNewCode] = useState('');
 
-    const fetchCards = useCallback(async () => {
-        setLoading(true);
-        const data = await getGiftCards();
+    // `loading` starts true, so the initial load doesn't need to set it.
+    const loadCards = useCallback(() => getGiftCards().then(data => {
         setCards(data);
         setLoading(false);
-    }, []);
+    }), []);
+
+    const fetchCards = () => {
+        setLoading(true);
+        return loadCards();
+    };
 
     useEffect(() => {
-        fetchCards();
-    }, [fetchCards]);
+        loadCards();
+    }, [loadCards]);
 
     const handleCreate = async () => {
         if (!newValue) return;
