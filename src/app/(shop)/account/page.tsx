@@ -7,7 +7,7 @@ import OrderTracking from '@/components/OrderTracking';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import type { Order, OrderItem, Customer } from '@/types/database';
-import { getCustomerByAuthId } from '@/actions/customer';
+import { getCurrentCustomer } from '@/actions/customer';
 import { getLoyaltyBalance, getLoyaltyHistory, LoyaltyHistory } from '@/actions/loyalty';
 
 type AccountTab = 'profile' | 'orders' | 'addresses' | 'wishlist' | 'loyalty';
@@ -86,7 +86,7 @@ function AccountPageContent() {
                 return;
             }
 
-            let customerData = await getCustomerByAuthId(user.id);
+            let customerData = await getCurrentCustomer();
 
             // If no customer record exists, create one
             if (!customerData) {
@@ -127,7 +127,6 @@ function AccountPageContent() {
             setCustomerLoaded(true);
         };
 
-        fetchOrCreateCustomer();
         fetchOrCreateCustomer();
     }, [user]);
 

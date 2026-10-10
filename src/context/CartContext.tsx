@@ -3,11 +3,6 @@
 import { createContext, useContext, useState, useEffect, ReactNode, useCallback, useMemo, useRef } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { useAuth } from './AuthContext';
-import type { Tables } from '@/types/supabase';
-
-// Database cart item type from Supabase
-type DBCartItem = Tables<'cart_items'>;
-
 export interface CartItem {
     id: string;
     productId: string;
@@ -60,6 +55,9 @@ export function CartProvider({ children }: { children: ReactNode }) {
     const [isLoading, setIsLoading] = useState(false);
     const [isInitialized, setIsInitialized] = useState(false);
     const { user } = useAuth();
+    // Depend on the id, not the User object: Supabase hands out a new object on
+    // every token refresh, which would otherwise re-run the DB sync.
+    const userId = user?.id ?? null;
 
     // Guards to prevent sync feedback loops
     const isSyncingRef = useRef(false);
@@ -69,19 +67,21 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
     /** Write the full cart state to Supabase (replace strategy) */
     const syncCartToDB = useCallback(async (cartItems: CartItem[]) => {
-        if (!user) return;
+        if (!userId) return;
 
         try {
             // Always delete first, then insert — simple and no NULL/upsert issues
-            await supabase
+            const { error: deleteError } = await supabase
                 .from('cart_items')
                 .delete()
-                .eq('user_id', user.id);
+                .eq('user_id', userId);
 
+            // Never insert on top of rows we failed to clear (would duplicate the cart).
+            if (deleteError) throw deleteError;
             if (cartItems.length === 0) return;
 
             const dbItems = cartItems.map(item => ({
-                user_id: user.id,
+                user_id: userId,
                 product_id: item.productId,
                 product_name: item.name,
                 product_price: item.price,
@@ -91,22 +91,23 @@ export function CartProvider({ children }: { children: ReactNode }) {
                 quantity: item.quantity,
             }));
 
-            await supabase.from('cart_items').insert(dbItems);
+            const { error: insertError } = await supabase.from('cart_items').insert(dbItems);
+            if (insertError) throw insertError;
         } catch (error) {
             console.error('Error syncing cart to database:', error);
         }
-    }, [user, supabase]);
+    }, [userId, supabase]);
 
     /** Fetch cart from database (DB is source of truth for logged-in users) */
     const syncCartFromDB = useCallback(async () => {
-        if (!user) return;
+        if (!userId) return;
 
         setIsLoading(true);
         try {
             const { data, error } = await supabase
                 .from('cart_items')
                 .select('id, product_id, product_name, product_price, product_image, size, color, quantity')
-                .eq('user_id', user.id);
+                .eq('user_id', userId);
 
             if (error) {
                 console.error('Error fetching cart from database:', error);
@@ -135,7 +136,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
         } finally {
             setIsLoading(false);
         }
-    }, [user, supabase]);
+    }, [userId, supabase]);
 
     // ---------- Initialization ----------
 
@@ -169,7 +170,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
     // When user logs in, merge local cart with database cart (runs ONCE per login)
     useEffect(() => {
-        if (!user || !isInitialized || hasMergedRef.current) return;
+        if (!userId || !isInitialized || hasMergedRef.current) return;
         hasMergedRef.current = true;
 
         const mergeAndSync = async () => {
@@ -179,7 +180,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
                 const { data: dbCartData } = await supabase
                     .from('cart_items')
                     .select('id, product_id, product_name, product_price, product_image, size, color, quantity')
-                    .eq('user_id', user.id);
+                    .eq('user_id', userId);
 
                 const localCart = items;
                 const mergedCart: CartItem[] = [...localCart];
@@ -226,14 +227,14 @@ export function CartProvider({ children }: { children: ReactNode }) {
         };
 
         mergeAndSync();
-    }, [user, isInitialized]); // eslint-disable-line react-hooks/exhaustive-deps
+    }, [userId, isInitialized]); // eslint-disable-line react-hooks/exhaustive-deps
 
     // Reset merge flag when user logs out
     useEffect(() => {
-        if (!user) {
+        if (!userId) {
             hasMergedRef.current = false;
         }
-    }, [user]);
+    }, [userId]);
 
     // Persist to localStorage + debounced DB sync on items change
     useEffect(() => {
@@ -243,14 +244,13 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
         localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(items));
 
+        if (!userId) return;
         const timeoutId = setTimeout(() => {
-            if (user) {
-                syncCartToDB(items);
-            }
+            syncCartToDB(items);
         }, 500);
 
         return () => clearTimeout(timeoutId);
-    }, [items, user, syncCartToDB, isInitialized]);
+    }, [items, userId, syncCartToDB, isInitialized]);
 
     // ---------- Cart actions ----------
 
@@ -307,17 +307,17 @@ export function CartProvider({ children }: { children: ReactNode }) {
         setItems([]);
         localStorage.removeItem(CART_STORAGE_KEY);
 
-        if (user) {
+        if (userId) {
             try {
                 await supabase
                     .from('cart_items')
                     .delete()
-                    .eq('user_id', user.id);
+                    .eq('user_id', userId);
             } catch (error) {
                 console.error('Error clearing cart from database:', error);
             }
         }
-    }, [user, supabase]);
+    }, [userId, supabase]);
 
     // ---------- Computed values ----------
 

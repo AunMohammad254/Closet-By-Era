@@ -969,6 +969,7 @@ export type Database = {
         Row: {
           created_at: string
           current_uses: number | null
+          discount_type: string
           discount_value: number
           end_date: string
           id: string
@@ -982,6 +983,7 @@ export type Database = {
         Insert: {
           created_at?: string
           current_uses?: number | null
+          discount_type?: string
           discount_value: number
           end_date: string
           id?: string
@@ -995,6 +997,7 @@ export type Database = {
         Update: {
           created_at?: string
           current_uses?: number | null
+          discount_type?: string
           discount_value?: number
           end_date?: string
           id?: string

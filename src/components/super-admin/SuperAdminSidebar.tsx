@@ -44,7 +44,9 @@ export default function SuperAdminSidebar() {
         return pathname.startsWith(href);
     };
 
-    const NavContent = () => (
+    // A JSX value, not a component: defining a component inside render remounts
+    // the whole nav (losing hover/focus state) on every render.
+    const navContent = (
         <>
             {/* Logo */}
             <div className="flex items-center gap-3 px-4 py-6 border-b border-purple-500/20">
@@ -115,12 +117,12 @@ export default function SuperAdminSidebar() {
                 className={`lg:hidden fixed inset-y-0 left-0 z-50 w-72 bg-slate-900/95 backdrop-blur-xl border-r border-purple-500/20 transform transition-transform duration-300 ${mobileOpen ? 'translate-x-0' : '-translate-x-full'
                     } flex flex-col`}
             >
-                <NavContent />
+                {navContent}
             </aside>
 
             {/* Desktop sidebar */}
             <aside className="hidden lg:flex fixed inset-y-0 left-0 w-72 bg-slate-900/80 backdrop-blur-xl border-r border-purple-500/20 flex-col">
-                <NavContent />
+                {navContent}
             </aside>
         </>
     );

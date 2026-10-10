@@ -7,6 +7,12 @@ import {
     CheckCircle, XCircle, RefreshCw, Loader2, Clock, Server
 } from 'lucide-react';
 
+function StatusIndicator({ ok }: { ok: boolean }) {
+    return ok
+        ? <CheckCircle className="w-5 h-5 text-emerald-400" />
+        : <XCircle className="w-5 h-5 text-rose-400" />;
+}
+
 export default function SystemHealthPage() {
     const [health, setHealth] = useState<SystemHealth | null>(null);
     const [tableStats, setTableStats] = useState<{ table: string; count: number }[]>([]);
@@ -41,12 +47,6 @@ export default function SystemHealthPage() {
         const interval = setInterval(() => loadHealth(true), 30000);
         return () => clearInterval(interval);
     }, []);
-
-    const StatusIndicator = ({ ok }: { ok: boolean }) => (
-        ok
-            ? <CheckCircle className="w-5 h-5 text-emerald-400" />
-            : <XCircle className="w-5 h-5 text-rose-400" />
-    );
 
     if (loading) {
         return (

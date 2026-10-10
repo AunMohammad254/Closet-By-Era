@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { Filter, Download, Loader2, Search, X, Check } from 'lucide-react';
 import { getAllOrdersForExport } from '@/actions/orders';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { getOrderCustomerEmail, getOrderCustomerName, toCsvCell } from '@/lib/order-display';
 
 export default function OrdersToolbar() {
     const router = useRouter();
@@ -57,8 +58,8 @@ export default function OrdersToolbar() {
             const csvData = orders.map((order: any) => [
                 order.order_number || order.id,
                 new Date(order.created_at).toLocaleDateString(),
-                `${order.customer?.first_name || ''} ${order.customer?.last_name || ''}`.trim() || 'Guest',
-                order.customer?.email || order.shipping_address?.email || '',
+                getOrderCustomerName(order),
+                getOrderCustomerEmail(order),
                 order.status,
                 order.total,
                 order.items?.length || 0
@@ -66,7 +67,7 @@ export default function OrdersToolbar() {
 
             const csvContent = [
                 headers.join(','),
-                ...csvData.map(row => row.map(cell => `"${cell}"`).join(','))
+                ...csvData.map(row => row.map(toCsvCell).join(','))
             ].join('\n');
 
             const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });

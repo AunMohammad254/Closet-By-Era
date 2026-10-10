@@ -30,6 +30,20 @@ function sanitizeError(error: unknown): string {
     if (typeof error === 'string') {
         return error;
     }
+    if (typeof error === 'object' && error !== null) {
+        const err = error as Record<string, unknown>;
+        if (typeof err.message === 'string') {
+            const code = typeof err.code === 'string' || typeof err.code === 'number' ? ` [Code: ${err.code}]` : '';
+            const details = typeof err.details === 'string' && err.details ? ` (${err.details})` : '';
+            const hint = typeof err.hint === 'string' && err.hint ? ` - Hint: ${err.hint}` : '';
+            return `${err.message}${code}${details}${hint}`;
+        }
+        try {
+            return JSON.stringify(error);
+        } catch {
+            return 'An unexpected error occurred';
+        }
+    }
     return 'An unexpected error occurred';
 }
 

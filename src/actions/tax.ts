@@ -1,6 +1,7 @@
 'use server';
 
 import { createClient } from '@/lib/supabase/server';
+import { getAdminContext, FORBIDDEN } from '@/lib/auth';
 import { revalidatePath } from 'next/cache';
 import { ActionResult } from '@/types/shared';
 
@@ -46,7 +47,9 @@ export async function createTaxRule(data: {
     rate: number;
     applies_to: 'all' | 'products' | 'shipping';
 }): Promise<ActionResult<{ id: string }>> {
-    const supabase = await createClient();
+    const ctx = await getAdminContext();
+    if (!ctx) return { success: false, error: FORBIDDEN };
+    const { supabase } = ctx;
 
     try {
         const { data: rule, error } = await (supabase as any)
@@ -76,7 +79,9 @@ export async function createTaxRule(data: {
  * Toggle tax rule active status
  */
 export async function toggleTaxRule(ruleId: string, isActive: boolean): Promise<ActionResult> {
-    const supabase = await createClient();
+    const ctx = await getAdminContext();
+    if (!ctx) return { success: false, error: FORBIDDEN };
+    const { supabase } = ctx;
 
     try {
         const { error } = await (supabase as any)
@@ -100,7 +105,9 @@ export async function toggleTaxRule(ruleId: string, isActive: boolean): Promise<
  * Delete a tax rule
  */
 export async function deleteTaxRule(ruleId: string): Promise<ActionResult> {
-    const supabase = await createClient();
+    const ctx = await getAdminContext();
+    if (!ctx) return { success: false, error: FORBIDDEN };
+    const { supabase } = ctx;
 
     try {
         const { error } = await (supabase as any)

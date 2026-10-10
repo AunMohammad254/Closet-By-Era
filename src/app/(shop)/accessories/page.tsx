@@ -3,7 +3,7 @@
 import { useState, useMemo, useEffect } from 'react';
 import ProductCard from '@/components/ProductCard';
 import CustomDropdown from '@/components/CustomDropdown';
-import { createClient } from '@/lib/supabase/client';
+import { fetchCategoryCatalog } from '@/lib/catalog';
 
 interface ProductUI {
     id: string;
@@ -35,30 +35,9 @@ export default function AccessoriesPage() {
         async function fetchData() {
             setLoading(true);
             try {
-                // Fetch Categories
-                const supabase = createClient();
-                const { data: categoriesData } = await supabase
-                    .from('categories')
-                    .select('name')
-                    .eq('is_active', true)
-                    .order('display_order');
-
-                if (categoriesData) {
-                    setCategories(Array.from(new Set(['All', ...categoriesData.map(c => c.name)])));
-                }
-
-                // Fetch Products
-                const { data: productsData, error } = await supabase
-                    .from('products')
-                    .select(`
-                        *,
-                        categories (
-                            name
-                        )
-                    `)
-                    .eq('in_stock', true);
-
-                if (error) throw error;
+                // Only this department (root category + sub-categories).
+                const { categoryNames, products: productsData } = await fetchCategoryCatalog('accessories');
+                setCategories(['All', ...categoryNames]);
 
                 if (productsData) {
                     const mappedProducts: ProductUI[] = productsData.map((p) => ({
@@ -67,7 +46,6 @@ export default function AccessoriesPage() {
                         price: p.price,
                         originalPrice: p.original_price || undefined,
                         image: p.image_url || (p.images && p.images[0]) || '/products/placeholder.png',
-                        // @ts-ignore - Supabase join types
                         category: p.categories?.name || 'Uncategorized',
                         isNew: p.is_new || false,
                         isSale: p.is_sale || false,

@@ -1,6 +1,7 @@
 'use server';
 
 import { createClient } from '@/lib/supabase/server';
+import { getAdminContext, FORBIDDEN } from '@/lib/auth';
 import { ActionResult } from '@/types/shared';
 
 export interface SystemHealth {
@@ -151,7 +152,9 @@ export async function getSystemHealth(): Promise<ActionResult<SystemHealth>> {
  * Get database row counts for monitoring
  */
 export async function getTableStats(): Promise<ActionResult<{ table: string; count: number }[]>> {
-    const supabase = await createClient();
+    const ctx = await getAdminContext();
+    if (!ctx) return { success: false, error: FORBIDDEN };
+    const { supabase } = ctx;
 
     try {
         const tables = ['products', 'orders', 'customers', 'categories', 'reviews', 'coupons'];

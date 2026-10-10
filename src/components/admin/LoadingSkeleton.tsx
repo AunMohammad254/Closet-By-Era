@@ -63,7 +63,8 @@ export function ChartSkeleton() {
                     <div
                         key={i}
                         className="flex-1 animate-pulse bg-slate-700/30 rounded-t"
-                        style={{ height: `${Math.random() * 80 + 20}%` }}
+                        // Deterministic pseudo-random heights: Math.random() differs between server and client render (hydration mismatch).
+                        style={{ height: `${((i * 37) % 80) + 20}%` }}
                     />
                 ))}
             </div>

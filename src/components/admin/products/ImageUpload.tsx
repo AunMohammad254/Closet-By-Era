@@ -2,8 +2,17 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { createClient } from '@/lib/supabase/client';
-import { Upload, X, Loader2, Image as ImageIcon, Link as LinkIcon, Check } from 'lucide-react';
+import { Upload, X, Loader2, Link as LinkIcon, Check } from 'lucide-react';
 import Image from 'next/image';
+
+const ALLOWED_IMAGE_TYPES: Record<string, string> = {
+    'image/jpeg': 'jpg',
+    'image/png': 'png',
+    'image/webp': 'webp',
+    'image/avif': 'avif',
+    'image/gif': 'gif',
+};
+const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 
 interface Props {
     defaultValue?: string;
@@ -26,8 +35,16 @@ export default function ImageUpload({ defaultValue, onUpload }: Props) {
         if (!e.target.files || e.target.files.length === 0) return;
 
         const file = e.target.files[0];
-        const fileExt = file.name.split('.').pop();
-        const fileName = `${Math.random().toString(36).substring(2)}_${Date.now()}.${fileExt}`;
+        const fileExt = ALLOWED_IMAGE_TYPES[file.type];
+        if (!fileExt) {
+            alert('Please choose a JPEG, PNG, WebP, AVIF or GIF image.');
+            return;
+        }
+        if (file.size > MAX_IMAGE_BYTES) {
+            alert('Images must be 5 MB or smaller.');
+            return;
+        }
+        const fileName = `${crypto.randomUUID()}.${fileExt}`;
         const filePath = `${fileName}`;
 
         setUploading(true);
@@ -41,22 +58,7 @@ export default function ImageUpload({ defaultValue, onUpload }: Props) {
                 throw new Error('You must be logged in to upload images. Please log out and log back in.');
             }
 
-            // Check customer role via RPC
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const { data: debugData } = await supabase.rpc('debug_storage_upload' as any);
-
-            const debugArray = debugData as Array<{ current_auth_uid: string; has_customer: boolean; customer_role: string }> | null;
-            if (debugArray && debugArray.length > 0) {
-                const info = debugArray[0];
-
-                if (!info.has_customer) {
-                    throw new Error('No customer record found for your account. Please contact support.');
-                }
-                if (info.customer_role !== 'admin') {
-                    throw new Error(`Your role is "${info.customer_role}". Only admins can upload images.`);
-                }
-            }
-
+            // Authorization is enforced by the storage bucket policy (staff only).
             const { error: uploadError } = await supabase.storage
                 .from('products')
                 .upload(filePath, file);
@@ -147,7 +149,7 @@ export default function ImageUpload({ defaultValue, onUpload }: Props) {
                                 type="file"
                                 ref={fileInputRef}
                                 onChange={handleFileSelect}
-                                accept="image/*"
+                                accept="image/jpeg,image/png,image/webp,image/avif,image/gif"
                                 className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
                                 disabled={uploading}
                             />

@@ -1,6 +1,7 @@
 'use server';
 
 import { createClient } from '@/lib/supabase/server';
+import { getAdminContext } from '@/lib/auth';
 import { revalidatePath } from 'next/cache';
 
 import { ActionResult } from '@/types/shared';
@@ -95,7 +96,9 @@ export async function getAllReviews(
     pageSize: number = 20,
     filter?: { rating?: number }
 ): Promise<{ reviews: AdminReview[]; total: number }> {
-    const supabase = await createClient();
+    const ctx = await getAdminContext();
+    if (!ctx) return { reviews: [], total: 0 };
+    const { supabase } = ctx;
 
     let query = supabase
         .from('reviews')

@@ -1,33 +1,14 @@
 'use server';
 
-import { createClient } from '@/lib/supabase/server';
+import { getAdminContext, FORBIDDEN } from '@/lib/auth';
 import { ActionResult } from '@/types/shared';
 import type { Database } from '@/types/supabase';
 
 type Customer = Database['public']['Tables']['customers']['Row'];
 
-/**
- * Verifies the current user has admin role.
- * Returns the customer record if admin, null otherwise.
- */
-async function verifyAdminRole(supabase: Awaited<ReturnType<typeof createClient>>): Promise<Customer | null> {
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-
-    if (authError || !user) {
-        return null;
-    }
-
-    const { data: customer } = await supabase
-        .from('customers')
-        .select('*')
-        .eq('auth_id', user.id)
-        .single();
-
-    if (!customer || customer.role !== 'admin') {
-        return null;
-    }
-
-    return customer;
+/** Strip characters that have meaning inside a PostgREST or() filter. */
+function sanitizeSearch(term: string): string {
+    return term.replace(/[,()*%\\]/g, ' ').trim().slice(0, 100);
 }
 
 export async function getAdminCustomers(options?: {
@@ -35,37 +16,27 @@ export async function getAdminCustomers(options?: {
     limit?: number;
     search?: string;
 }): Promise<ActionResult<{ customers: Customer[]; total: number }>> {
-    const supabase = await createClient();
+    const ctx = await getAdminContext();
+    if (!ctx) return { success: false, error: FORBIDDEN };
+    const { supabase } = ctx;
 
     try {
-        const admin = await verifyAdminRole(supabase);
-
-        if (!admin) {
-            console.error('getAdminCustomers: Unauthorized - user is not admin');
-            return { success: false, error: 'Forbidden: Admin access required' };
-        }
-
         const offset = options?.offset ?? 0;
-        const limit = options?.limit ?? 20;
+        const limit = Math.min(options?.limit ?? 20, 100);
 
-        // Get total count
-        const { count } = await supabase
-            .from('customers')
-            .select('*', { count: 'exact', head: true });
-
-        // Build query with pagination
+        // One round trip; the count respects the search filter.
         let query = supabase
             .from('customers')
-            .select('*')
+            .select('*', { count: 'exact' })
             .order('created_at', { ascending: false })
             .range(offset, offset + limit - 1);
 
-        // Apply search filter if provided
-        if (options?.search) {
-            query = query.or(`first_name.ilike.%${options.search}%,last_name.ilike.%${options.search}%,email.ilike.%${options.search}%`);
+        const term = options?.search ? sanitizeSearch(options.search) : '';
+        if (term) {
+            query = query.or(`first_name.ilike.%${term}%,last_name.ilike.%${term}%,email.ilike.%${term}%`);
         }
 
-        const { data, error } = await query;
+        const { data, error, count } = await query;
 
         if (error) {
             console.error('Supabase error fetching customers:', error);
@@ -81,14 +52,11 @@ export async function getAdminCustomers(options?: {
 }
 
 export async function getCustomerDetails(customerId: string): Promise<ActionResult<any>> {
-    const supabase = await createClient();
+    const ctx = await getAdminContext();
+    if (!ctx) return { success: false, error: FORBIDDEN };
+    const { supabase } = ctx;
 
     try {
-        const admin = await verifyAdminRole(supabase);
-        if (!admin) {
-            return { success: false, error: 'Forbidden: Admin access required' };
-        }
-
         // Fetch customer profile
         const { data: customer, error: customerError } = await supabase
             .from('customers')

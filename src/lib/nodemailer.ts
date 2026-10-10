@@ -16,6 +16,7 @@
  * - SMTP_FROM_NAME
  */
 
+import 'server-only';
 import nodemailer from 'nodemailer';
 import type { Order } from '@/types/database';
 import type { ShippingAddress } from '@/types/shared';
@@ -49,6 +50,26 @@ const transporter = nodemailer.createTransport(smtpConfig);
 const defaultFrom = {
     name: process.env.SMTP_FROM_NAME || 'Closet By Era',
     email: process.env.SMTP_FROM_EMAIL || process.env.SMTP_USER || 'noreply@closetbyera.com',
+};
+
+
+/** Escape user-supplied text before interpolating it into email HTML. */
+function esc(value: string | number | null | undefined): string {
+    return String(value ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+const PAYMENT_METHOD_LABELS: Record<string, string> = {
+    cod: 'Cash on Delivery',
+    card: 'Credit/Debit Card',
+    bank_transfer: 'Bank Transfer',
+    jazzcash: 'JazzCash',
+    easypaisa: 'EasyPaisa',
+    gift_card: 'Gift Card',
 };
 
 // Types
@@ -170,11 +191,11 @@ export async function sendOrderStatusEmail(
     message?: string
 ): Promise<EmailResult> {
     const html = generateStatusEmailHtml(customerName, orderNumber, status, message);
-    const text = `Your order ${orderNumber} status has been updated to: ${status}`;
+    const text = `Your order ${esc(orderNumber)} status has been updated to: ${status}`;
 
     return sendEmail(
         customerEmail,
-        `Order Update - ${orderNumber}`,
+        `Order Update - ${esc(orderNumber)}`,
         html,
         text
     );
@@ -205,7 +226,7 @@ export async function sendPasswordResetEmail(
                 We received a request to reset your password. Click the button below to create a new password:
             </p>
             <div style="text-align: center; margin-bottom: 30px;">
-                <a href="${resetLink}" style="display: inline-block; padding: 14px 30px; background-color: #e11d48; color: white; text-decoration: none; border-radius: 50px; font-weight: 500;">
+                <a href="${esc(resetLink)}" style="display: inline-block; padding: 14px 30px; background-color: #e11d48; color: white; text-decoration: none; border-radius: 50px; font-weight: 500;">
                     Reset Password
                 </a>
             </div>
@@ -247,7 +268,7 @@ export async function sendWelcomeEmail(
             <h1 style="color: #ffffff; margin: 0; font-size: 24px; letter-spacing: 2px;">CLOSET<span style="color: #e11d48;">BY</span>ERA</h1>
         </div>
         <div style="background-color: #ffffff; padding: 40px 30px; border-radius: 0 0 12px 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
-            <h2 style="color: #1f2937; text-align: center; margin-bottom: 20px;">Welcome, ${firstName}! 🎉</h2>
+            <h2 style="color: #1f2937; text-align: center; margin-bottom: 20px;">Welcome, ${esc(firstName)}! 🎉</h2>
             <p style="color: #4b5563; text-align: center; font-size: 16px; margin-bottom: 20px;">
                 Thank you for joining Closet By Era! We're excited to have you as part of our fashion community.
             </p>
@@ -322,7 +343,7 @@ export function generateStatusEmailHtml(
 <html>
 <head>
     <meta charset="utf-8">
-    <title>Order Update - ${orderNumber}</title>
+    <title>Order Update - ${esc(orderNumber)}</title>
 </head>
 <body style="margin: 0; padding: 0; font-family: 'Segoe UI', sans-serif; background-color: #f3f4f6;">
     <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
@@ -332,8 +353,8 @@ export function generateStatusEmailHtml(
         <div style="background-color: #ffffff; padding: 40px 30px; border-radius: 0 0 12px 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
             <h2 style="color: #1f2937; text-align: center; margin-bottom: 20px;">Order Update</h2>
             <p style="color: #4b5563; text-align: center; font-size: 16px;">
-                Hi ${customerName},<br>
-                The status of your order <strong>${orderNumber}</strong> has been updated to:
+                Hi ${esc(customerName)},<br>
+                The status of your order <strong>${esc(orderNumber)}</strong> has been updated to:
             </p>
             <div style="text-align: center; margin: 30px 0;">
                 <span style="
@@ -345,10 +366,10 @@ export function generateStatusEmailHtml(
                     border-radius: 50px; 
                     text-transform: capitalize;
                 ">
-                    ${status}
+                    ${esc(status)}
                 </span>
             </div>
-            ${message ? `<p style="color: #6b7280; text-align: center; margin-bottom: 30px; font-style: italic;">"${message}"</p>` : ''}
+            ${message ? `<p style="color: #6b7280; text-align: center; margin-bottom: 30px; font-style: italic;">"${esc(message)}"</p>` : ''}
             <div style="text-align: center;">
                 <a href="https://closetbyera.com/account/orders" style="display: inline-block; padding: 12px 24px; background-color: #1f2937; color: white; text-decoration: none; border-radius: 6px; font-size: 14px;">Track Order</a>
             </div>
@@ -369,9 +390,9 @@ export function generateOrderEmailHtml(data: OrderEmailData): string {
     const itemsHtml = data.items.map(item => `
         <tr>
             <td style="padding: 12px; border-bottom: 1px solid #e5e7eb;">
-                <strong>${item.productName}</strong>
-                ${item.size ? `<br><span style="color: #6b7280; font-size: 14px;">Size: ${item.size}</span>` : ''}
-                ${item.color ? `<span style="color: #6b7280; font-size: 14px;"> | Color: ${item.color}</span>` : ''}
+                <strong>${esc(item.productName)}</strong>
+                ${item.size ? `<br><span style="color: #6b7280; font-size: 14px;">Size: ${esc(item.size)}</span>` : ''}
+                ${item.color ? `<span style="color: #6b7280; font-size: 14px;"> | Color: ${esc(item.color)}</span>` : ''}
             </td>
             <td style="padding: 12px; border-bottom: 1px solid #e5e7eb; text-align: center;">${item.quantity}</td>
             <td style="padding: 12px; border-bottom: 1px solid #e5e7eb; text-align: right;">PKR ${item.totalPrice.toLocaleString()}</td>
@@ -384,7 +405,7 @@ export function generateOrderEmailHtml(data: OrderEmailData): string {
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Order Confirmation - ${data.orderNumber}</title>
+    <title>Order Confirmation - ${esc(data.orderNumber)}</title>
 </head>
 <body style="margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f3f4f6;">
     <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
@@ -406,7 +427,7 @@ export function generateOrderEmailHtml(data: OrderEmailData): string {
 
             <h2 style="text-align: center; color: #1f2937; margin: 0 0 10px 0;">Thank You for Your Order!</h2>
             <p style="text-align: center; color: #6b7280; margin: 0 0 30px 0;">
-                Hi ${data.customerName}, we've received your order and it's being processed.
+                Hi ${esc(data.customerName)}, we've received your order and it's being processed.
             </p>
 
             <!-- Order Info -->
@@ -414,7 +435,7 @@ export function generateOrderEmailHtml(data: OrderEmailData): string {
                 <table style="width: 100%; border-collapse: collapse;">
                     <tr>
                         <td style="padding: 5px 0; color: #6b7280;">Order Number:</td>
-                        <td style="padding: 5px 0; text-align: right; font-weight: 600; color: #1f2937;">${data.orderNumber}</td>
+                        <td style="padding: 5px 0; text-align: right; font-weight: 600; color: #1f2937;">${esc(data.orderNumber)}</td>
                     </tr>
                     <tr>
                         <td style="padding: 5px 0; color: #6b7280;">Order Date:</td>
@@ -422,7 +443,7 @@ export function generateOrderEmailHtml(data: OrderEmailData): string {
                     </tr>
                     <tr>
                         <td style="padding: 5px 0; color: #6b7280;">Payment Method:</td>
-                        <td style="padding: 5px 0; text-align: right; color: #1f2937;">${data.paymentMethod === 'cod' ? 'Cash on Delivery' : 'Credit/Debit Card'}</td>
+                        <td style="padding: 5px 0; text-align: right; color: #1f2937;">${esc(PAYMENT_METHOD_LABELS[data.paymentMethod] ?? data.paymentMethod)}</td>
                     </tr>
                 </table>
             </div>
@@ -470,12 +491,12 @@ export function generateOrderEmailHtml(data: OrderEmailData): string {
             <div style="margin-top: 30px; padding: 20px; background-color: #f9fafb; border-radius: 8px;">
                 <h3 style="color: #1f2937; margin: 0 0 15px 0; font-size: 16px;">Shipping Address</h3>
                 <p style="color: #4b5563; margin: 0; line-height: 1.6;">
-                    ${data.shippingAddress.firstName} ${data.shippingAddress.lastName}<br>
-                    ${data.shippingAddress.address}<br>
-                    ${data.shippingAddress.apartment ? `${data.shippingAddress.apartment}<br>` : ''}
-                    ${data.shippingAddress.city}${data.shippingAddress.postalCode ? `, ${data.shippingAddress.postalCode}` : ''}<br>
-                    ${data.shippingAddress.country}<br>
-                    <strong>Phone:</strong> ${data.shippingAddress.phone}
+                    ${esc(data.shippingAddress.firstName)} ${esc(data.shippingAddress.lastName)}<br>
+                    ${esc(data.shippingAddress.address)}<br>
+                    ${data.shippingAddress.apartment ? `${esc(data.shippingAddress.apartment)}<br>` : ''}
+                    ${esc(data.shippingAddress.city)}${data.shippingAddress.postalCode ? `, ${esc(data.shippingAddress.postalCode)}` : ''}<br>
+                    ${esc(data.shippingAddress.country)}<br>
+                    <strong>Phone:</strong> ${esc(data.shippingAddress.phone)}
                 </p>
             </div>
 

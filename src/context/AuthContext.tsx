@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, useMemo, ReactNode } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { User } from '@supabase/supabase-js';
 
@@ -60,18 +60,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         };
     }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-    const signIn = async (email: string, password: string) => {
+    const signIn = useCallback(async (email: string, password: string) => {
         try {
             const { error } = await supabase.auth.signInWithPassword({ email, password });
             return { error: error as Error | null };
         } catch (error) {
             return { error: error as Error };
         }
-    };
+    }, [supabase]);
 
-    const signUp = async (email: string, password: string, firstName: string, lastName: string) => {
+    const signUp = useCallback(async (email: string, password: string, firstName: string, lastName: string) => {
         try {
-            const { data, error } = await supabase.auth.signUp({
+            const { error } = await supabase.auth.signUp({
                 email,
                 password,
                 options: {
@@ -89,13 +89,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         } catch (error) {
             return { error: error as Error };
         }
-    };
+    }, [supabase]);
 
-    const signOut = async () => {
+    const signOut = useCallback(async () => {
         await supabase.auth.signOut();
-    };
+    }, [supabase]);
 
-    const resetPassword = async (email: string) => {
+    const resetPassword = useCallback(async (email: string) => {
         try {
             const { error } = await supabase.auth.resetPasswordForEmail(email, {
                 redirectTo: `${window.location.origin}/auth/reset-password`,
@@ -104,10 +104,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         } catch (error) {
             return { error: error as Error };
         }
-    };
+    }, [supabase]);
+
+    // Stable value so consumers only re-render when auth state actually changes.
+    const value = useMemo(
+        () => ({ user, loading, signIn, signUp, signOut, resetPassword }),
+        [user, loading, signIn, signUp, signOut, resetPassword]
+    );
 
     return (
-        <AuthContext.Provider value={{ user, loading, signIn, signUp, signOut, resetPassword }}>
+        <AuthContext.Provider value={value}>
             {children}
         </AuthContext.Provider>
     );

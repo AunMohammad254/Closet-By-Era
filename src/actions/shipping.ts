@@ -1,6 +1,7 @@
 'use server';
 
 import { createClient } from '@/lib/supabase/server';
+import { getAdminContext, FORBIDDEN } from '@/lib/auth';
 import { revalidatePath } from 'next/cache';
 import { ActionResult } from '@/types/shared';
 
@@ -58,7 +59,9 @@ export async function createShippingZone(data: {
     name: string;
     countries: string[];
 }): Promise<ActionResult<{ id: string }>> {
-    const supabase = await createClient();
+    const ctx = await getAdminContext();
+    if (!ctx) return { success: false, error: FORBIDDEN };
+    const { supabase } = ctx;
 
     try {
         const { data: zone, error } = await (supabase as any)
@@ -93,7 +96,9 @@ export async function createShippingRate(data: {
     rate: number;
     estimated_days?: string;
 }): Promise<ActionResult<{ id: string }>> {
-    const supabase = await createClient();
+    const ctx = await getAdminContext();
+    if (!ctx) return { success: false, error: FORBIDDEN };
+    const { supabase } = ctx;
 
     try {
         const { data: rateData, error } = await (supabase as any)
@@ -125,7 +130,9 @@ export async function createShippingRate(data: {
  * Delete a shipping zone (cascades to rates)
  */
 export async function deleteShippingZone(zoneId: string): Promise<ActionResult> {
-    const supabase = await createClient();
+    const ctx = await getAdminContext();
+    if (!ctx) return { success: false, error: FORBIDDEN };
+    const { supabase } = ctx;
 
     try {
         const { error } = await (supabase as any)

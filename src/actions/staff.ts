@@ -1,6 +1,7 @@
 'use server';
 
 import { createClient } from '@/lib/supabase/server';
+import { getSuperAdminContext } from '@/lib/auth';
 import { revalidatePath } from 'next/cache';
 import { ActionResult } from '@/types/shared';
 
@@ -18,7 +19,9 @@ type StaffMember = {
  * Get all staff members (admin and super-admin roles)
  */
 export async function getStaffMembers(): Promise<ActionResult<StaffMember[]>> {
-    const supabase = await createClient();
+    const ctx = await getSuperAdminContext();
+    if (!ctx) return { success: false, error: 'Super-admin access required' };
+    const { supabase } = ctx;
 
     try {
         const { data, error } = await supabase
@@ -98,13 +101,15 @@ export async function updateStaffRole(
  * Search customers by email (for adding new staff)
  */
 export async function searchCustomersByEmail(email: string): Promise<ActionResult<StaffMember[]>> {
-    const supabase = await createClient();
+    const ctx = await getSuperAdminContext();
+    if (!ctx) return { success: false, error: 'Super-admin access required' };
+    const { supabase } = ctx;
 
     try {
         const { data, error } = await supabase
             .from('customers')
             .select('id, email, first_name, last_name, role, created_at')
-            .ilike('email', `%${email}%`)
+            .ilike('email', `%${email.replace(/[%_\\]/g, '').slice(0, 100)}%`)
             .eq('role', 'customer')
             .limit(10);
 

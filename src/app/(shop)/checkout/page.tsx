@@ -1,24 +1,21 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import { useCart } from '@/context/CartContext';
 import { useAuth } from '@/context/AuthContext';
-import { sendOrderConfirmation } from '@/actions/email';
-import { createClient } from '@/lib/supabase/client';
-import { createOrder, CreateOrderPayload } from '@/actions/orders';
-import { getOrCreateCustomer } from '@/actions/customer';
-import { revalidateAccountPage } from '@/app/actions';
-import { validateCoupon, incrementCouponUsage } from '@/actions/coupons';
-import { awardLoyaltyPoints } from '@/actions/loyalty';
-import { validateGiftCard, redeemGiftCard, GiftCard } from '@/actions/gift-cards';
+import { createOrder } from '@/actions/orders';
+import { validateCoupon } from '@/actions/coupons';
+import { validateGiftCard } from '@/actions/gift-cards';
+import { calculateCouponDiscount, calculateShipping, STANDARD_SHIPPING_COST, FREE_SHIPPING_THRESHOLD } from '@/lib/pricing';
 
 type CheckoutStep = 'information' | 'shipping' | 'payment';
 
+type AppliedCode =
+    | { kind: 'coupon'; code: string; discountType: string; discountValue: number }
+    | { kind: 'gift_card'; code: string; balance: number };
+
 export default function CheckoutPage() {
-    const supabase = createClient();
-    const router = useRouter();
     const { items, subtotal, clearCart } = useCart();
     const { user } = useAuth();
 
@@ -31,14 +28,12 @@ export default function CheckoutPage() {
     // Coupon & Gift Card State
     const [couponCode, setCouponCode] = useState('');
     const [couponMessage, setCouponMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
-    const [discount, setDiscount] = useState(0);
     const [isValidatingCoupon, setIsValidatingCoupon] = useState(false);
-    const [giftCard, setGiftCard] = useState<GiftCard | null>(null);
-    const [giftCardAmount, setGiftCardAmount] = useState(0);
+    const [appliedCode, setAppliedCode] = useState<AppliedCode | null>(null);
 
     // Form state
     const [formData, setFormData] = useState({
-        email: user?.email || '',
+        email: '',
         firstName: '',
         lastName: '',
         phone: '',
@@ -48,8 +43,8 @@ export default function CheckoutPage() {
         state: '',
         postalCode: '',
         country: 'Pakistan',
-        shippingMethod: 'standard',
-        paymentMethod: 'cod',
+        shippingMethod: 'standard' as 'standard' | 'express',
+        paymentMethod: 'cod' as 'cod' | 'bank_transfer' | 'card' | 'jazzcash' | 'easypaisa',
         cardNumber: '',
         cardExpiry: '',
         cardCvc: '',
@@ -58,29 +53,20 @@ export default function CheckoutPage() {
 
     const [errors, setErrors] = useState<Record<string, string>>({});
 
-    const shipping = subtotal >= 5000 ? 0 : 500;
-    const shippingMethodCost = formData.shippingMethod === 'express' ? 300 : 0;
-    const totalBeforeDiscount = subtotal + shipping + shippingMethodCost;
-    const totalAfterCoupon = Math.max(0, totalBeforeDiscount - discount);
+    // Auth may resolve after first render, so fall back to the account email.
+    const email = formData.email || user?.email || '';
 
-    // Calculate how much gift card balance to use
-    // It cannot exceed the total to pay
+    // Display-only totals. createOrder recomputes everything from DB prices
+    // using the same helpers in src/lib/pricing.ts.
+    const shipping = subtotal >= FREE_SHIPPING_THRESHOLD ? 0 : STANDARD_SHIPPING_COST;
+    const shippingCost = calculateShipping(subtotal, formData.shippingMethod);
+    const discount = appliedCode?.kind === 'coupon'
+        ? calculateCouponDiscount({ discount_type: appliedCode.discountType, discount_value: appliedCode.discountValue }, subtotal)
+        : 0;
+    const totalAfterCoupon = Math.max(0, subtotal + shippingCost - discount);
+    const giftCard = appliedCode?.kind === 'gift_card' ? appliedCode : null;
     const potentialGiftCardUsage = giftCard ? Math.min(giftCard.balance, totalAfterCoupon) : 0;
-
-    // Update the state if it changed (use effect would be better but direct calculation here works if we are careful)
-    // Actually we should set this when applying or whenever dependencies change.
-    // For React render cycle, we should calculate 'total' derived from state.
-
-    const quantityToPay = Math.max(0, totalAfterCoupon - potentialGiftCardUsage);
-    const total = quantityToPay;
-
-    // We need to keep track of the *actual* amount we correspond to using for the redeem call later
-    // So we'll update the state validation function
-
-    // Sync giftCardAmount effect
-    if (giftCard && giftCardAmount !== potentialGiftCardUsage) {
-        // This is a side effect in render, bad practice but fine for quick logic if we use useEffect
-    }
+    const total = Math.max(0, totalAfterCoupon - potentialGiftCardUsage);
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
         const { name, value } = e.target;
@@ -95,7 +81,7 @@ export default function CheckoutPage() {
         const newErrors: Record<string, string> = {};
 
         if (currentStep === 'information') {
-            if (!formData.email) newErrors.email = 'Email is required';
+            if (!email) newErrors.email = 'Email is required';
             if (!formData.firstName) newErrors.firstName = 'First name is required';
             if (!formData.lastName) newErrors.lastName = 'Last name is required';
             if (!formData.phone) newErrors.phone = 'Phone number is required';
@@ -126,60 +112,33 @@ export default function CheckoutPage() {
     };
 
     const handleApplyCoupon = async () => {
-        if (!couponCode.trim()) return;
+        const code = couponCode.trim();
+        if (!code) return;
         setIsValidatingCoupon(true);
         setCouponMessage(null);
-
-        // Reset
-        setDiscount(0);
-        setGiftCard(null);
-        setGiftCardAmount(0);
+        setAppliedCode(null);
 
         try {
             // 1. Try Coupon
-            const couponResult = await validateCoupon(couponCode, subtotal);
+            const couponResult = await validateCoupon(code, subtotal);
 
             if (couponResult.success && couponResult.data) {
                 const coupon = couponResult.data;
-                let calculatedDiscount = 0;
-
-                if (coupon.discount_type === 'percentage') {
-                    calculatedDiscount = (subtotal * coupon.discount_value) / 100;
-                } else {
-                    calculatedDiscount = coupon.discount_value;
-                }
-
-                // Ensure discount doesn't exceed subtotal
-                calculatedDiscount = Math.min(calculatedDiscount, subtotal);
-
-                setDiscount(calculatedDiscount);
-                setCouponMessage({ type: 'success', text: `Coupon applied: ${coupon.code} ` });
-            } else {
-                // 2. Try Gift Card
-                const giftCardResult = await validateGiftCard(couponCode);
-
-                if (giftCardResult.valid && giftCardResult.id) {
-                    setGiftCard({
-                        id: giftCardResult.id,
-                        code: giftCardResult.code!,
-                        balance: giftCardResult.balance!,
-                        initial_value: giftCardResult.initial_value!,
-                        is_active: true,
-                        expires_at: null,
-                        created_at: ''
-                    });
-                    setCouponMessage({ type: 'success', text: `Gift Card applied! Balance: PKR ${giftCardResult.balance?.toLocaleString()} ` });
-                    setGiftCardAmount(giftCardResult.balance!);
-                } else {
-                    // Both invalid. Show specific coupon error if available, else generic.
-                    // If couponResult had an error message, use it, unless it was just "Invalid coupon code" and we want to try gift card.
-                    // But since we tried generic fallback, we just say Invalid Code.
-                    setDiscount(0);
-                    setGiftCard(null);
-                    setCouponMessage({ type: 'error', text: couponResult.error || 'Invalid code' });
-                }
+                setAppliedCode({ kind: 'coupon', code, discountType: coupon.discount_type, discountValue: coupon.discount_value });
+                setCouponMessage({ type: 'success', text: `Coupon applied: ${coupon.code}` });
+                return;
             }
-        } catch (error) {
+
+            // 2. Try Gift Card
+            const giftCardResult = await validateGiftCard(code);
+            if (giftCardResult.valid && giftCardResult.balance) {
+                setAppliedCode({ kind: 'gift_card', code, balance: giftCardResult.balance });
+                setCouponMessage({ type: 'success', text: `Gift Card applied! Balance: PKR ${giftCardResult.balance.toLocaleString()}` });
+                return;
+            }
+
+            setCouponMessage({ type: 'error', text: couponResult.error || giftCardResult.message || 'Invalid code' });
+        } catch {
             setCouponMessage({ type: 'error', text: 'Error validating code' });
         } finally {
             setIsValidatingCoupon(false);
@@ -193,121 +152,37 @@ export default function CheckoutPage() {
         setOrderError(null);
 
         try {
-            // Prepare shipping address
-            const shippingAddress = {
+            const result = await createOrder({
+                email,
                 firstName: formData.firstName,
                 lastName: formData.lastName,
+                phone: formData.phone,
                 address: formData.address,
                 apartment: formData.apartment,
                 city: formData.city,
                 state: formData.state,
                 postalCode: formData.postalCode,
                 country: formData.country,
-                phone: formData.phone,
-            };
-
-            // Get or create customer if user is logged in
-            let customerId: string | null = null;
-            if (user) {
-                const customer = await getOrCreateCustomer(
-                    user.id,
-                    formData.email,
-                    formData.firstName,
-                    formData.lastName
-                );
-                if (customer) {
-                    customerId = customer.id;
-                }
-            }
-
-            // Prepare order payload
-            const orderPayload: CreateOrderPayload = {
-                customer_id: customerId,
-                customer_email: formData.email,
-                customer_name: `${formData.firstName} ${formData.lastName} `,
-                shipping_address: JSON.stringify(shippingAddress),
-                subtotal: subtotal,
-                discount: discount,
-                shipping_cost: shipping + shippingMethodCost,
-                payment_method: total === 0 ? 'card' : formData.paymentMethod as any,
-                payment_status: total === 0 ? 'paid' : 'pending',
+                shippingMethod: formData.shippingMethod,
+                paymentMethod: formData.paymentMethod,
                 notes: formData.notes || null,
+                code: appliedCode?.code ?? null,
                 items: items.map(item => ({
-                    product_id: item.productId,
-                    product_name: item.name,
-                    product_image: item.image,
+                    productId: item.productId,
                     quantity: item.quantity,
-                    price_at_purchase: item.price,
                     size: item.size,
-                    color: item.color
-                }))
-            };
-
-            // Create order using server action
-            const result = await createOrder(orderPayload);
-
-            if (!result.success || !result.data) {
-                console.error('Error creating order:', result.error);
-                throw new Error(result.error || 'Failed to create order');
-            }
-
-            const { orderId, orderNumber: createdOrderNumber } = result.data;
-            console.log('Order created:', { orderId, createdOrderNumber });
-
-            // Prepare order data for email
-            const emailOrderItems = items.map((item) => ({
-                productName: item.name,
-                quantity: item.quantity,
-                size: item.size,
-                color: item.color,
-                unitPrice: item.price,
-                totalPrice: item.price * item.quantity,
-            }));
-
-            // Format and send order confirmation email via Server Action
-            sendOrderConfirmation(
-                {
-                    order_number: createdOrderNumber,
-                    subtotal: subtotal,
-                    shipping_cost: shipping + shippingMethodCost,
-                    discount: discount,
-                    total: total,
-                },
-                emailOrderItems,
-                formData.email,
-                `${formData.firstName} ${formData.lastName} `,
-                shippingAddress,
-                total === 0 ? 'gift_card' : formData.paymentMethod
-            ).then((result) => {
-                if (!result.success) {
-                    console.warn('Email sending failed:', result.message);
-                }
+                    color: item.color,
+                })),
             });
 
-            // Revalidate account page cache so orders appear immediately
-            await revalidateAccountPage();
-
-            // Award Loyalty Points
-            if (user) {
-                await awardLoyaltyPoints(total);
-            }
-
-            // Redeem Gift Card if used
-            if (giftCard) {
-                const finalTotalBeforeGiftCard = Math.max(0, subtotal + shipping + shippingMethodCost - discount);
-                const amountToRedeem = Math.min(giftCard.balance, finalTotalBeforeGiftCard);
-
-                if (amountToRedeem > 0) {
-                    await redeemGiftCard(giftCard.code, amountToRedeem, orderId);
-                }
-            } else if (discount > 0 && couponCode) {
-                // Increment coupon usage if it was a standard coupon
-                await incrementCouponUsage(couponCode);
+            if (!result.success || !result.data) {
+                setOrderError(result.error || 'There was an error processing your order. Please try again.');
+                return;
             }
 
             // Clear cart and show success
             clearCart();
-            setOrderNumber(createdOrderNumber || orderId); // Fallback to orderId if orderNumber is empty
+            setOrderNumber(result.data.orderNumber);
             setOrderComplete(true);
         } catch (error) {
             console.error('Order processing error:', error);
@@ -351,7 +226,7 @@ export default function CheckoutPage() {
                         </p>
 
                         <p className="text-sm text-muted-foreground mb-8">
-                            We&apos;ve sent a confirmation email to <span className="font-medium text-foreground">{formData.email}</span>
+                            We&apos;ve sent a confirmation email to <span className="font-medium text-foreground">{email}</span>
                         </p>
 
                         <div className="flex flex-col sm:flex-row gap-4 justify-center">
@@ -437,7 +312,7 @@ export default function CheckoutPage() {
                                                 <input
                                                     type="email"
                                                     name="email"
-                                                    value={formData.email}
+                                                    value={email}
                                                     onChange={handleInputChange}
                                                     suppressHydrationWarning
                                                     className={`w-full px-4 py-3 bg-muted/30 border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all duration-200 ${errors.email ? 'border-destructive' : 'border-white/10 focus:border-primary'} `}
@@ -563,7 +438,7 @@ export default function CheckoutPage() {
                                                 <p className="text-sm text-muted-foreground">3-5 business days</p>
                                             </div>
                                             <span className="font-medium text-foreground">
-                                                {shipping === 0 ? 'Free' : `PKR ${shipping} `}
+                                                {shipping === 0 ? 'Free' : `PKR ${shipping}`}
                                             </span>
                                         </label>
 
@@ -826,6 +701,12 @@ export default function CheckoutPage() {
                                 </div>
                             )}
 
+                            {orderError && (
+                                <p role="alert" className="mt-8 p-4 rounded-xl border border-destructive/30 bg-destructive/10 text-sm text-destructive">
+                                    {orderError}
+                                </p>
+                            )}
+
                             {/* Navigation Buttons */}
                             <div className="mt-10 flex items-center justify-between">
                                 {step !== 'information' ? (
@@ -917,7 +798,7 @@ export default function CheckoutPage() {
                                     <div className="flex justify-between">
                                         <span className="text-muted-foreground">Shipping</span>
                                         <span className="font-medium text-foreground">
-                                            {shipping === 0 ? 'Free' : `PKR ${(shipping + shippingMethodCost).toLocaleString()} `}
+                                            {shippingCost === 0 ? 'Free' : `PKR ${shippingCost.toLocaleString()}`}
                                         </span>
                                     </div>
 
@@ -962,7 +843,7 @@ export default function CheckoutPage() {
                                             </button>
                                         </div>
                                         {couponMessage && (
-                                            <p className={`text - xs mt - 2 ${couponMessage.type === 'success' ? 'text-green-600 dark:text-green-400' : 'text-destructive'} `}>
+                                            <p className={`text-xs mt-2 ${couponMessage.type === 'success' ? 'text-green-600 dark:text-green-400' : 'text-destructive'}`}>
                                                 {couponMessage.text}
                                             </p>
                                         )}

@@ -3,6 +3,7 @@ import OrderStatusSelector from '@/components/admin/orders/OrderStatusSelector';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { ChevronLeft, Mail, Phone, MapPin, Package, CreditCard } from 'lucide-react';
+import { getOrderCustomerName, parseShippingAddress } from '@/lib/order-display';
 
 export const metadata = {
     title: 'Order Details | Admin Dashboard',
@@ -28,22 +29,8 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
         });
     };
 
-    const getCustomerName = () => {
-        // @ts-ignore
-        if (order.customers) {
-            // @ts-ignore
-            return `${order.customers.first_name || ''} ${order.customers.last_name || ''}`.trim() || order.customers.email;
-        }
-        const addr = order.shipping_address;
-        if (addr && typeof addr === 'object') {
-            // @ts-ignore
-            return `${addr.firstName || ''} ${addr.lastName || ''}`.trim();
-        }
-        return 'Guest';
-    };
-
-    // @ts-ignore
-    const shipping = typeof order.shipping_address === 'object' ? order.shipping_address || {} : {};
+    const customerName = getOrderCustomerName(order);
+    const shipping = parseShippingAddress(order.shipping_address);
 
     return (
         <div className="space-y-6">
@@ -104,7 +91,6 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
                                 <span>Shipping</span>
                                 <span>PKR {(order.shipping_cost || 0).toLocaleString()}</span>
                             </div>
-                            {/* @ts-ignore */}
                             {(order.discount || 0) > 0 && (
                                 <div className="flex justify-between text-sm text-green-600">
                                     <span>Discount</span>
@@ -122,7 +108,6 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
                     <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6">
                         <h3 className="font-semibold text-gray-900 mb-4">Order Notes</h3>
                         <p className="text-gray-500 text-sm">
-                            {/* @ts-ignore */}
                             {order.notes || "No notes provided."}
                         </p>
                     </div>
@@ -141,25 +126,22 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
                         <div className="p-6 space-y-4">
                             <div className="flex items-center gap-3">
                                 <div className="w-10 h-10 bg-slate-100 rounded-full flex items-center justify-center text-slate-600 font-medium">
-                                    {getCustomerName().charAt(0)}
+                                    {customerName.charAt(0)}
                                 </div>
                                 <div>
-                                    <p className="font-medium text-gray-900">{getCustomerName()}</p>
+                                    <p className="font-medium text-gray-900">{customerName}</p>
                                     <p className="text-xs text-gray-500">Customer since 2023</p>
                                 </div>
                             </div>
                             <div className="pt-4 border-t border-gray-100 space-y-3">
                                 <div className="flex items-center gap-3 text-sm text-gray-600">
                                     <Mail className="w-4 h-4 text-gray-400" />
-                                    {/* @ts-ignore */}
-                                    <a href={`mailto:${shipping.email || ''}`} className="hover:text-rose-600 transition-colors">
-                                        {/* @ts-ignore */}
+                                    <a href={`mailto:${shipping.email || order.customer_email || ''}`} className="hover:text-rose-600 transition-colors">
                                         {shipping.email || order.customer_email || 'N/A'}
                                     </a>
                                 </div>
                                 <div className="flex items-center gap-3 text-sm text-gray-600">
                                     <Phone className="w-4 h-4 text-gray-400" />
-                                    {/* @ts-ignore */}
                                     <span>{shipping.phone || 'N/A'}</span>
                                 </div>
                             </div>
@@ -175,13 +157,9 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
                             </h3>
                         </div>
                         <div className="p-6 text-sm text-gray-600 leading-relaxed">
-                            {/* @ts-ignore */}
                             {shipping.address}<br />
-                            {/* @ts-ignore */}
                             {shipping.apartment && <>{shipping.apartment}<br /></>}
-                            {/* @ts-ignore */}
-                            {shipping.city}, {shipping.postalCode}<br />
-                            {/* @ts-ignore */}
+                            {[shipping.city, shipping.postalCode].filter(Boolean).join(', ')}<br />
                             {shipping.country}
                         </div>
                     </div>

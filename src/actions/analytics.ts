@@ -1,7 +1,9 @@
 'use server';
 
-import { createClient } from '@/lib/supabase/server';
+import { createClient, createAdminClient } from '@/lib/supabase/server';
+import { getAdminContext } from '@/lib/auth';
 import { logger } from '@/lib/logger';
+import { toCsvCell } from '@/lib/order-display';
 import { Json } from '@/types/supabase';
 
 interface AnalyticsSummary {
@@ -33,9 +35,11 @@ export async function trackEvent(eventType: string, data: { pagePath?: string, p
 }
 
 export async function getAnalyticsSummary(daysBack: number = 7): Promise<AnalyticsSummary> {
-    const supabase = await createClient();
+    const ctx = await getAdminContext();
+    if (!ctx) return { timeline: [], topProducts: [], totalViews: 0 };
     // Optimized: Use RPC function for database-side aggregation
-    const { data, error } = await supabase.rpc('get_analytics_summary', {
+    // RPC is SECURITY DEFINER and revoked from API roles; call it as the service role after the admin check.
+    const { data, error } = await createAdminClient().rpc('get_analytics_summary', {
         days_back: daysBack
     });
 
@@ -58,10 +62,11 @@ export async function getAnalyticsSummary(daysBack: number = 7): Promise<Analyti
 }
 
 export async function getDashboardStats(): Promise<DashboardStats> {
-    const supabase = await createClient();
+    const ctx = await getAdminContext();
+    if (!ctx) return { totalRevenue: 0, activeOrders: 0, totalProducts: 0, totalCustomers: 0 };
     // Optimization: Use SQL RPC to calculate stats on the database side
     // This avoids fetching all orders to the server-side logic
-    const { data, error } = await supabase.rpc('get_admin_stats');
+    const { data, error } = await createAdminClient().rpc('get_admin_stats');
 
     if (error) {
         // console.error('Failed to fetch admin stats via RPC:', error);
@@ -95,7 +100,9 @@ export interface CategorySale {
 }
 
 export async function getSalesByCategory(daysBack: number = 30): Promise<CategorySale[]> {
-    const supabase = await createClient();
+    const ctx = await getAdminContext();
+    if (!ctx) return [];
+    const { supabase } = ctx;
 
     // Get orders within date range
     const startDate = new Date();
@@ -110,7 +117,7 @@ export async function getSalesByCategory(daysBack: number = 30): Promise<Categor
             order_items!inner(
                 product_id,
                 quantity,
-                price,
+                price_at_purchase,
                 products!inner(
                     id,
                     category_id,
@@ -129,6 +136,7 @@ export async function getSalesByCategory(daysBack: number = 30): Promise<Categor
     // Aggregate by category
     const categoryMap = new Map<string, CategorySale>();
     const productsByCategory = new Map<string, Set<string>>();
+    const ordersByCategory = new Map<string, Set<string>>();
 
     for (const order of orders) {
         const items = (order.order_items || []) as any[];
@@ -147,19 +155,20 @@ export async function getSalesByCategory(daysBack: number = 30): Promise<Categor
                     product_count: 0
                 });
                 productsByCategory.set(key, new Set());
+                ordersByCategory.set(key, new Set());
             }
 
             const catSale = categoryMap.get(key)!;
-            catSale.total_sales += Number(item.price) * Number(item.quantity);
+            catSale.total_sales += Number(item.price_at_purchase) * Number(item.quantity);
             productsByCategory.get(key)!.add(product.id);
+            ordersByCategory.get(key)!.add(order.id);
         }
     }
 
     // Add product counts
     for (const [key, catSale] of categoryMap) {
         catSale.product_count = productsByCategory.get(key)!.size;
-        // Count unique orders (simplified)
-        catSale.order_count = Math.ceil(catSale.total_sales / 500); // Placeholder estimation
+        catSale.order_count = ordersByCategory.get(key)!.size;
     }
 
     return Array.from(categoryMap.values()).sort((a, b) => b.total_sales - a.total_sales);
@@ -173,7 +182,9 @@ export interface RevenueTrend {
 }
 
 export async function getRevenueTrend(daysBack: number = 30): Promise<RevenueTrend[]> {
-    const supabase = await createClient();
+    const ctx = await getAdminContext();
+    if (!ctx) return [];
+    const { supabase } = ctx;
 
     const startDate = new Date();
     startDate.setDate(startDate.getDate() - daysBack);
@@ -206,7 +217,9 @@ export async function getRevenueTrend(daysBack: number = 30): Promise<RevenueTre
 
 // Generate CSV export data
 export async function getOrdersExportData(daysBack: number = 30): Promise<string> {
-    const supabase = await createClient();
+    const ctx = await getAdminContext();
+    if (!ctx) return '';
+    const { supabase } = ctx;
 
     const startDate = new Date();
     startDate.setDate(startDate.getDate() - daysBack);
@@ -236,7 +249,7 @@ export async function getOrdersExportData(daysBack: number = 30): Promise<string
         const email = customer?.email || 'N/A';
         const date = new Date(order.created_at!).toLocaleDateString('en-PK');
 
-        rows.push(`"${order.id}","${customerName}","${email}","${order.status}","${order.total}","${date}"`);
+        rows.push([order.id, customerName, email, order.status, order.total, date].map(toCsvCell).join(','));
     }
 
     return rows.join('\n');

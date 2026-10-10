@@ -73,8 +73,8 @@ closet-by-era/
 
 ### Prerequisites
 
-- Node.js 18+ 
-- npm or yarn
+- [Bun](https://bun.sh) 1.4+ (package manager and script runner; `bun.lock` is the only lockfile)
+- Node.js 20.9+ (Next.js runs on Node)
 - Supabase account
 
 ### Installation
@@ -87,8 +87,9 @@ closet-by-era/
 
 2. **Install dependencies**
    ```bash
-   npm install
+   bun install
    ```
+   Use `bun install --frozen-lockfile` in CI. Do not use npm/yarn/pnpm: their lockfiles are gitignored.
 
 3. **Set up environment variables**
    
@@ -102,12 +103,14 @@ closet-by-era/
    
    - Go to your Supabase dashboard
    - Navigate to SQL Editor
-   - Run the contents of `database/schema.sql`
+   - Apply the migrations in `supabase/migrations/` in order (`bunx supabase db push`, or paste them into the SQL editor)
 
 5. **Run the development server**
    ```bash
-   npm run dev
+   bun run dev
    ```
+
+   Other scripts: `bun run build` (production build, webpack so the PWA service worker is generated), `bun run check` (typecheck + lint + tests), `bun run gen-types` (regenerate `src/types/supabase.ts`).
 
 6. **Open in browser**
    
@@ -172,8 +175,10 @@ closet-by-era/
 4. Deploy!
 
 ```bash
-npm run build
+bun run build
 ```
+
+Vercel detects `bun.lock` and installs with Bun automatically.
 
 ## 📝 Environment Variables
 

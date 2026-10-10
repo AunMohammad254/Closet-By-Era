@@ -3,7 +3,7 @@
 import { useState, useMemo, useEffect } from 'react';
 import ProductCard from '@/components/ProductCard';
 import CustomDropdown from '@/components/CustomDropdown';
-import { createClient } from '@/lib/supabase/client';
+import { fetchCategoryCatalog } from '@/lib/catalog';
 
 interface ProductUI {
     id: string;
@@ -35,79 +35,18 @@ export default function WomenPage() {
         async function fetchData() {
             setLoading(true);
             try {
-                // Fetch only categories that are relevant to Women (or all for now)
-                // Ideally we filter categories that have products in 'Women' parent category if that exists.
-                // For simplicity, we just fetch all active categories.
-                const supabase = createClient();
-
-                // Fetch only categories that are relevant to Women (or all for now)
-                // Ideally we filter categories that have products in 'Women' parent category if that exists.
-                // For simplicity, we just fetch all active categories.
-                const { data: categoriesData } = await supabase
-                    .from('categories')
-                    .select('name')
-                    .eq('is_active', true)
-                    .order('display_order');
-
-                if (categoriesData) {
-                    setCategories(Array.from(new Set(['All', ...categoriesData.map(c => c.name)])));
-                }
-
-                // Fetch women's products
-                // Assuming 'Women' is a top-level category or we filter by some tag.
-                // If the DB structure doesn't support 'Women' distinct from 'Men' easily without a parent_id,
-                // we might need to rely on a 'gender' column or similar.
-                // Checking previous mock data: it didn't strictly separate by gender in the object model, just data.
-                // Let's assume we filter by a category named 'Women' or similar, OR we fetch all and filter in memory if needed.
-                // BUT, Supabase schema from verify-supabase.ts output (which I couldn't fully run) implies `categories` table.
-                // Using a text search or specific category filter: .eq('gender', 'Women') if it exists?
-                // Or maybe `categories` table has a 'Women' entry?
-                // Let's look for products where category name is 'Women' OR parent category is different?
-                //
-                // Re-reading mock data in women/page.tsx:
-                // Categories were: 'Outerwear', 'Dresses', etc. No 'Women' category per se, just "Women's collection".
-                // In a real e-commerce DB, products usually have a `gender` or `department` column.
-                // I'll try to fetch all products for now and maybe filter if there's a gender column, 
-                // or just fetch all and assume for this MVP we might show all products or rely on specific categories.
-                // Wait, the user wants "Solve this comprehensively".
-                // I'll add a .eq('gender', 'Women') to the query if I can guess the column, 
-                // OR better: just fetch all and filter client side if the DB isn't huge, 
-                // OR (safer) ask the DB what it has.
-                //
-                // Given I can't interactively debug the DB schema easily without the script working,
-                // I will try to selecting `*` and then filter in JS if a `gender` field exists, or assume all products for now.
-                // Actually, I'll assume there is NO gender column yet and just fetch all products, 
-                // but maybe filter by categories that are traditionally women's if possible? 
-                // No, that's brittle.
-                // I'll stick to fetching ALL products and letting the user filter.
-                // IF the user needs gender separation, I'll add a comment to update schema.
-                // For 'Women' page, typically we want `products.gender = 'Women'`.
-
-                const { data: productsData, error } = await supabase
-                    .from('products')
-                    .select(`
-                        *,
-                        categories (
-                            name
-                        )
-                    `)
-                    .eq('in_stock', true);
-
-                if (error) throw error;
+                // Only this department (root category + sub-categories).
+                const { categoryNames, products: productsData } = await fetchCategoryCatalog('women');
+                setCategories(['All', ...categoryNames]);
 
                 if (productsData) {
-                    // Basic filtering for "Women" if the data supports it, otherwise show all.
-                    // I will blindly check if there is a 'gender' field in the returned data.
-                    // If not, I show all.
                     const mappedProducts: ProductUI[] = productsData
-                        // .filter((p) => !p.gender || p.gender === 'Women') // Uncomment if gender exists
                         .map((p) => ({
                             id: p.id,
                             name: p.name,
                             price: p.price,
                             originalPrice: p.original_price || undefined,
                             image: p.image_url || (p.images && p.images[0]) || '/products/placeholder.png',
-                            // @ts-ignore - Supabase join types can be tricky
                             category: p.categories?.name || 'Uncategorized',
                             isNew: p.is_new || false,
                             isSale: p.is_sale || false,
