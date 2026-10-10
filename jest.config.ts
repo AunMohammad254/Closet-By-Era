@@ -12,6 +12,8 @@ const config: Config = {
     testEnvironment: 'jsdom',
     // Add more setup options before each test is run
     setupFilesAfterEnv: ['<rootDir>/jest.setup.ts'],
+    // Playwright specs run via `bun run test:e2e`, not Jest.
+    testPathIgnorePatterns: ['/node_modules/', '/__tests__/e2e/'],
     moduleNameMapper: {
         '^@/(.*)$': '<rootDir>/src/$1',
     },

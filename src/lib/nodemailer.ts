@@ -38,6 +38,8 @@ const smtpConfig = {
     port: parseInt(process.env.SMTP_PORT || '587'),
     secure: process.env.SMTP_SECURE === 'true', // true for 465, false for other ports
     auth: {
+        // No fallback credentials: empty values make sendEmail() skip cleanly
+        // when SMTP is not configured. E2E sets these via playwright.config.ts.
         user: process.env.SMTP_USER || '',
         pass: process.env.SMTP_PASSWORD || '',
     },

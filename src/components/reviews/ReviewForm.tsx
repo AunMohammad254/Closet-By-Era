@@ -63,9 +63,8 @@ export default function ReviewForm({ productId }: { productId: string }) {
                 return;
             }
 
-            // Upload images first
-            const uploadedUrls: string[] = [];
-            for (const file of images) {
+            // Upload images in parallel
+            const uploadPromises = images.map(async (file) => {
                 const fileExt = file.name.split('.').pop();
                 const fileName = `${productId}/${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
 
@@ -82,8 +81,10 @@ export default function ReviewForm({ productId }: { productId: string }) {
                     .from('review-images')
                     .getPublicUrl(fileName);
 
-                uploadedUrls.push(publicUrl);
-            }
+                return publicUrl;
+            });
+
+            const uploadedUrls = await Promise.all(uploadPromises);
 
             const result = await submitReview(productId, rating, comment, uploadedUrls);
 
