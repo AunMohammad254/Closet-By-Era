@@ -147,7 +147,8 @@ export const config = {
          * - _next/static (static files)
          * - _next/image (image optimization files)
          * - favicon.ico, service worker and static assets
+         * - api/webhooks (server-to-server; each route verifies its own signature)
          */
-        '/((?!_next/static|_next/image|favicon.ico|sw.js|workbox-.*|swe-worker-.*|manifest.json|.*\\.(?:svg|png|jpg|jpeg|gif|webp|avif|ico|woff2?)$).*)',
+        '/((?!_next/static|_next/image|api/webhooks/|favicon.ico|sw.js|workbox-.*|swe-worker-.*|manifest.json|.*\\.(?:svg|png|jpg|jpeg|gif|webp|avif|ico|woff2?)$).*)',
     ],
 }

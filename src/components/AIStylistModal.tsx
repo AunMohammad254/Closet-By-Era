@@ -1,5 +1,6 @@
 'use client';
 
+import { useCurrency } from '@/context/CurrencyContext';
 import { useState } from 'react';
 import { getStylistRecommendations, StylistRecommendation } from '@/actions/stylist';
 import Image from 'next/image';
@@ -11,6 +12,7 @@ interface AIStylistModalProps {
 }
 
 export default function AIStylistModal({ isOpen, onClose }: AIStylistModalProps) {
+    const { formatPrice } = useCurrency();
     const [prompt, setPrompt] = useState('');
     const [loading, setLoading] = useState(false);
     const [result, setResult] = useState<StylistRecommendation | null>(null);
@@ -128,7 +130,7 @@ export default function AIStylistModal({ isOpen, onClose }: AIStylistModalProps)
                                             </div>
                                             <div className="p-3">
                                                 <h4 className="font-medium text-sm text-gray-900 dark:text-white line-clamp-1">{product.name}</h4>
-                                                <p className="text-violet-600 dark:text-violet-400 font-semibold text-sm mt-1">PKR {product.price.toLocaleString()}</p>
+                                                <p className="text-violet-600 dark:text-violet-400 font-semibold text-sm mt-1">{formatPrice(product.price)}</p>
                                             </div>
                                         </Link>
                                     ))}

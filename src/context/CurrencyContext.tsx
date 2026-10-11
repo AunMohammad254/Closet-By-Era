@@ -12,8 +12,6 @@ interface CurrencyContextType {
     symbol: string;
 }
 
-const CurrencyContext = createContext<CurrencyContextType | undefined>(undefined);
-
 // Approximate Static Rates (Base is PKR)
 const RATES: Record<CurrencyCode, number> = {
     PKR: 1,
@@ -30,6 +28,27 @@ const SYMBOLS: Record<CurrencyCode, string> = {
     EUR: '€',
     AED: 'AED'
 };
+
+function formatIn(currency: CurrencyCode, amountInPKR: number): string {
+    return new Intl.NumberFormat('en-US', {
+        style: 'currency',
+        currency,
+        minimumFractionDigits: currency === 'PKR' ? 0 : 2,
+        maximumFractionDigits: currency === 'PKR' ? 0 : 2,
+    }).format(amountInPKR * RATES[currency]);
+}
+
+/** Orders are always charged in PKR; use this where the exact charge must be shown. */
+export const formatPKR = (amountInPKR: number) => formatIn('PKR', amountInPKR);
+
+// Outside a provider (tests, isolated renders) prices stay in PKR.
+const CurrencyContext = createContext<CurrencyContextType>({
+    currency: 'PKR',
+    setCurrency: () => {},
+    convertPrice: (amountInPKR) => amountInPKR,
+    formatPrice: formatPKR,
+    symbol: SYMBOLS.PKR,
+});
 
 export function CurrencyProvider({ children }: { children: ReactNode }) {
     const [currency, setCurrency] = useState<CurrencyCode>('PKR');
@@ -51,16 +70,7 @@ export function CurrencyProvider({ children }: { children: ReactNode }) {
         return amountInPKR * RATES[currency];
     }, [currency]);
 
-    const formatPrice = useCallback((amountInPKR: number) => {
-        const converted = amountInPKR * RATES[currency];
-
-        return new Intl.NumberFormat('en-US', {
-            style: 'currency',
-            currency: currency,
-            minimumFractionDigits: currency === 'PKR' ? 0 : 2,
-            maximumFractionDigits: currency === 'PKR' ? 0 : 2,
-        }).format(converted);
-    }, [currency]);
+    const formatPrice = useCallback((amountInPKR: number) => formatIn(currency, amountInPKR), [currency]);
 
     const contextValue = useMemo(() => ({
         currency,
@@ -78,9 +88,5 @@ export function CurrencyProvider({ children }: { children: ReactNode }) {
 }
 
 export function useCurrency() {
-    const context = useContext(CurrencyContext);
-    if (context === undefined) {
-        throw new Error('useCurrency must be used within a CurrencyProvider');
-    }
-    return context;
+    return useContext(CurrencyContext);
 }

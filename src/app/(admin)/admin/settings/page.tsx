@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { Save, Loader2, Store, CreditCard, Bell, Lock, LayoutTemplate } from 'lucide-react';
-import { getStoreSettings, updateStoreSettings, StoreSettings } from '@/actions/settings';
+import { getIntegrationStatus, getStoreSettings, updateStoreSettings, type IntegrationStatus, type StoreSettings } from '@/actions/settings';
 import {
     isPaymentMethodAvailable,
     normalizePaymentSettings,
@@ -12,12 +12,85 @@ import {
 
 type ActiveTab = 'general' | 'payment' | 'content' | 'notifications' | 'security';
 
+const stripeReady = (s: IntegrationStatus) => (s.stripe === 'test' || s.stripe === 'live') && s.stripeWebhook;
+
+function StatusRow({ ok, label, hint }: { ok: boolean; label: string; hint?: string }) {
+    return (
+        <li className="flex items-start gap-2 text-sm">
+            <span className={`mt-1.5 h-2 w-2 shrink-0 rounded-full ${ok ? 'bg-emerald-400' : 'bg-amber-400'}`} aria-hidden="true" />
+            <span className="text-slate-300">
+                {label}
+                {hint && <span className="block text-xs text-slate-500">{hint}</span>}
+            </span>
+        </li>
+    );
+}
+
+function StripeStatus({ status }: { status: IntegrationStatus }) {
+    const keyRow = {
+        test: { ok: true, label: 'Test mode key set (no real charges)' },
+        live: { ok: true, label: 'Live key set (real charges)' },
+        live_blocked: { ok: false, label: 'Live key ignored', hint: 'This store runs Stripe in test mode. Use an sk_test_ key, or set STRIPE_ALLOW_LIVE=true.' },
+        missing: { ok: false, label: 'STRIPE_SECRET_KEY not set', hint: 'Stripe Dashboard > Developers > API keys (test mode): the sk_test_... key.' },
+    }[status.stripe];
+    return (
+        <ul className="space-y-2">
+            <StatusRow {...keyRow} />
+            <StatusRow
+                ok={status.stripeWebhook}
+                label={status.stripeWebhook ? 'Webhook secret set' : 'STRIPE_WEBHOOK_SECRET not set'}
+                hint={status.stripeWebhook ? undefined : 'Add a webhook endpoint for /api/webhooks/stripe and copy its signing secret.'}
+            />
+        </ul>
+    );
+}
+
+const PROVIDER_LABELS: Record<string, { name: string; env: string }> = {
+    brevo: { name: 'Brevo', env: 'BREVO_SMTP_LOGIN and BREVO_SMTP_KEY' },
+    resend: { name: 'Resend', env: 'RESEND_API_KEY' },
+    smtp: { name: 'Custom SMTP', env: 'SMTP_HOST, SMTP_USER and SMTP_PASSWORD' },
+};
+
+function EmailStatus({ status }: { status: IntegrationStatus }) {
+    const active = status.emailProviders.filter(p => p.configured);
+    return (
+        <div className="space-y-4">
+            <div className="p-4 rounded-xl bg-slate-800/30 border border-slate-700/50">
+                <h3 className="font-medium text-slate-200 mb-3">Providers (tried in this order)</h3>
+                <ul className="space-y-2">
+                    {status.emailProviders.map((p, i) => (
+                        <StatusRow
+                            key={p.id}
+                            ok={p.configured}
+                            label={`${i + 1}. ${PROVIDER_LABELS[p.id].name}${p.configured ? '' : ': not configured'}`}
+                            hint={p.configured ? undefined : `Set ${PROVIDER_LABELS[p.id].env}.`}
+                        />
+                    ))}
+                </ul>
+                {active.length === 0 && <p className="mt-3 text-sm text-amber-400">No provider is configured, so no emails are sent.</p>}
+            </div>
+            <div className="p-4 rounded-xl bg-slate-800/30 border border-slate-700/50">
+                <ul className="space-y-2">
+                    <StatusRow ok label={`Sender: ${status.sender}`} hint="EMAIL_FROM / EMAIL_FROM_NAME. Verify this domain with every provider." />
+                    <StatusRow
+                        ok={status.authEmailHook}
+                        label={status.authEmailHook ? 'Account emails hook connected' : 'Account emails use Supabase defaults'}
+                        hint={status.authEmailHook ? undefined : 'Set SEND_EMAIL_HOOK_SECRET and enable Supabase Auth > Hooks > Send Email (URL /api/webhooks/confirmation-email).'}
+                    />
+                </ul>
+            </div>
+        </div>
+    );
+}
+
 function PaymentMethodCard({
     title,
     description,
     enabled,
     onToggle,
     missingDetails = false,
+    missingMessage = 'Hidden from checkout until the account details are complete.',
+    status,
     children,
 }: {
     title: string;
@@ -25,6 +98,8 @@ function PaymentMethodCard({
     enabled: boolean;
     onToggle: (enabled: boolean) => void;
     missingDetails?: boolean;
+    missingMessage?: string;
+    status?: React.ReactNode;
     children?: React.ReactNode;
 }) {
     return (
@@ -51,9 +126,8 @@ function PaymentMethodCard({
                 </label>
             </div>
             {enabled && children && <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">{children}</div>}
-            {missingDetails && (
-                <p className="text-xs text-amber-400">Hidden from checkout until the account details are complete.</p>
-            )}
+            {enabled && status}
+            {missingDetails && <p className="text-xs text-amber-400">{missingMessage}</p>}
         </div>
     );
 }
@@ -104,13 +178,16 @@ export default function SettingsPage() {
         updated_at: ''
     });
 
+    const [integrations, setIntegrations] = useState<IntegrationStatus | null>(null);
+
     useEffect(() => {
         const fetchSettings = async () => {
             try {
-                const { success, data } = await getStoreSettings();
+                const [{ success, data }, status] = await Promise.all([getStoreSettings(), getIntegrationStatus()]);
                 if (success && data) {
                     setSettings(data);
                 }
+                if (status.success && status.data) setIntegrations(status.data);
             } catch (error) {
                 console.error('Error loading settings:', error);
             } finally {
@@ -149,7 +226,7 @@ export default function SettingsPage() {
         { id: 'general', label: 'General', icon: Store },
         { id: 'payment', label: 'Payment Methods', icon: CreditCard },
         { id: 'content', label: 'Store Content', icon: LayoutTemplate },
-        { id: 'notifications', label: 'Notifications', icon: Bell },
+        { id: 'notifications', label: 'Email', icon: Bell },
         { id: 'security', label: 'Security', icon: Lock },
     ];
 
@@ -255,7 +332,7 @@ export default function SettingsPage() {
                                     <h2 className="text-lg font-bold text-slate-100 mb-1">Payment Methods</h2>
                                     <p className="text-sm text-slate-400">
                                         Choose what customers can use at checkout. Transfer methods only appear once their account details are filled in.
-                                        Card payments need a payment processor and are not available yet.
+                                        Card payments go through Stripe (test mode).
                                     </p>
                                 </div>
                                 <div className="space-y-4">
@@ -264,6 +341,15 @@ export default function SettingsPage() {
                                         description="Customer pays the courier on delivery"
                                         enabled={payment.cod.enabled}
                                         onToggle={(enabled) => updatePayment('cod', { enabled })}
+                                    />
+                                    <PaymentMethodCard
+                                        title="Card (Stripe)"
+                                        description="Customer pays on Stripe's hosted checkout page"
+                                        enabled={payment.card.enabled}
+                                        onToggle={(enabled) => updatePayment('card', { enabled })}
+                                        missingDetails={payment.card.enabled && !!integrations && !stripeReady(integrations)}
+                                        missingMessage="Hidden from checkout until the Stripe keys below are set on the server."
+                                        status={integrations && <StripeStatus status={integrations} />}
                                     />
                                     <PaymentMethodCard
                                         title="Bank Transfer"
@@ -345,7 +431,19 @@ export default function SettingsPage() {
                         )}
 
                         {/* Other tabs placeholders */}
-                        {(activeTab === 'notifications' || activeTab === 'security') && (
+                        {activeTab === 'notifications' && (
+                            <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-300">
+                                <div>
+                                    <h2 className="text-lg font-bold text-slate-100 mb-1">Email Delivery</h2>
+                                    <p className="text-sm text-slate-400">
+                                        Every email (orders, sign-up confirmation, password reset, security notices) uses the store&apos;s own template and is sent through these providers in order; if one fails, the next is used. Providers are configured with server environment variables.
+                                    </p>
+                                </div>
+                                {integrations ? <EmailStatus status={integrations} /> : <Loader2 className="w-5 h-5 text-slate-500 animate-spin" />}
+                            </div>
+                        )}
+
+                        {activeTab === 'security' && (
                             <div className="flex flex-col items-center justify-center py-12 text-center animate-in fade-in slide-in-from-bottom-4 duration-300">
                                 <div className="w-16 h-16 bg-slate-800/50 rounded-full flex items-center justify-center mb-4">
                                     <Lock className="w-8 h-8 text-slate-500" />

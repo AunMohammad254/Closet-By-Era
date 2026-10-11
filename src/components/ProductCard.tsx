@@ -1,5 +1,6 @@
 'use client';
 
+import { useCurrency } from '@/context/CurrencyContext';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useWishlist } from '@/context/WishlistContext';
@@ -32,6 +33,7 @@ function ProductCard({
 }: ProductCardProps) {
     const { addItem: addToWishlist, removeItem: removeFromWishlist, isInWishlist } = useWishlist();
     const { addItem: addToCart } = useCart();
+    const { formatPrice } = useCurrency();
     const [showToast, setShowToast] = useState(false);
 
     // Fallback: use id if slug is not provided (legacy support, though we should migrate all)
@@ -139,11 +141,11 @@ function ProductCard({
                 </h3>
                 <div className="flex items-center gap-2">
                     <span className="text-lg font-semibold text-foreground">
-                        PKR {price.toLocaleString()}
+                        {formatPrice(price)}
                     </span>
                     {originalPrice && originalPrice > price && (
                         <span className="text-sm text-muted-foreground/60 line-through">
-                            PKR {originalPrice.toLocaleString()}
+                            {formatPrice(originalPrice)}
                         </span>
                     )}
                 </div>

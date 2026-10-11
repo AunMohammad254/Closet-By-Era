@@ -78,6 +78,28 @@ describe('getPaymentDetails', () => {
     });
 });
 
+describe('card payments', () => {
+    const withCard = normalizePaymentSettings({ card: { enabled: true } });
+
+    it('starts disabled, including for the legacy stripe flag', () => {
+        expect(normalizePaymentSettings({ cod: true, stripe: true }).card.enabled).toBe(false);
+    });
+
+    it('is offered only when enabled and the server has Stripe keys', () => {
+        expect(isPaymentMethodAvailable(withCard, 'card')).toBe(false);
+        expect(isPaymentMethodAvailable(withCard, 'card', { cardReady: true })).toBe(true);
+        expect(isPaymentMethodAvailable(normalizePaymentSettings(null), 'card', { cardReady: true })).toBe(false);
+    });
+
+    it('reports test mode only when card is actually offered', () => {
+        const contact = { whatsappNumber: null, supportEmail: 'help@example.com' };
+        expect(buildCheckoutPaymentOptions(withCard, contact, { cardReady: true, cardTestMode: true }))
+            .toMatchObject({ methods: ['cod', 'card'], cardTestMode: true, details: { card: [] } });
+        expect(buildCheckoutPaymentOptions(withCard, contact, { cardReady: false, cardTestMode: true }).cardTestMode)
+            .toBe(false);
+    });
+});
+
 describe('buildCheckoutPaymentOptions', () => {
     it('never exposes details of methods that are not offered', () => {
         const options = buildCheckoutPaymentOptions(configured, { whatsappNumber: null, supportEmail: 'help@example.com' });

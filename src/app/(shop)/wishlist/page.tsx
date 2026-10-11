@@ -1,5 +1,6 @@
 'use client';
 
+import { useCurrency } from '@/context/CurrencyContext';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useWishlist } from '@/context/WishlistContext';
@@ -8,6 +9,7 @@ import { useCart } from '@/context/CartContext';
 export default function WishlistPage() {
     const { items, removeItem, clearWishlist } = useWishlist();
     const { addItem } = useCart();
+    const { formatPrice } = useCurrency();
 
     const handleAddToCart = (item: typeof items[0]) => {
         addItem({
@@ -129,7 +131,7 @@ export default function WishlistPage() {
                                         <Link href={`/product/${item.id}`}>{item.name}</Link>
                                     </h3>
                                     <p className="text-lg font-semibold text-foreground">
-                                        PKR {item.price.toLocaleString()}
+                                        {formatPrice(item.price)}
                                     </p>
                                 </div>
                             </article>

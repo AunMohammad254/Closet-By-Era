@@ -26,6 +26,8 @@ function LoginForm() {
         if (urlError === 'unauthorized') {
             // eslint-disable-next-line
             setError('You do not have permission to access that page.');
+        } else if (urlError === 'link_expired') {
+            setError('That email link is invalid or has expired. Please sign in or request a new link.');
         }
     }, [searchParams]);
 

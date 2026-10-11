@@ -8,6 +8,7 @@ import {
     type CheckoutPaymentOptions,
     type PaymentSettings,
 } from '@/lib/payments';
+import { getStripeMode, isCardPaymentReady } from '@/lib/stripe';
 
 const FALLBACK_SUPPORT_EMAIL = 'support@closetbyera.com';
 
@@ -34,5 +35,9 @@ export function getWhatsAppNumber(): string | null {
 /** The enabled payment methods and their public account details. */
 export async function getCheckoutPaymentOptions(): Promise<CheckoutPaymentOptions> {
     const { payment, supportEmail } = await loadPaymentSettings();
-    return buildCheckoutPaymentOptions(payment, { whatsappNumber: getWhatsAppNumber(), supportEmail });
+    return buildCheckoutPaymentOptions(
+        payment,
+        { whatsappNumber: getWhatsAppNumber(), supportEmail },
+        { cardReady: isCardPaymentReady(), cardTestMode: getStripeMode() === 'test' }
+    );
 }
