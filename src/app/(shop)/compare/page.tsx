@@ -2,63 +2,60 @@
 
 import { useCurrency } from '@/context/CurrencyContext';
 import { useCompare } from '@/context/CompareContext';
-import { getProductsByIds } from '@/actions/products';
+import { getCompareProducts } from '@/actions/products';
 import { useEffect, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useCart } from '@/context/CartContext';
+import { canOptimizeImage, isDisplayableImage } from '@/lib/imageUtils';
 
-// Type for products returned from getProductsByIds
-interface CompareProduct {
-    id: string;
-    name: string;
-    slug: string | null;
-    price: number;
-    stock: number;
-    images: string[] | null;
-    is_active: boolean;
-    in_stock: boolean | null;
-    image?: string;
-    category?: { name: string } | string;
-    sizes?: string[] | null;
-    colors?: { name: string }[] | null;
-    description?: string | null;
-    shortDescription?: string | null;
-    features?: string[];
+type CompareProduct = Awaited<ReturnType<typeof getCompareProducts>>[number];
+
+const imageOf = (p: CompareProduct) => p.image_url || p.images?.[0] || '';
+const categoryOf = (p: CompareProduct) => (Array.isArray(p.category) ? p.category[0]?.name : p.category?.name) ?? '—';
+const describe = (p: CompareProduct) => {
+    const text = p.short_description || p.description || '';
+    return text.length > 120 ? `${text.slice(0, 120)}…` : text || '—';
+};
+
+function Chips({ values }: { values: string[] | null }) {
+    if (!values?.length) return <>—</>;
+    return (
+        <div className="flex flex-wrap gap-1">
+            {values.map(v => (
+                <span key={v} className="px-2 py-1 bg-muted rounded text-xs text-foreground">{v}</span>
+            ))}
+        </div>
+    );
 }
 
 export default function ComparePage() {
     const { items, removeFromCompare } = useCompare();
     const [products, setProducts] = useState<CompareProduct[]>([]);
     const [loading, setLoading] = useState(true);
+    const [added, setAdded] = useState<string | null>(null);
     const { addItem } = useCart();
     const { formatPrice } = useCurrency();
 
     useEffect(() => {
+        let cancelled = false;
         const fetchDetails = async () => {
-            if (items.length === 0) {
-                setProducts([]);
-                setLoading(false);
-                return;
-            }
-
             try {
-                const ids = items.map(i => i.id);
-                const data = await getProductsByIds(ids);
-                setProducts(data as CompareProduct[]);
+                const data = items.length ? await getCompareProducts(items.map(i => i.id)) : [];
+                if (!cancelled) setProducts(data);
             } catch (error) {
                 console.error('Error fetching compare products:', error);
             } finally {
-                setLoading(false);
+                if (!cancelled) setLoading(false);
             }
         };
-
         fetchDetails();
+        return () => { cancelled = true; };
     }, [items]);
 
     if (loading) {
         return (
-            <div className="min-h-screen pt-32 pb-16 flex justify-center bg-background">
+            <div className="min-h-screen pt-32 pb-16 flex justify-center bg-background" role="status" aria-label="Loading">
                 <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
             </div>
         );
@@ -83,119 +80,99 @@ export default function ComparePage() {
             productId: product.id,
             name: product.name,
             price: product.price,
-            image: product.image || product.images?.[0] || '',
+            image: imageOf(product),
             quantity: 1,
             size: product.sizes?.[0] || '',
-            color: product.colors?.[0]?.name || 'Default',
+            color: product.colors?.[0] || '',
         });
-        alert('Added to cart!');
+        setAdded(product.name);
+        setTimeout(() => setAdded(null), 2500);
     };
+
+    const rows: { label: string; cell: (p: CompareProduct) => React.ReactNode }[] = [
+        { label: 'Category', cell: categoryOf },
+        {
+            label: 'Availability', cell: p => (p.in_stock && p.stock > 0
+                ? <span className="text-emerald-600 font-medium">In Stock</span>
+                : <span className="text-destructive font-medium">Out of Stock</span>),
+        },
+        { label: 'Sizes', cell: p => <Chips values={p.sizes} /> },
+        { label: 'Colors', cell: p => <Chips values={p.colors} /> },
+        { label: 'Description', cell: describe },
+    ];
 
     return (
         <div className="min-h-screen pt-32 pb-16 px-4 bg-background">
             <div className="max-w-7xl mx-auto">
                 <h1 className="text-3xl font-bold text-foreground mb-8">Compare Products</h1>
 
+                {added && (
+                    <p role="status" className="mb-6 text-sm text-emerald-600">{added} added to cart.</p>
+                )}
+
                 <div className="overflow-x-auto">
                     <table className="w-full min-w-200 border-collapse">
                         <thead>
                             <tr>
                                 <th className="p-4 text-left w-48 bg-muted/50 border border-border text-foreground">Feature</th>
-                                {products.map(product => (
-                                    <th key={product.id} className="p-4 text-left w-64 border border-border align-top relative group">
-                                        <button
-                                            onClick={() => removeFromCompare(product.id)}
-                                            className="absolute top-2 right-2 text-muted-foreground hover:text-destructive p-1"
-                                            title="Remove"
-                                        >
-                                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M6 18L18 6M6 6l12 12" />
-                                            </svg>
-                                        </button>
-                                        <div className="relative aspect-3/4 bg-muted rounded-lg overflow-hidden mb-4">
-                                            {(product.images?.[0] || product.image) ? (
-                                                <Image
-                                                    src={product.images?.[0] || product.image || '/placeholder.png'}
-                                                    alt={product.name}
-                                                    fill
-                                                    className="object-cover"
-                                                />
-                                            ) : (
-                                                <div className="absolute inset-0 flex items-center justify-center bg-muted">
-                                                    <svg className="w-12 h-12 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                                                    </svg>
-                                                </div>
-                                            )}
-                                        </div>
-                                        <Link href={`/product/${product.slug}`} className="text-lg font-bold text-foreground hover:text-primary block mb-2">
-                                            {product.name}
-                                        </Link>
-                                        <p className="text-xl font-medium text-foreground mb-4">
-                                            {formatPrice(product.price)}
-                                        </p>
-                                        <button
-                                            onClick={() => handleAddToCart(product)}
-                                            className="w-full py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors"
-                                        >
-                                            Add to Cart
-                                        </button>
-                                    </th>
-                                ))}
+                                {products.map(product => {
+                                    const image = imageOf(product);
+                                    const inStock = product.in_stock && product.stock > 0;
+                                    return (
+                                        <th key={product.id} className="p-4 text-left w-64 border border-border align-top relative group">
+                                            <button
+                                                type="button"
+                                                onClick={() => removeFromCompare(product.id)}
+                                                className="absolute top-2 right-2 text-muted-foreground hover:text-destructive p-1 z-10"
+                                                aria-label={`Remove ${product.name} from compare`}
+                                            >
+                                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M6 18L18 6M6 6l12 12" />
+                                                </svg>
+                                            </button>
+                                            <div className="relative aspect-3/4 bg-muted rounded-lg overflow-hidden mb-4">
+                                                {isDisplayableImage(image) && (
+                                                    <Image
+                                                        src={image}
+                                                        alt={product.name}
+                                                        fill
+                                                        sizes="256px"
+                                                        className="object-cover"
+                                                        unoptimized={!canOptimizeImage(image)}
+                                                    />
+                                                )}
+                                            </div>
+                                            <Link href={`/product/${product.slug ?? product.id}`} className="text-lg font-bold text-foreground hover:text-primary block mb-2">
+                                                {product.name}
+                                            </Link>
+                                            <p className="text-xl font-medium text-foreground mb-4">
+                                                {formatPrice(product.price)}
+                                            </p>
+                                            <button
+                                                type="button"
+                                                onClick={() => handleAddToCart(product)}
+                                                disabled={!inStock}
+                                                aria-label={`Add ${product.name} to cart`}
+                                                className="w-full py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                            >
+                                                {inStock ? 'Add to Cart' : 'Out of stock'}
+                                            </button>
+                                        </th>
+                                    );
+                                })}
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-border">
-                            <tr>
-                                <td className="p-4 font-medium text-foreground bg-muted/50 border border-border">Category</td>
-                                {products.map(product => (
-                                    <td key={product.id} className="p-4 text-muted-foreground border border-border capitalize">
-                                        {typeof product.category === 'string' ? product.category : product.category?.name}
-                                    </td>
-                                ))}
-                            </tr>
-                            <tr>
-                                <td className="p-4 font-medium text-foreground bg-muted/50 border border-border">Availability</td>
-                                {products.map(product => (
-                                    <td key={product.id} className="p-4 text-muted-foreground border border-border">
-                                        {product.in_stock ? (
-                                            <span className="text-emerald-600 font-medium">In Stock</span>
-                                        ) : (
-                                            <span className="text-destructive font-medium">Out of Stock</span>
-                                        )}
-                                    </td>
-                                ))}
-                            </tr>
-                            <tr>
-                                <td className="p-4 font-medium text-foreground bg-muted/50 border border-border">Material</td>
-                                {products.map(product => (
-                                    <td key={product.id} className="p-4 text-muted-foreground border border-border">
-                                        {/* Assuming description or specific field contains material, otherwise generic text */}
-                                        {product.features?.find((f: string) => f.includes('Cotton') || f.includes('Fabric') || f.includes('Material')) || 'Standard Material'}
-                                    </td>
-                                ))}
-                            </tr>
-                            <tr>
-                                <td className="p-4 font-medium text-foreground bg-muted/50 border border-border">Sizes</td>
-                                {products.map(product => (
-                                    <td key={product.id} className="p-4 text-muted-foreground border border-border">
-                                        <div className="flex flex-wrap gap-1">
-                                            {product.sizes?.map((size: string) => (
-                                                <span key={size} className="px-2 py-1 bg-muted rounded text-xs text-foreground">
-                                                    {size}
-                                                </span>
-                                            )) || '-'}
-                                        </div>
-                                    </td>
-                                ))}
-                            </tr>
-                            <tr>
-                                <td className="p-4 font-medium text-foreground bg-muted/50 border border-border">Description</td>
-                                {products.map(product => (
-                                    <td key={product.id} className="p-4 text-muted-foreground border border-border text-sm leading-relaxed">
-                                        {product.shortDescription || product.description?.substring(0, 100) + '...'}
-                                    </td>
-                                ))}
-                            </tr>
+                            {rows.map(row => (
+                                <tr key={row.label}>
+                                    <th scope="row" className="p-4 text-left font-medium text-foreground bg-muted/50 border border-border">{row.label}</th>
+                                    {products.map(product => (
+                                        <td key={product.id} className="p-4 text-muted-foreground border border-border text-sm">
+                                            {row.cell(product)}
+                                        </td>
+                                    ))}
+                                </tr>
+                            ))}
                         </tbody>
                     </table>
                 </div>

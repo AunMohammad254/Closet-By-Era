@@ -62,8 +62,9 @@ function ProductCard({
             name,
             price,
             image,
-            size: 'M',
-            color: 'Default',
+            // No size/colour is chosen on a card; never invent one.
+            size: '',
+            color: '',
             quantity: 1,
         });
 
@@ -99,15 +100,20 @@ function ProductCard({
                 <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors duration-300" />
 
                 {/* Quick Actions */}
-                <div className="absolute bottom-4 left-4 right-4 flex gap-2 opacity-0 translate-y-4 group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-300">
+                <div className="absolute bottom-4 left-4 right-4 flex gap-2 opacity-0 translate-y-4 group-hover:opacity-100 group-hover:translate-y-0 group-focus-within:opacity-100 group-focus-within:translate-y-0 transition-all duration-300">
                     <button
+                        type="button"
                         onClick={handleQuickAdd}
+                        aria-label={`Quick Add ${name}`}
                         className="flex-1 py-3 bg-card text-card-foreground text-sm font-medium rounded-lg hover:bg-accent hover:text-accent-foreground transition-colors shadow-lg"
                     >
                         Quick Add
                     </button>
                     <button
+                        type="button"
                         onClick={handleWishlistToggle}
+                        aria-label={isWishlisted ? `Remove ${name} from wishlist` : `Add ${name} to wishlist`}
+                        aria-pressed={isWishlisted}
                         className={`p-3 rounded-lg shadow-lg transition-colors ${isWishlisted
                             ? 'bg-primary/10 text-primary'
                             : 'bg-card text-card-foreground hover:bg-accent hover:text-accent-foreground'
@@ -154,7 +160,7 @@ function ProductCard({
 
             {/* Added Toast */}
             {showToast && (
-                <div className="absolute top-4 right-4 z-10 px-3 py-2 bg-emerald-500 text-white text-xs rounded-lg shadow-lg animate-fade-in">
+                <div role="status" className="absolute top-4 right-4 z-10 px-3 py-2 bg-emerald-500 text-white text-xs rounded-lg shadow-lg animate-fade-in">
                     Added to cart!
                 </div>
             )}

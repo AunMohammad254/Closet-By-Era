@@ -4,6 +4,7 @@ import { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
+import { isSameSitePath } from '@/lib/safe-path';
 
 // Separate component using useSearchParams
 function LoginForm() {
@@ -17,8 +18,9 @@ function LoginForm() {
     const [error, setError] = useState('');
     const [isLoading, setIsLoading] = useState(false);
 
-    // Get the redirect destination from URL params
-    const redirectedFrom = searchParams.get('redirectedFrom');
+    // Where to go after signing in; only same-site paths (no open redirect).
+    const requested = searchParams.get('redirectedFrom');
+    const redirectedFrom = isSameSitePath(requested) ? requested : null;
 
     // Show error if unauthorized redirect
     useEffect(() => {
@@ -69,7 +71,7 @@ function LoginForm() {
                     <p className="text-muted-foreground text-center mb-8">Sign in to your account</p>
 
                     {error && (
-                        <div className="mb-6 p-4 bg-destructive/10 border border-destructive/20 rounded-xl text-destructive text-sm flex items-center gap-3">
+                        <div role="alert" className="mb-6 p-4 bg-destructive/10 border border-destructive/20 rounded-xl text-destructive text-sm flex items-center gap-3">
                             <svg className="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                             </svg>

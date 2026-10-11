@@ -112,7 +112,7 @@ export default function RegisterPage() {
                     <p className="text-muted-foreground text-center mb-8">Join the Closet By Era family</p>
 
                     {error && (
-                        <div className="mb-6 p-4 bg-destructive/10 border border-destructive/20 rounded-xl text-destructive text-sm flex items-center gap-3">
+                        <div role="alert" className="mb-6 p-4 bg-destructive/10 border border-destructive/20 rounded-xl text-destructive text-sm flex items-center gap-3">
                             <svg className="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                             </svg>
@@ -131,6 +131,8 @@ export default function RegisterPage() {
                             <input
                                 type="text"
                                 name="fullName"
+                                aria-label="Full name"
+                                autoComplete="name"
                                 value={formData.fullName}
                                 onChange={handleChange}
                                 required
@@ -149,6 +151,8 @@ export default function RegisterPage() {
                             <input
                                 type="email"
                                 name="email"
+                                aria-label="Email address"
+                                autoComplete="email"
                                 value={formData.email}
                                 onChange={handleChange}
                                 required
@@ -168,6 +172,8 @@ export default function RegisterPage() {
                             <input
                                 type={showPassword ? 'text' : 'password'}
                                 name="password"
+                                aria-label="Password"
+                                autoComplete="new-password"
                                 value={formData.password}
                                 onChange={handleChange}
                                 required
@@ -177,6 +183,7 @@ export default function RegisterPage() {
                             <button
                                 type="button"
                                 onClick={() => setShowPassword(!showPassword)}
+                                aria-label={showPassword ? 'Hide password' : 'Show password'}
                                 className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
                             >
                                 {showPassword ? (

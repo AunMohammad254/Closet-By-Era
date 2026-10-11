@@ -64,11 +64,11 @@ export default function Navbar({ announcement }: NavbarProps) {
 
                         {/* Logo */}
                         <Link href="/" className="shrink-0">
-                            <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground">
+                            <span className="block text-xl sm:text-2xl font-bold tracking-tight text-foreground">
                                 <span className="font-light">CLOSET</span>
                                 <span className="text-primary">BY</span>
                                 <span className="font-light">ERA</span>
-                            </h1>
+                            </span>
                         </Link>
 
                         <DesktopNav categories={categories} />

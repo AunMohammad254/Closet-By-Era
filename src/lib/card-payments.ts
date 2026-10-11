@@ -6,6 +6,7 @@ import { getStripe } from '@/lib/stripe';
 import { logger } from '@/lib/logger';
 import { parseShippingAddress } from '@/lib/order-display';
 import { formatOrderForEmail, sendOrderConfirmationEmail } from '@/lib/email/orders';
+import { awardLoyaltyPoints } from '@/lib/loyalty';
 
 /**
  * Card orders: createOrder inserts a pending order (stock reserved), then the
@@ -95,6 +96,11 @@ async function markOrderPaid(orderId: string): Promise<string | null> {
         .maybeSingle();
 
     if (!order) return null; // already handled
+
+    // Card orders earn loyalty points only once they are paid.
+    if (order.customer_id) {
+        await awardLoyaltyPoints(order.customer_id, order.total_amount, order.order_number ?? order.id);
+    }
 
     const address = parseShippingAddress(order.shipping_address);
     const result = await sendOrderConfirmationEmail(formatOrderForEmail(

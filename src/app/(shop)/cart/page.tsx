@@ -3,6 +3,8 @@
 import { useState } from 'react';
 import { formatPKR, useCurrency } from '@/context/CurrencyContext';
 import Link from 'next/link';
+import Image from 'next/image';
+import { canOptimizeImage, isDisplayableImage } from '@/lib/imageUtils';
 import { useCart } from '@/context/CartContext';
 import { validateCoupon } from '@/actions/coupons';
 import { validateGiftCard } from '@/actions/gift-cards';
@@ -39,7 +41,9 @@ export default function CartPage() {
                 setCodeMessage({ type: 'success', text: `Gift card ${value} will be applied at checkout.` });
                 return;
             }
-            setCodeMessage({ type: 'error', text: coupon.error || giftCard.message || 'Invalid code' });
+            // A known gift card explains itself ("Card has no balance"); otherwise the coupon error.
+            const knownCard = giftCard.message && giftCard.message !== 'Invalid code';
+            setCodeMessage({ type: 'error', text: (knownCard ? giftCard.message : coupon.error) || 'Invalid code' });
         } catch {
             setCodeMessage({ type: 'error', text: 'Could not check that code. Please try again.' });
         } finally {
@@ -99,12 +103,23 @@ export default function CartPage() {
                         <div className="lg:col-span-2">
                             <div className="space-y-6">
                                 {items.map((item) => (
-                                    <div key={item.id} className="flex gap-4 sm:gap-6 p-4 sm:p-6 bg-card border border-border rounded-2xl">
+                                    <div key={item.id} data-testid="cart-item" className="flex gap-4 sm:gap-6 p-4 sm:p-6 bg-card border border-border rounded-2xl">
                                         {/* Product Image */}
-                                        <div className="w-24 h-32 sm:w-32 sm:h-40 bg-muted rounded-xl shrink-0 flex items-center justify-center">
-                                            <svg className="w-8 h-8 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                                            </svg>
+                                        <div className="relative w-24 h-32 sm:w-32 sm:h-40 bg-muted rounded-xl shrink-0 flex items-center justify-center overflow-hidden">
+                                            {isDisplayableImage(item.image) ? (
+                                                <Image
+                                                    src={item.image}
+                                                    alt={item.name}
+                                                    fill
+                                                    sizes="128px"
+                                                    className="object-cover"
+                                                    unoptimized={!canOptimizeImage(item.image)}
+                                                />
+                                            ) : (
+                                                <svg className="w-8 h-8 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                                </svg>
+                                            )}
                                         </div>
 
                                         {/* Product Info */}
@@ -164,6 +179,7 @@ export default function CartPage() {
 
                             {/* Clear Cart */}
                             <button
+                                type="button"
                                 onClick={clearCart}
                                 className="mt-6 text-sm text-muted-foreground hover:text-rose-600 transition-colors"
                             >
@@ -209,11 +225,11 @@ export default function CartPage() {
                                 <div className="space-y-3 text-sm">
                                     <div className="flex justify-between">
                                         <span className="text-muted-foreground">Subtotal</span>
-                                        <span className="font-medium text-foreground">{formatPrice(subtotal)}</span>
+                                        <span className="font-medium text-foreground" data-testid="cart-subtotal">{formatPrice(subtotal)}</span>
                                     </div>
                                     <div className="flex justify-between">
                                         <span className="text-muted-foreground">Shipping</span>
-                                        <span className="font-medium text-foreground">
+                                        <span className="font-medium text-foreground" data-testid="cart-shipping">
                                             {shipping === 0 ? (
                                                 <span className="text-emerald-600">Free</span>
                                             ) : (
@@ -229,7 +245,7 @@ export default function CartPage() {
                                     <div className="pt-3 border-t border-border">
                                         <div className="flex justify-between">
                                             <span className="font-medium text-foreground">Total</span>
-                                            <span className="text-lg font-bold text-foreground">{formatPrice(total)}</span>
+                                            <span className="text-lg font-bold text-foreground" data-testid="cart-total">{formatPrice(total)}</span>
                                         </div>
                                         {currency !== 'PKR' && (
                                             <p className="mt-1 text-xs text-muted-foreground text-right">

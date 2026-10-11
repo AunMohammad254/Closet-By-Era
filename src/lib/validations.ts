@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { isSameSitePath } from '@/lib/safe-path';
 
 // ========================
 // Product Validation Schemas
@@ -27,7 +28,7 @@ export const ProductFormSchema = z.object({
         .min(0, 'Stock cannot be negative'),
     /** Site paths (/products/x.png) or absolute http(s) URLs. */
     images: z.array(z.string().refine(
-        v => (v.startsWith('/') && !v.startsWith('//')) || /^https?:\/\/\S+$/i.test(v),
+        v => isSameSitePath(v) || /^https?:\/\/\S+$/i.test(v),
         'Each image must be a valid URL'
     )).default([]),
     is_active: z.boolean().default(true),

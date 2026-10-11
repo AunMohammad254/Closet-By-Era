@@ -1,3 +1,5 @@
+import { isSameSitePath } from '@/lib/safe-path';
+
 // function to generate a shimmer loading effect in SVG format
 const shimmer = (w: number, h: number) => `
 <svg width="${w}" height="${h}" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
@@ -24,7 +26,7 @@ export const shimmerPlaceholder = (w: number, h: number) =>
 /** True for sources an <Image> can show: site paths and http(s) URLs. */
 export function isDisplayableImage(src: string | null | undefined): src is string {
     if (!src) return false;
-    return (src.startsWith('/') && !src.startsWith('//')) || /^https?:\/\//i.test(src);
+    return isSameSitePath(src) || /^https?:\/\//i.test(src);
 }
 
 const STORAGE_PATH = '/storage/v1/object/public/';
@@ -37,7 +39,7 @@ const OPTIMIZED_ORIGINS = [process.env.NEXT_PUBLIC_SUPABASE_URL, 'https://hdheob
  * next.config.ts remotePatterns. Anything else must be rendered `unoptimized`.
  */
 export function canOptimizeImage(src: string): boolean {
-    if (src.startsWith('/') && !src.startsWith('//')) return true;
+    if (isSameSitePath(src)) return true;
     try {
         const url = new URL(src);
         if (url.origin === 'https://www.closetbyera.com') return true;

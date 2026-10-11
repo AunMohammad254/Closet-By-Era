@@ -39,7 +39,9 @@ export default function CompareBar() {
                                         className="object-cover"
                                     />
                                     <button
+                                        type="button"
                                         onClick={() => removeFromCompare(item.id)}
+                                        aria-label={`Remove ${item.name} from compare`}
                                         className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
                                     >
                                         <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">

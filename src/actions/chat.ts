@@ -11,6 +11,8 @@ export interface Ticket {
     created_at: string;
     updated_at: string;
     last_message?: string;
+    customer_name?: string;
+    customer_email?: string;
 }
 
 export interface Message {
@@ -94,23 +96,50 @@ export async function sendMessage(ticketId: string, message: string) {
 
     await admin
         .from('support_tickets')
-        .update({ last_message: text.slice(0, 200), updated_at: new Date().toISOString() })
+        // A customer writing to a closed ticket reopens it.
+        .update({ last_message: text.slice(0, 200), updated_at: new Date().toISOString(), ...(isAdmin ? {} : { status: 'open' }) })
         .eq('id', ticketId);
 
+    revalidatePath('/admin/chat');
     revalidatePath('/dashboard/chat');
 }
 
-/** Staff inbox: every ticket. */
+/** Staff inbox: every ticket, with who opened it. */
 export async function getTickets() {
     if (!(await getAdminContext())) throw new Error('Forbidden');
 
-    const { data: tickets, error } = await createAdminClient()
+    const admin = createAdminClient();
+    const { data: tickets, error } = await admin
         .from('support_tickets')
         .select('*')
         .order('updated_at', { ascending: false });
 
     if (error) throw new Error(error.message);
-    return tickets as Ticket[];
+
+    const userIds = [...new Set(tickets.map(t => t.user_id).filter((id): id is string => Boolean(id)))];
+    const { data: customers } = userIds.length
+        ? await admin.from('customers').select('auth_id, first_name, last_name, email').in('auth_id', userIds)
+        : { data: [] };
+    const byUser = new Map((customers ?? []).map(c => [c.auth_id, c]));
+
+    return tickets.map(t => {
+        const c = t.user_id ? byUser.get(t.user_id) : undefined;
+        const name = c ? [c.first_name, c.last_name].filter(Boolean).join(' ') : '';
+        return { ...t, customer_name: name || undefined, customer_email: c?.email ?? undefined } as Ticket;
+    });
+}
+
+/** Staff: mark a ticket closed (or reopen it). */
+export async function setTicketStatus(ticketId: string, status: 'open' | 'closed') {
+    if (!(await getAdminContext())) throw new Error('Forbidden');
+
+    const { error } = await createAdminClient()
+        .from('support_tickets')
+        .update({ status, updated_at: new Date().toISOString() })
+        .eq('id', ticketId);
+
+    if (error) throw new Error(error.message);
+    revalidatePath('/admin/chat');
 }
 
 export async function getUserActiveTicket() {

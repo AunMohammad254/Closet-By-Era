@@ -118,6 +118,7 @@ export default function ProductFilters({ categories }: ProductFiltersProps) {
                 <select
                     value={sort}
                     onChange={handleSortChange}
+                    aria-label="Sort by"
                     className="w-full p-2.5 bg-background border border-border rounded-lg text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
                 >
                     <option value="newest">Newest Arrivals</option>
@@ -159,6 +160,7 @@ export default function ProductFilters({ categories }: ProductFiltersProps) {
                                 type="number"
                                 value={priceRange.min}
                                 onChange={(e) => handlePriceChange('min', e.target.value)}
+                                aria-label="Minimum price"
                                 className="w-full pl-3 pr-3 py-2 pt-6 text-sm bg-background border border-border rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
                             />
                         </div>
@@ -169,11 +171,13 @@ export default function ProductFilters({ categories }: ProductFiltersProps) {
                                 type="number"
                                 value={priceRange.max}
                                 onChange={(e) => handlePriceChange('max', e.target.value)}
+                                aria-label="Maximum price"
                                 className="w-full pl-3 pr-3 py-2 pt-6 text-sm bg-background border border-border rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
                             />
                         </div>
                     </div>
                     <button
+                        type="button"
                         onClick={applyPriceFilter}
                         className="w-full py-2 bg-primary text-primary-foreground text-sm font-medium rounded-lg hover:bg-primary/90 transition-colors"
                     >

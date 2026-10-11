@@ -23,6 +23,15 @@ import ProductActions from './product/ProductActions';
 
 export type { ProductColor };
 
+// Categories with their own storefront page; others open the filtered catalogue.
+const DEPARTMENT_PAGES = new Set(['women', 'men', 'accessories', 'sale']);
+
+function categoryHref(slug: string, name: string): string {
+    if (DEPARTMENT_PAGES.has(slug)) return `/${slug}`;
+    if (slug === 'all' || name === 'Uncategorized') return '/products';
+    return `/products?categories=${encodeURIComponent(name)}`;
+}
+
 export interface ProductDetails {
     id: string;
     name: string;
@@ -151,7 +160,7 @@ export default function ProductView({ product, relatedProducts, reviews = [] }: 
                         <div className="lg:py-4">
                             <div className="sticky top-32">
                                 {/* Category */}
-                                <Link href={`/category/${product.categorySlug}`} className="text-sm text-primary font-medium tracking-wider uppercase hover:text-primary/80 transition-colors">
+                                <Link href={categoryHref(product.categorySlug, product.category)} className="text-sm text-primary font-medium tracking-wider uppercase hover:text-primary/80 transition-colors">
                                     {product.category}
                                 </Link>
 
@@ -272,7 +281,7 @@ export default function ProductView({ product, relatedProducts, reviews = [] }: 
                 }
             />
 
-            <RecentlyViewed />
+            <RecentlyViewed excludeId={product.id} />
         </main>
     );
 }

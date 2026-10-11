@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { VERIFY_TYPES, type VerifyType } from '@/lib/email/auth';
+import { isSameSitePath } from '@/lib/safe-path';
 
 /**
  * Landing page for links in auth emails (built in src/lib/email/auth.ts).
@@ -12,8 +13,8 @@ export async function GET(request: NextRequest) {
     const tokenHash = searchParams.get('token_hash');
     const type = searchParams.get('type');
     const nextParam = searchParams.get('next') ?? '/';
-    // Same-site paths only (no "//evil.com" or absolute URLs).
-    const next = nextParam.startsWith('/') && !nextParam.startsWith('//') ? nextParam : '/';
+    // Same-site paths only (no "//evil.com", "/\evil.com" or absolute URLs).
+    const next = isSameSitePath(nextParam) ? nextParam : '/';
 
     if (tokenHash && type && (VERIFY_TYPES as readonly string[]).includes(type)) {
         const supabase = await createClient();

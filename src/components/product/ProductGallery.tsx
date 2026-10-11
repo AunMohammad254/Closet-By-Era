@@ -2,6 +2,7 @@
 
 import Image from 'next/image';
 import { useState } from 'react';
+import { canOptimizeImage } from '@/lib/imageUtils';
 
 interface ProductGalleryProps {
     images: string[];
@@ -40,6 +41,7 @@ export default function ProductGallery({
                         fill
                         className="object-cover"
                         priority
+                        unoptimized={!canOptimizeImage(images[selectedImage])}
                     />
                 )}
 
@@ -66,7 +68,10 @@ export default function ProductGallery({
 
                 {/* Wishlist Button */}
                 <button
+                    type="button"
                     onClick={onWishlistToggle}
+                    aria-label={isWishlisted ? 'Remove from wishlist' : 'Add to wishlist'}
+                    aria-pressed={isWishlisted}
                     className={`absolute top-4 right-4 w-10 h-10 rounded-full flex items-center justify-center z-10 transition-all ${isWishlisted ? 'bg-destructive/10 text-destructive' : 'bg-background text-muted-foreground hover:text-destructive'
                         }`}
                 >
@@ -81,7 +86,10 @@ export default function ProductGallery({
                 {images.map((img, index) => (
                     <button
                         key={index}
+                        type="button"
                         onClick={() => setSelectedImage(index)}
+                        aria-label={`Show image ${index + 1}`}
+                        aria-pressed={selectedImage === index}
                         className={`aspect-square bg-muted rounded-lg overflow-hidden transition-all ${selectedImage === index ? 'ring-2 ring-primary' : 'hover:opacity-80'
                             }`}
                     >
@@ -91,6 +99,7 @@ export default function ProductGallery({
                                 alt={`${productName} view ${index + 1}`}
                                 fill
                                 className="object-cover"
+                                unoptimized={!canOptimizeImage(img)}
                             />
                         </div>
                     </button>

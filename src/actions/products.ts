@@ -14,7 +14,7 @@ export async function getProductsByIds(ids: string[]) {
     const supabase = await createClient();
     const { data, error } = await supabase
         .from('products')
-        .select('id, name, slug, price, stock, images, is_active, in_stock')
+        .select('id, name, slug, price, stock, images, image_url, is_active, in_stock')
         .in('id', ids)
         .eq('in_stock', true);
 
@@ -25,6 +25,28 @@ export async function getProductsByIds(ids: string[]) {
 
     // Maintain order
     return ids
+        .map(id => data.find(p => p.id === id))
+        .filter((p): p is NonNullable<typeof p> => Boolean(p));
+}
+
+/** Details for the compare table, in the order given. Sold-out products stay (shown as out of stock). */
+export async function getCompareProducts(ids: string[]) {
+    const unique = [...new Set(ids)].slice(0, 4);
+    if (unique.length === 0) return [];
+
+    const supabase = await createClient();
+    const { data, error } = await supabase
+        .from('products')
+        .select('id, name, slug, price, original_price, stock, images, image_url, in_stock, sizes, colors, description, short_description, category:categories(name)')
+        .in('id', unique)
+        .eq('is_active', true);
+
+    if (error) {
+        logger.error('Error fetching compare products', error, { action: 'getCompareProducts' });
+        return [];
+    }
+
+    return unique
         .map(id => data.find(p => p.id === id))
         .filter((p): p is NonNullable<typeof p> => Boolean(p));
 }
@@ -194,6 +216,8 @@ async function uniqueSlug(supabase: Awaited<ReturnType<typeof createClient>>, na
 }
 
 const UNIQUE_VIOLATION = '23505';
+/** order_items keep their product (ON DELETE RESTRICT). */
+const FOREIGN_KEY_VIOLATION = '23503';
 
 export async function createProduct(data: ProductFormData): Promise<{ success: boolean; error?: string; id?: string }> {
     // Validate input with Zod
@@ -276,7 +300,12 @@ export async function deleteProduct(id: string): Promise<{ success: boolean; err
 
     if (error) {
         logger.error('Error deleting product', error, { action: 'deleteProduct', productId: id });
-        return { success: false, error: 'Failed to delete product' };
+        return {
+            success: false,
+            error: error.code === FOREIGN_KEY_VIOLATION
+                ? 'This product appears in past orders, so it cannot be deleted. Hide it from the store instead.'
+                : 'Failed to delete product',
+        };
     }
 
     revalidatePath('/admin/products');
@@ -356,7 +385,12 @@ export async function bulkDeleteProducts(ids: string[]): Promise<{ success: bool
 
     if (error) {
         logger.error('Error batch deleting products', error, { action: 'bulkDeleteProducts', ids });
-        return { success: false, error: 'Failed to delete selected products' };
+        return {
+            success: false,
+            error: error.code === FOREIGN_KEY_VIOLATION
+                ? 'Some of these products appear in past orders and cannot be deleted. Hide them instead.'
+                : 'Failed to delete selected products',
+        };
     }
 
     revalidatePath('/admin/products');

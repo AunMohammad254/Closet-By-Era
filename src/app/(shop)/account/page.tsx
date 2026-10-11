@@ -9,6 +9,8 @@ import { createClient } from '@/lib/supabase/client';
 import type { Order, OrderItem, Customer } from '@/types/database';
 import { getCurrentCustomer } from '@/actions/customer';
 import { getLoyaltyBalance, getLoyaltyHistory, LoyaltyHistory } from '@/actions/loyalty';
+import { useWishlist } from '@/context/WishlistContext';
+import { useCurrency } from '@/context/CurrencyContext';
 
 type AccountTab = 'profile' | 'orders' | 'addresses' | 'wishlist' | 'loyalty';
 
@@ -46,6 +48,9 @@ function AccountPageContent() {
     const [activeTab, setActiveTab] = useState<AccountTab>(initialTab);
     const [isEditing, setIsEditing] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
+    const [saveMessage, setSaveMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+    const { items: wishlistItems } = useWishlist();
+    const { formatPrice } = useCurrency();
     const [orders, setOrders] = useState<OrderWithItems[]>([]);
     const [ordersLoading, setOrdersLoading] = useState(true);
     const [customer, setCustomer] = useState<Customer | null>(null);
@@ -254,6 +259,7 @@ function AccountPageContent() {
         if (!user || !customer) return;
 
         setIsSaving(true);
+        setSaveMessage(null);
         try {
             const { error } = await supabase
                 .from('customers')
@@ -266,7 +272,9 @@ function AccountPageContent() {
 
             if (error) {
                 console.error('Error updating profile:', error);
+                setSaveMessage({ type: 'error', text: 'Could not save your profile. Please try again.' });
             } else {
+                setSaveMessage({ type: 'success', text: 'Profile saved.' });
                 setCustomer({
                     ...customer,
                     first_name: profile.firstName,
@@ -277,6 +285,7 @@ function AccountPageContent() {
             }
         } catch (error) {
             console.error('Error saving profile:', error);
+            setSaveMessage({ type: 'error', text: 'Could not save your profile. Please try again.' });
         } finally {
             setIsSaving(false);
         }
@@ -491,6 +500,11 @@ function AccountPageContent() {
                                             )}
                                         </button>
                                     )}
+                                    {saveMessage && (
+                                        <p role="status" className={`mt-4 text-sm ${saveMessage.type === 'success' ? 'text-emerald-600' : 'text-destructive'}`}>
+                                            {saveMessage.text}
+                                        </p>
+                                    )}
                                 </div>
                             )}
 
@@ -516,7 +530,7 @@ function AccountPageContent() {
                                         </div>
                                     ) : (
                                         orders.map((order) => (
-                                            <div key={order.id} className="bg-card rounded-2xl p-6 shadow-sm border border-border">
+                                            <article key={order.id} aria-label={`Order ${order.order_number}`} className="bg-card rounded-2xl p-6 shadow-sm border border-border">
                                                 <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 pb-4 border-b border-border">
                                                     <div>
                                                         <p className="font-semibold text-foreground">Order {order.order_number}</p>
@@ -547,7 +561,7 @@ function AccountPageContent() {
                                                 <div className="flex items-center justify-between pt-4 border-t border-border">
                                                     <span className="font-semibold text-foreground">Total: PKR {(order.total ?? order.total_amount ?? 0).toLocaleString()}</span>
                                                 </div>
-                                            </div>
+                                            </article>
                                         ))
                                     )}
                                 </div>
@@ -594,6 +608,21 @@ function AccountPageContent() {
                             {activeTab === 'wishlist' && (
                                 <div className="bg-card rounded-2xl p-6 sm:p-8 shadow-sm border border-border">
                                     <h2 className="text-xl font-bold text-foreground mb-6">My Wishlist</h2>
+                                    {wishlistItems.length > 0 ? (
+                                        <>
+                                            <ul className="divide-y divide-border">
+                                                {wishlistItems.map(item => (
+                                                    <li key={item.id} className="py-3 flex items-center justify-between gap-4">
+                                                        <Link href={`/product/${item.id}`} className="font-medium text-foreground hover:text-primary">{item.name}</Link>
+                                                        <span className="text-sm text-muted-foreground">{formatPrice(item.price)}</span>
+                                                    </li>
+                                                ))}
+                                            </ul>
+                                            <Link href="/wishlist" className="mt-6 inline-block text-primary font-medium hover:text-primary/80">
+                                                Open wishlist
+                                            </Link>
+                                        </>
+                                    ) : (
                                     <div className="text-center py-12">
                                         <svg className="w-12 h-12 mx-auto text-muted-foreground/50 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
@@ -603,6 +632,7 @@ function AccountPageContent() {
                                             Discover products
                                         </Link>
                                     </div>
+                                    )}
                                 </div>
                             )}
 

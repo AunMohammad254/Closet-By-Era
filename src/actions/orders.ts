@@ -23,6 +23,7 @@ import { CHECKOUT_PAYMENT_METHODS, getPaymentDetails, isPaymentMethodAvailable }
 import { loadPaymentSettings } from '@/lib/store-settings';
 import { isCardPaymentReady } from '@/lib/stripe';
 import { createCardCheckout, expireCheckoutSession } from '@/lib/card-payments';
+import { awardLoyaltyPoints } from '@/lib/loyalty';
 import { getRequestOrigin } from '@/lib/request';
 
 // ---------------------------------------------------------------------------
@@ -312,9 +313,10 @@ export async function createOrder(input: CheckoutInput): Promise<ActionResult<Cr
             }
         }
 
-        // 8. Loyalty points (1 point per PKR 100 actually paid).
-        if (session && customerId) {
-            await awardLoyaltyPointsForOrder(admin, session.user.id, customerId, total, orderNumber);
+        // 8. Loyalty points (1 point per PKR 100 actually paid). Card orders
+        // earn them once the payment succeeds (settleCheckoutSession).
+        if (session && customerId && !cardCheckout) {
+            await awardLoyaltyPoints(customerId, total, orderNumber);
         }
 
         revalidatePath('/admin/orders');
@@ -383,38 +385,6 @@ async function claimCouponUse(admin: AdminClient, couponId: string): Promise<boo
     return false;
 }
 
-async function awardLoyaltyPointsForOrder(
-    admin: AdminClient,
-    authUserId: string,
-    customerId: string,
-    amountPaid: number,
-    orderNumber: string
-): Promise<void> {
-    const points = Math.floor(amountPaid / 100);
-    if (points <= 0) return;
-
-    try {
-        const { data: customer } = await admin
-            .from('customers')
-            .select('loyalty_points')
-            .eq('id', customerId)
-            .single();
-
-        await admin
-            .from('customers')
-            .update({ loyalty_points: (customer?.loyalty_points ?? 0) + points })
-            .eq('id', customerId);
-
-        await admin.from('loyalty_history').insert({
-            user_id: authUserId,
-            points,
-            reason: `Earned from order ${orderNumber}`,
-        });
-    } catch (error) {
-        // Points are a bonus; never fail the order because of them.
-        logger.error('Failed to award loyalty points', error, { action: 'awardLoyaltyPointsForOrder' });
-    }
-}
 
 // ---------------------------------------------------------------------------
 // Admin

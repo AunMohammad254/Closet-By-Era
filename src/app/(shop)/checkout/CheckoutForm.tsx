@@ -2,6 +2,8 @@
 
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
+import { canOptimizeImage, isDisplayableImage } from '@/lib/imageUtils';
 import { useCart } from '@/context/CartContext';
 import { useAuth } from '@/context/AuthContext';
 import { createOrder } from '@/actions/orders';
@@ -147,7 +149,9 @@ export default function CheckoutForm({ paymentOptions }: { paymentOptions: Check
                 return;
             }
 
-            setCouponMessage({ type: 'error', text: couponResult.error || giftCardResult.message || 'Invalid code' });
+            // A known gift card explains itself ("Card has no balance"); otherwise the coupon error.
+            const knownCard = giftCardResult.message && giftCardResult.message !== 'Invalid code';
+            setCouponMessage({ type: 'error', text: (knownCard ? giftCardResult.message : couponResult.error) || 'Invalid code' });
         } catch {
             setCouponMessage({ type: 'error', text: 'Error validating code' });
         } finally {
@@ -258,7 +262,7 @@ export default function CheckoutForm({ paymentOptions }: { paymentOptions: Check
                         <h1 className="text-3xl font-bold text-foreground mb-4">Order Confirmed!</h1>
                         <p className="text-muted-foreground mb-2">Thank you for your purchase.</p>
                         <p className="text-muted-foreground mb-8">
-                            Order number: <span className="font-semibold text-foreground">{orderNumber}</span>
+                            Order number: <span className="font-semibold text-foreground" data-testid="order-number">{orderNumber}</span>
                         </p>
 
                         {awaitingTransfer && (
@@ -359,9 +363,10 @@ export default function CheckoutForm({ paymentOptions }: { paymentOptions: Check
                                         <h2 className="text-xl font-bold text-foreground mb-6">Contact Information</h2>
                                         <div className="space-y-4">
                                             <div>
-                                                <label className="block text-sm font-medium text-foreground mb-1">Email</label>
+                                                <label htmlFor="checkout-email" className="block text-sm font-medium text-foreground mb-1">Email</label>
                                                 <input
                                                     type="email"
+                                                    id="checkout-email"
                                                     name="email"
                                                     value={email}
                                                     onChange={handleInputChange}
@@ -369,19 +374,20 @@ export default function CheckoutForm({ paymentOptions }: { paymentOptions: Check
                                                     className={`w-full px-4 py-3 bg-muted/30 border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all duration-200 ${errors.email ? 'border-destructive' : 'border-white/10 focus:border-primary'} `}
                                                     placeholder="your@email.com"
                                                 />
-                                                {errors.email && <p className="mt-1 text-sm text-destructive">{errors.email}</p>}
+                                                {errors.email && <p role="alert" className="mt-1 text-sm text-destructive">{errors.email}</p>}
                                             </div>
                                             <div>
-                                                <label className="block text-sm font-medium text-foreground mb-1">Phone</label>
+                                                <label htmlFor="checkout-phone" className="block text-sm font-medium text-foreground mb-1">Phone</label>
                                                 <input
                                                     type="tel"
+                                                    id="checkout-phone"
                                                     name="phone"
                                                     value={formData.phone}
                                                     onChange={handleInputChange}
                                                     className={`w-full px-4 py-3 bg-muted/30 border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all duration-200 ${errors.phone ? 'border-destructive' : 'border-white/10 focus:border-primary'} `}
                                                     placeholder="+92 300 1234567"
                                                 />
-                                                {errors.phone && <p className="mt-1 text-sm text-destructive">{errors.phone}</p>}
+                                                {errors.phone && <p role="alert" className="mt-1 text-sm text-destructive">{errors.phone}</p>}
                                             </div>
                                         </div>
                                     </div>
@@ -391,44 +397,48 @@ export default function CheckoutForm({ paymentOptions }: { paymentOptions: Check
                                         <div className="space-y-4">
                                             <div className="grid grid-cols-2 gap-4">
                                                 <div>
-                                                    <label className="block text-sm font-medium text-foreground mb-1">First Name</label>
+                                                    <label htmlFor="checkout-first-name" className="block text-sm font-medium text-foreground mb-1">First Name</label>
                                                     <input
                                                         type="text"
+                                                        id="checkout-first-name"
                                                         name="firstName"
                                                         value={formData.firstName}
                                                         onChange={handleInputChange}
                                                         className={`w-full px-4 py-3 bg-muted/30 border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all duration-200 ${errors.firstName ? 'border-destructive' : 'border-white/10 focus:border-primary'} `}
                                                     />
-                                                    {errors.firstName && <p className="mt-1 text-sm text-destructive">{errors.firstName}</p>}
+                                                    {errors.firstName && <p role="alert" className="mt-1 text-sm text-destructive">{errors.firstName}</p>}
                                                 </div>
                                                 <div>
-                                                    <label className="block text-sm font-medium text-foreground mb-1">Last Name</label>
+                                                    <label htmlFor="checkout-last-name" className="block text-sm font-medium text-foreground mb-1">Last Name</label>
                                                     <input
                                                         type="text"
+                                                        id="checkout-last-name"
                                                         name="lastName"
                                                         value={formData.lastName}
                                                         onChange={handleInputChange}
                                                         className={`w-full px-4 py-3 bg-muted/30 border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all duration-200 ${errors.lastName ? 'border-destructive' : 'border-white/10 focus:border-primary'} `}
                                                     />
-                                                    {errors.lastName && <p className="mt-1 text-sm text-destructive">{errors.lastName}</p>}
+                                                    {errors.lastName && <p role="alert" className="mt-1 text-sm text-destructive">{errors.lastName}</p>}
                                                 </div>
                                             </div>
                                             <div>
-                                                <label className="block text-sm font-medium text-foreground mb-1">Address</label>
+                                                <label htmlFor="checkout-address" className="block text-sm font-medium text-foreground mb-1">Address</label>
                                                 <input
                                                     type="text"
+                                                    id="checkout-address"
                                                     name="address"
                                                     value={formData.address}
                                                     onChange={handleInputChange}
                                                     className={`w-full px-4 py-3 bg-muted/30 border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all duration-200 ${errors.address ? 'border-destructive' : 'border-white/10 focus:border-primary'} `}
                                                     placeholder="Street address"
                                                 />
-                                                {errors.address && <p className="mt-1 text-sm text-destructive">{errors.address}</p>}
+                                                {errors.address && <p role="alert" className="mt-1 text-sm text-destructive">{errors.address}</p>}
                                             </div>
                                             <div>
-                                                <label className="block text-sm font-medium text-foreground mb-1">Apartment, suite, etc. (optional)</label>
+                                                <label htmlFor="checkout-apartment" className="block text-sm font-medium text-foreground mb-1">Apartment, suite, etc. (optional)</label>
                                                 <input
                                                     type="text"
+                                                    id="checkout-apartment"
                                                     name="apartment"
                                                     value={formData.apartment}
                                                     onChange={handleInputChange}
@@ -437,20 +447,22 @@ export default function CheckoutForm({ paymentOptions }: { paymentOptions: Check
                                             </div>
                                             <div className="grid grid-cols-2 gap-4">
                                                 <div>
-                                                    <label className="block text-sm font-medium text-foreground mb-1">City</label>
+                                                    <label htmlFor="checkout-city" className="block text-sm font-medium text-foreground mb-1">City</label>
                                                     <input
                                                         type="text"
+                                                        id="checkout-city"
                                                         name="city"
                                                         value={formData.city}
                                                         onChange={handleInputChange}
                                                         className={`w-full px-4 py-3 bg-muted/30 border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all duration-200 ${errors.city ? 'border-destructive' : 'border-white/10 focus:border-primary'} `}
                                                     />
-                                                    {errors.city && <p className="mt-1 text-sm text-destructive">{errors.city}</p>}
+                                                    {errors.city && <p role="alert" className="mt-1 text-sm text-destructive">{errors.city}</p>}
                                                 </div>
                                                 <div>
-                                                    <label className="block text-sm font-medium text-foreground mb-1">Postal Code</label>
+                                                    <label htmlFor="checkout-postal-code" className="block text-sm font-medium text-foreground mb-1">Postal Code</label>
                                                     <input
                                                         type="text"
+                                                        id="checkout-postal-code"
                                                         name="postalCode"
                                                         value={formData.postalCode}
                                                         onChange={handleInputChange}
@@ -519,8 +531,9 @@ export default function CheckoutForm({ paymentOptions }: { paymentOptions: Check
 
                                     {/* Order Notes */}
                                     <div className="mt-8">
-                                        <label className="block text-sm font-medium text-foreground mb-1">Order Notes (optional)</label>
+                                        <label htmlFor="checkout-notes" className="block text-sm font-medium text-foreground mb-1">Order Notes (optional)</label>
                                         <textarea
+                                            id="checkout-notes"
                                             name="notes"
                                             value={formData.notes}
                                             onChange={handleInputChange}
@@ -604,6 +617,7 @@ export default function CheckoutForm({ paymentOptions }: { paymentOptions: Check
                             <div className="mt-10 flex items-center justify-between">
                                 {step !== 'information' ? (
                                     <button
+                                        type="button"
                                         onClick={handleBack}
                                         className="flex items-center text-muted-foreground hover:text-foreground transition-colors"
                                     >
@@ -623,6 +637,7 @@ export default function CheckoutForm({ paymentOptions }: { paymentOptions: Check
 
                                 {step !== 'payment' ? (
                                     <button
+                                        type="button"
                                         onClick={handleContinue}
                                         disabled={isProcessing}
                                         className="bg-primary hover:bg-primary/90 text-primary-foreground px-8 py-3 rounded-xl font-medium transition-all duration-200 shadow-lg hover:shadow-primary/20 hover:-translate-y-0.5"
@@ -631,6 +646,7 @@ export default function CheckoutForm({ paymentOptions }: { paymentOptions: Check
                                     </button>
                                 ) : (
                                     <button
+                                        type="button"
                                         onClick={handlePlaceOrder}
                                         disabled={isProcessing || (total > 0 && !hasPaymentMethods)}
                                         className="bg-primary hover:bg-primary/90 text-primary-foreground px-8 py-3 rounded-xl font-medium transition-all duration-200 shadow-lg hover:shadow-primary/20 hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
@@ -664,18 +680,24 @@ export default function CheckoutForm({ paymentOptions }: { paymentOptions: Check
                                 {/* Cart Items */}
                                 <div className="space-y-4 max-h-64 overflow-y-auto mb-4">
                                     {items.map((item) => (
-                                        <div key={item.id} className="flex gap-3">
+                                        <div key={item.id} className="flex gap-3" data-testid="checkout-item">
                                             <div className="w-16 h-20 bg-muted rounded-lg shrink-0 flex items-center justify-center relative">
-                                                <svg className="w-6 h-6 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                                                </svg>
-                                                <span className="absolute -top-2 -right-2 w-5 h-5 bg-primary text-primary-foreground text-xs rounded-full flex items-center justify-center">
+                                                {isDisplayableImage(item.image) ? (
+                                                    <span className="absolute inset-0 overflow-hidden rounded-lg">
+                                                        <Image src={item.image} alt={item.name} fill sizes="64px" className="object-cover" unoptimized={!canOptimizeImage(item.image)} />
+                                                    </span>
+                                                ) : (
+                                                    <svg className="w-6 h-6 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                                    </svg>
+                                                )}
+                                                <span aria-label={`Quantity ${item.quantity}`} className="absolute z-10 -top-2 -right-2 w-5 h-5 bg-primary text-primary-foreground text-xs rounded-full flex items-center justify-center">
                                                     {item.quantity}
                                                 </span>
                                             </div>
                                             <div className="flex-1 min-w-0">
                                                 <p className="text-sm font-medium text-foreground truncate">{item.name}</p>
-                                                <p className="text-xs text-muted-foreground">{item.size} / {item.color}</p>
+                                                <p className="text-xs text-muted-foreground">{[item.size, item.color].filter(Boolean).join(' / ')}</p>
                                                 <p className="text-sm font-medium text-foreground mt-1">{formatPrice(item.price * item.quantity)}</p>
                                             </div>
                                         </div>
@@ -686,11 +708,11 @@ export default function CheckoutForm({ paymentOptions }: { paymentOptions: Check
                                 <div className="border-t border-border pt-4 space-y-2 text-sm">
                                     <div className="flex justify-between">
                                         <span className="text-muted-foreground">Subtotal</span>
-                                        <span className="font-medium text-foreground">{formatPrice(subtotal)}</span>
+                                        <span className="font-medium text-foreground" data-testid="checkout-subtotal">{formatPrice(subtotal)}</span>
                                     </div>
                                     <div className="flex justify-between">
                                         <span className="text-muted-foreground">Shipping</span>
-                                        <span className="font-medium text-foreground">
+                                        <span className="font-medium text-foreground" data-testid="checkout-shipping">
                                             {shippingCost === 0 ? 'Free' : formatPrice(shippingCost)}
                                         </span>
                                     </div>
@@ -699,7 +721,7 @@ export default function CheckoutForm({ paymentOptions }: { paymentOptions: Check
                                     {discount > 0 && (
                                         <div className="flex justify-between text-green-600 dark:text-green-400">
                                             <span className="font-medium">Discount</span>
-                                            <span className="font-medium">- {formatPrice(discount)}</span>
+                                            <span className="font-medium" data-testid="checkout-discount">- {formatPrice(discount)}</span>
                                         </div>
                                     )}
 
@@ -707,13 +729,13 @@ export default function CheckoutForm({ paymentOptions }: { paymentOptions: Check
                                     {giftCard && potentialGiftCardUsage > 0 && (
                                         <div className="flex justify-between text-emerald-600 dark:text-emerald-400">
                                             <span className="font-medium">Gift Card ({giftCard.code})</span>
-                                            <span className="font-medium">- {formatPrice(potentialGiftCardUsage)}</span>
+                                            <span className="font-medium" data-testid="checkout-gift-card">- {formatPrice(potentialGiftCardUsage)}</span>
                                         </div>
                                     )}
 
                                     <div className="flex justify-between pt-2 border-t border-border">
                                         <span className="font-bold text-foreground">Total to Pay</span>
-                                        <span className="text-lg font-bold text-foreground">{formatPrice(total)}</span>
+                                        <span className="text-lg font-bold text-foreground" data-testid="checkout-total">{formatPrice(total)}</span>
                                     </div>
                                     {currency !== 'PKR' && (
                                         <p className="text-xs text-muted-foreground text-right">
@@ -723,16 +745,18 @@ export default function CheckoutForm({ paymentOptions }: { paymentOptions: Check
 
                                     {/* Coupon Input */}
                                     <div className="pt-4 border-t border-border mt-4">
-                                        <label className="block text-xs font-medium text-foreground mb-2">Discount Code</label>
+                                        <label htmlFor="checkout-code" className="block text-xs font-medium text-foreground mb-2">Discount Code</label>
                                         <div className="flex gap-2">
                                             <input
                                                 type="text"
+                                                id="checkout-code"
                                                 value={couponCode}
                                                 onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
                                                 placeholder="Enter code"
                                                 className="flex-1 px-4 py-2.5 bg-background/50 border border-white/10 rounded-xl text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary uppercase transition-all duration-200 placeholder:text-muted-foreground/50"
                                             />
                                             <button
+                                                type="button"
                                                 onClick={() => handleApplyCoupon()}
                                                 disabled={isValidatingCoupon || !couponCode}
                                                 className="px-6 py-2.5 bg-primary/10 hover:bg-primary/20 text-primary border border-primary/20 text-sm font-medium rounded-xl transition-all duration-200 disabled:opacity-50"
@@ -741,7 +765,7 @@ export default function CheckoutForm({ paymentOptions }: { paymentOptions: Check
                                             </button>
                                         </div>
                                         {couponMessage && (
-                                            <p className={`text-xs mt-2 ${couponMessage.type === 'success' ? 'text-green-600 dark:text-green-400' : 'text-destructive'}`}>
+                                            <p role="status" className={`text-xs mt-2 ${couponMessage.type === 'success' ? 'text-green-600 dark:text-green-400' : 'text-destructive'}`}>
                                                 {couponMessage.text}
                                             </p>
                                         )}

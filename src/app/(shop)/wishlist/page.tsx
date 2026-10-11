@@ -5,6 +5,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useWishlist } from '@/context/WishlistContext';
 import { useCart } from '@/context/CartContext';
+import { canOptimizeImage, isDisplayableImage } from '@/lib/imageUtils';
 
 export default function WishlistPage() {
     const { items, removeItem, clearWishlist } = useWishlist();
@@ -17,8 +18,9 @@ export default function WishlistPage() {
             name: item.name,
             price: item.price,
             image: item.image,
-            size: 'M', // Default size
-            color: 'Default',
+            // No size/colour is chosen here; never invent one.
+            size: '',
+            color: '',
             quantity: 1,
         });
         removeItem(item.id);
@@ -72,6 +74,7 @@ export default function WishlistPage() {
                             <p className="mt-1 text-muted-foreground">{items.length} {items.length === 1 ? 'item' : 'items'} saved</p>
                         </div>
                         <button
+                            type="button"
                             onClick={clearWishlist}
                             className="text-sm text-muted-foreground hover:text-destructive transition-colors"
                         >
@@ -85,12 +88,14 @@ export default function WishlistPage() {
                             <article key={item.id} className="group relative">
                                 {/* Image Container */}
                                 <div className="relative aspect-3/4 overflow-hidden rounded-xl bg-muted">
-                                    {item.image ? (
+                                    {isDisplayableImage(item.image) ? (
                                         <Image
                                             src={item.image}
                                             alt={item.name}
                                             fill
+                                            sizes="(max-width: 640px) 50vw, 25vw"
                                             className="object-cover"
+                                            unoptimized={!canOptimizeImage(item.image)}
                                         />
                                     ) : (
                                         <div className="absolute inset-0 flex items-center justify-center text-muted-foreground">
@@ -105,7 +110,9 @@ export default function WishlistPage() {
 
                                     {/* Remove Button */}
                                     <button
+                                        type="button"
                                         onClick={() => removeItem(item.id)}
+                                        aria-label={`Remove ${item.name} from wishlist`}
                                         className="absolute top-3 right-3 w-8 h-8 bg-background rounded-full flex items-center justify-center text-muted-foreground hover:text-destructive shadow-md transition-colors"
                                     >
                                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -114,9 +121,11 @@ export default function WishlistPage() {
                                     </button>
 
                                     {/* Add to Cart Button */}
-                                    <div className="absolute bottom-4 left-4 right-4 opacity-0 translate-y-4 group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-300">
+                                    <div className="absolute bottom-4 left-4 right-4 opacity-0 translate-y-4 group-hover:opacity-100 group-hover:translate-y-0 group-focus-within:opacity-100 group-focus-within:translate-y-0 transition-all duration-300">
                                         <button
+                                            type="button"
                                             onClick={() => handleAddToCart(item)}
+                                            aria-label={`Move ${item.name} to cart`}
                                             className="w-full py-3 bg-background text-foreground text-sm font-medium rounded-lg hover:bg-muted transition-colors shadow-lg"
                                         >
                                             Add to Cart

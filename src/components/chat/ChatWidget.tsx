@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/client';
 import { useAuth } from '@/context/AuthContext';
 import { createTicket, sendMessage, getUserActiveTicket, getMessages, Message } from '@/actions/chat';
 import { format } from 'date-fns';
+import { CHAT_POLL_MS, mergeMessages } from '@/lib/chat-messages';
 
 export default function ChatWidget() {
     const { user } = useAuth();
@@ -44,8 +45,7 @@ export default function ChatWidget() {
                 'postgres_changes',
                 { event: 'INSERT', schema: 'public', table: 'support_messages', filter: `ticket_id=eq.${ticketId}` },
                 (payload) => {
-                    const newMsg = payload.new as Message;
-                    setMessages(prev => [...prev, newMsg]);
+                    setMessages(prev => mergeMessages(prev, [payload.new as Message]));
                 }
             )
             .subscribe();
@@ -54,6 +54,17 @@ export default function ChatWidget() {
             supabase.removeChannel(channel);
         };
     }, [ticketId, supabase]);
+
+    // Poll while open, so replies arrive even without realtime.
+    useEffect(() => {
+        if (!ticketId || !isOpen) return;
+        const timer = setInterval(() => {
+            getMessages(ticketId)
+                .then(msgs => setMessages(prev => mergeMessages(prev, msgs)))
+                .catch(() => { /* next tick retries */ });
+        }, CHAT_POLL_MS);
+        return () => clearInterval(timer);
+    }, [ticketId, isOpen]);
 
     // Scroll to bottom
     useEffect(() => {
@@ -68,23 +79,19 @@ export default function ChatWidget() {
         setInput('');
 
         try {
-            if (!ticketId) {
-                const newId = await createTicket(msg);
-                setTicketId(newId);
-                // Optimistic update for first message
-                setMessages([{
-                    id: 'temp',
-                    ticket_id: newId,
-                    sender_id: user.id,
-                    message: msg,
-                    is_admin_reply: false,
-                    created_at: new Date().toISOString()
-                }]);
+            let id = ticketId;
+            if (!id) {
+                id = await createTicket(msg);
+                setTicketId(id);
             } else {
-                await sendMessage(ticketId, msg);
+                await sendMessage(id, msg);
             }
+            // Show the sent message (and any reply) without waiting for realtime.
+            const msgs = await getMessages(id);
+            setMessages(prev => mergeMessages(prev, msgs));
         } catch (e) {
             console.error('Failed to send:', e);
+            setInput(msg);
             alert('Failed to send message');
         }
     };
@@ -102,7 +109,7 @@ export default function ChatWidget() {
                             <h3 className="font-bold text-white">Support Chat</h3>
                             <p className="text-xs text-slate-300">We usually reply in a few minutes</p>
                         </div>
-                        <button onClick={() => setIsOpen(false)} className="text-slate-400 hover:text-white">
+                        <button type="button" onClick={() => setIsOpen(false)} aria-label="Close chat" className="text-slate-400 hover:text-white">
                             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                             </svg>
@@ -110,16 +117,16 @@ export default function ChatWidget() {
                     </div>
 
                     {/* Messages */}
-                    <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50">
+                    <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50" role="log" aria-label="Chat messages">
                         {messages.length === 0 ? (
                             <div className="h-full flex flex-col items-center justify-center text-gray-500 text-sm p-4 text-center">
                                 <p>On call! 👋<br />how can we help you today?</p>
                             </div>
                         ) : (
-                            messages.map((msg, i) => {
+                            messages.map((msg) => {
                                 const isMe = !msg.is_admin_reply;
                                 return (
-                                    <div key={i} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
+                                    <div key={msg.id} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
                                         <div className={`max-w-[80%] rounded-2xl px-4 py-2 text-sm ${isMe
                                                 ? 'bg-slate-900 text-white rounded-br-none'
                                                 : 'bg-white text-gray-800 border border-gray-100 rounded-bl-none shadow-sm'
@@ -144,11 +151,14 @@ export default function ChatWidget() {
                                 value={input}
                                 onChange={(e) => setInput(e.target.value)}
                                 placeholder="Type a message..."
+                                aria-label="Message"
+                                maxLength={2000}
                                 className="flex-1 px-4 py-2 border border-gray-200 rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-slate-900 focus:border-transparent"
                             />
                             <button
                                 type="submit"
                                 disabled={!input.trim()}
+                                aria-label="Send message"
                                 className="p-2 bg-slate-900 text-white rounded-full hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                             >
                                 <svg className="w-5 h-5 translate-x-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -162,7 +172,10 @@ export default function ChatWidget() {
 
             {/* Toggle Button */}
             <button
+                type="button"
                 onClick={() => setIsOpen(!isOpen)}
+                aria-label={isOpen ? 'Close support chat' : 'Open support chat'}
+                aria-expanded={isOpen}
                 className={`w-14 h-14 rounded-full shadow-xl flex items-center justify-center transition-all duration-300 ${isOpen ? 'bg-slate-800 rotate-90' : 'bg-slate-900 hover:scale-110'
                     }`}
             >

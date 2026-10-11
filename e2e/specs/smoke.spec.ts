@@ -1,6 +1,7 @@
 /** Fast checks that the stack is wired up: app, database, auth and each role. */
 import { test, expect } from '../fixtures';
 import { PRODUCTS, productPath } from '../data';
+import { USERS } from '../env';
 
 test('home page renders the storefront', async ({ page }) => {
     await page.goto('/');
@@ -15,7 +16,8 @@ test('product page reads from the test database', async ({ page }) => {
 
 test('customer session is signed in', async ({ customerPage }) => {
     await customerPage.goto('/account');
-    await expect(customerPage.getByRole('heading', { name: 'My Profile' })).toBeVisible();
+    await expect(customerPage.getByText(USERS.customer.email)).toBeVisible();
+    await expect(customerPage.getByRole('heading', { name: 'My Orders' })).toBeVisible();
 });
 
 test('admin session reaches the dashboard', async ({ adminPage }) => {

@@ -108,6 +108,16 @@ export async function createUser(opts: {
     return { authId: user.id, customerId: customer.id, email, password: PASSWORD, firstName, lastName };
 }
 
+/** A one-time email token (what an emailed link carries) without sending any email. */
+export async function generateEmailToken(type: 'magiclink' | 'recovery', email: string): Promise<string> {
+    const res = await authAdmin<{ hashed_token?: string; properties?: { hashed_token: string } }>(
+        'POST', '/generate_link', { type, email }
+    );
+    const token = res.properties?.hashed_token ?? res.hashed_token;
+    if (!token) throw new Error(`generate_link returned no token for ${email}`);
+    return token;
+}
+
 export async function createRoleUser(role: Role): Promise<TestUser> {
     const u = USERS[role];
     return createUser({ email: u.email, firstName: u.firstName, lastName: u.lastName, role: u.role });
@@ -151,6 +161,52 @@ export async function latestOrderFor(customerId: string): Promise<OrderRow> {
 
 export async function orderByNumber(orderNumber: string): Promise<OrderRow> {
     return one<OrderRow>('select * from public.orders where order_number = $1', [orderNumber]);
+}
+
+const uniqueCode = (prefix: string) => `${prefix}-${randomUUID().slice(0, 6).toUpperCase()}`;
+
+/** A coupon only this test uses (seeded coupons are shared). */
+export async function createCoupon(opts: {
+    type?: 'percentage' | 'fixed';
+    value: number;
+    minOrder?: number;
+    maxUses?: number | null;
+    usesCount?: number;
+}): Promise<{ id: string; code: string }> {
+    const code = uniqueCode('CPN');
+    const row = await one<{ id: string }>(
+        `insert into public.coupons (code, description, discount_type, discount_value, min_order_amount, max_uses, uses_count, is_active)
+         values ($1, 'e2e', $2, $3, $4, $5, $6, true) returning id`,
+        [code, opts.type ?? 'percentage', opts.value, opts.minOrder ?? 0, opts.maxUses ?? null, opts.usesCount ?? 0]
+    );
+    return { id: row.id, code };
+}
+
+/** A gift card only this test uses. */
+export async function createGiftCard(balance: number): Promise<{ id: string; code: string }> {
+    const code = uniqueCode('GIFT');
+    const row = await one<{ id: string }>(
+        `insert into public.gift_cards (code, initial_value, balance, is_active) values ($1, $2, $2, true) returning id`,
+        [code, balance]
+    );
+    return { id: row.id, code };
+}
+
+/** A product only this test uses (deleted again by deleteProducts / the next reset). */
+export async function createProduct(opts: { name?: string; price?: number; stock?: number; categoryId?: string | null; sizes?: string[] | null } = {}): Promise<{ id: string; name: string; slug: string; price: number }> {
+    const name = opts.name ?? `E2E Temp ${randomUUID().slice(0, 6)}`;
+    const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+    const price = opts.price ?? 1000;
+    const row = await one<{ id: string }>(
+        `insert into public.products (name, slug, description, price, stock, in_stock, is_active, category_id, image_url, images, sizes)
+         values ($1, $2, 'Temporary product for one test.', $3, $4, $4 > 0, true, $5, '/products/placeholder.png', '{}', $6) returning id`,
+        [name, slug, price, opts.stock ?? 10, opts.categoryId ?? null, opts.sizes ?? null]
+    );
+    return { id: row.id, name, slug, price };
+}
+
+export async function deleteProducts(ids: string[]): Promise<void> {
+    if (ids.length) await sql('delete from public.products where id = any($1::uuid[])', [ids]);
 }
 
 /** Inserts an order (with items) directly, for tests that need existing orders. */

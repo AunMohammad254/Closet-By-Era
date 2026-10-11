@@ -15,6 +15,7 @@ export default function SizeSelector({ sizes, selectedSize, onSelect, onSizeGuid
             <div className="flex items-center justify-between">
                 <span className="text-sm font-medium text-gray-900 dark:text-white">Size</span>
                 <button
+                    type="button"
                     onClick={onSizeGuideClick}
                     className="text-sm text-gray-500 dark:text-gray-400 underline hover:text-gray-900 dark:hover:text-white transition-colors flex items-center gap-1"
                 >
@@ -24,11 +25,13 @@ export default function SizeSelector({ sizes, selectedSize, onSelect, onSizeGuid
                     Size Guide
                 </button>
             </div>
-            <div className="mt-3 flex flex-wrap gap-2">
+            <div className="mt-3 flex flex-wrap gap-2" role="group" aria-label="Size">
                 {sizes.map((size) => (
                     <button
                         key={size}
+                        type="button"
                         onClick={() => onSelect(size)}
+                        aria-pressed={selectedSize === size}
                         className={`px-4 py-2 text-sm font-medium rounded-lg border transition-all ${selectedSize === size
                             ? 'border-slate-900 bg-slate-900 text-white dark:border-white dark:bg-white dark:text-slate-900'
                             : 'border-gray-200 text-gray-700 hover:border-gray-400 dark:border-slate-700 dark:text-slate-300 dark:hover:border-slate-500'

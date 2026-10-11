@@ -2,8 +2,10 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { createClient } from '@/lib/supabase/client';
-import { getTickets, getMessages, sendMessage, Ticket, Message } from '@/actions/chat';
+import { getTickets, getMessages, sendMessage, setTicketStatus, Ticket, Message } from '@/actions/chat';
+import { CHAT_POLL_MS, mergeMessages } from '@/lib/chat-messages';
 import { format } from 'date-fns';
+import toast from 'react-hot-toast';
 import { MessageCircle, Send } from 'lucide-react';
 
 export default function AdminChatInterface() {
@@ -41,7 +43,7 @@ export default function AdminChatInterface() {
     useEffect(() => {
         if (!selectedTicketId) return;
 
-        getMessages(selectedTicketId).then(setMessages);
+        getMessages(selectedTicketId).then(setMessages).catch(console.error);
 
         const channel = supabase
             .channel(`admin_chat:${selectedTicketId}`)
@@ -49,8 +51,7 @@ export default function AdminChatInterface() {
                 'postgres_changes',
                 { event: 'INSERT', schema: 'public', table: 'support_messages', filter: `ticket_id=eq.${selectedTicketId}` },
                 (payload) => {
-                    const newMsg = payload.new as Message;
-                    setMessages(prev => [...prev, newMsg]);
+                    setMessages(prev => mergeMessages(prev, [payload.new as Message]));
                 }
             )
             .subscribe();
@@ -59,6 +60,33 @@ export default function AdminChatInterface() {
             supabase.removeChannel(channel);
         };
     }, [selectedTicketId, supabase]);
+
+    // Poll too: new tickets and replies show up even without realtime.
+    useEffect(() => {
+        const timer = setInterval(() => {
+            getTickets().then(setTickets).catch(() => { /* next tick retries */ });
+            if (selectedTicketId) {
+                getMessages(selectedTicketId)
+                    .then(msgs => setMessages(prev => mergeMessages(prev, msgs)))
+                    .catch(() => { /* next tick retries */ });
+            }
+        }, CHAT_POLL_MS);
+        return () => clearInterval(timer);
+    }, [selectedTicketId]);
+
+    const selectedTicket = tickets.find(t => t.id === selectedTicketId);
+
+    const toggleStatus = async () => {
+        if (!selectedTicket) return;
+        const next = selectedTicket.status === 'open' ? 'closed' : 'open';
+        try {
+            await setTicketStatus(selectedTicket.id, next);
+            setTickets(prev => prev.map(t => (t.id === selectedTicket.id ? { ...t, status: next } : t)));
+            toast.success(next === 'closed' ? 'Ticket closed' : 'Ticket reopened');
+        } catch {
+            toast.error('Could not update the ticket');
+        }
+    };
 
     // Scroll to bottom
     useEffect(() => {
@@ -75,9 +103,12 @@ export default function AdminChatInterface() {
 
         try {
             await sendMessage(selectedTicketId, msg);
+            const msgs = await getMessages(selectedTicketId);
+            setMessages(prev => mergeMessages(prev, msgs));
         } catch (e) {
             console.error(e);
-            alert('Failed to send');
+            setInput(msg);
+            toast.error('Failed to send');
         }
     };
 
@@ -99,15 +130,17 @@ export default function AdminChatInterface() {
                         tickets.map((ticket) => (
                             <button
                                 key={ticket.id}
+                                type="button"
                                 onClick={() => setSelectedTicketId(ticket.id)}
+                                aria-pressed={selectedTicketId === ticket.id}
                                 className={`w-full text-left p-4 hover:bg-slate-800/50 transition-colors border-b border-slate-700/30 ${selectedTicketId === ticket.id
                                         ? 'bg-rose-500/10 border-l-4 border-l-rose-500'
                                         : ''
                                     }`}
                             >
                                 <div className="flex justify-between items-start mb-1">
-                                    <span className="font-medium text-slate-200 truncate w-32">
-                                        User {ticket.user_id.slice(0, 8)}...
+                                    <span className="font-medium text-slate-200 truncate w-40" title={ticket.customer_email}>
+                                        {ticket.customer_name || ticket.customer_email || `User ${ticket.user_id.slice(0, 8)}...`}
                                     </span>
                                     <span className="text-xs text-slate-500">
                                         {format(new Date(ticket.updated_at), 'MMM d, HH:mm')}
@@ -118,6 +151,9 @@ export default function AdminChatInterface() {
                                         }`} />
                                     <span className="text-xs text-slate-400 capitalize">{ticket.status}</span>
                                 </div>
+                                {ticket.last_message && (
+                                    <p className="text-xs text-slate-500 truncate mt-1">{ticket.last_message}</p>
+                                )}
                             </button>
                         ))
                     )}
@@ -128,8 +164,23 @@ export default function AdminChatInterface() {
             <div className="flex-1 flex flex-col bg-slate-800/30">
                 {selectedTicketId ? (
                     <>
+                        <div className="px-6 py-3 border-b border-slate-700/50 flex items-center justify-between gap-4">
+                            <div className="min-w-0">
+                                <p className="font-medium text-slate-200 truncate">{selectedTicket?.customer_name || 'Customer'}</p>
+                                <p className="text-xs text-slate-500 truncate">{selectedTicket?.customer_email}</p>
+                            </div>
+                            {selectedTicket && (
+                                <button
+                                    type="button"
+                                    onClick={toggleStatus}
+                                    className="px-3 py-1.5 text-xs font-medium rounded-lg border border-slate-600 text-slate-300 hover:bg-slate-700 transition-colors"
+                                >
+                                    {selectedTicket.status === 'open' ? 'Close ticket' : 'Reopen ticket'}
+                                </button>
+                            )}
+                        </div>
                         {/* Messages */}
-                        <div className="flex-1 overflow-y-auto p-6 space-y-4">
+                        <div className="flex-1 overflow-y-auto p-6 space-y-4" role="log" aria-label="Chat messages">
                             {messages.map((msg) => {
                                 const isMe = msg.is_admin_reply; // Admin is viewing
                                 return (
@@ -157,6 +208,8 @@ export default function AdminChatInterface() {
                                     value={input}
                                     onChange={(e) => setInput(e.target.value)}
                                     placeholder="Type your reply..."
+                                    aria-label="Reply"
+                                    maxLength={2000}
                                     className="flex-1 px-4 py-3 bg-slate-800/50 border border-slate-700/50 text-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500/50 transition-all placeholder:text-slate-500"
                                 />
                                 <button
