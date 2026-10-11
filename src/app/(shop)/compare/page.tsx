@@ -1,5 +1,6 @@
 'use client';
 
+import { useCurrency } from '@/context/CurrencyContext';
 import { useCompare } from '@/context/CompareContext';
 import { getProductsByIds } from '@/actions/products';
 import { useEffect, useState } from 'react';
@@ -31,6 +32,7 @@ export default function ComparePage() {
     const [products, setProducts] = useState<CompareProduct[]>([]);
     const [loading, setLoading] = useState(true);
     const { addItem } = useCart();
+    const { formatPrice } = useCurrency();
 
     useEffect(() => {
         const fetchDetails = async () => {
@@ -130,7 +132,7 @@ export default function ComparePage() {
                                             {product.name}
                                         </Link>
                                         <p className="text-xl font-medium text-foreground mb-4">
-                                            PKR {product.price.toLocaleString()}
+                                            {formatPrice(product.price)}
                                         </p>
                                         <button
                                             onClick={() => handleAddToCart(product)}

@@ -79,6 +79,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                         first_name: firstName,
                         last_name: lastName,
                     },
+                    // Where the confirmation link lands (via /auth/confirm).
+                    emailRedirectTo: `${window.location.origin}/account`,
                 },
             });
 

@@ -1,5 +1,6 @@
 'use client';
 
+import { useCurrency } from '@/context/CurrencyContext';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -8,6 +9,7 @@ import { getProductsByIds } from '@/actions/products';
 type RecentProduct = Awaited<ReturnType<typeof getProductsByIds>>[number];
 
 export default function RecentlyViewed() {
+    const { formatPrice } = useCurrency();
     const [products, setProducts] = useState<RecentProduct[]>([]);
     const [isLoading, setIsLoading] = useState(true);
 
@@ -72,7 +74,7 @@ export default function RecentlyViewed() {
                                 {product.name}
                             </h3>
                             <p className="text-sm text-muted-foreground mt-1">
-                                PKR {product.price.toLocaleString()}
+                                {formatPrice(product.price)}
                             </p>
                         </Link>
                     ))}

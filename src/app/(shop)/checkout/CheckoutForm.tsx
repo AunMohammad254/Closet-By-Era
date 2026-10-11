@@ -7,7 +7,8 @@ import { useAuth } from '@/context/AuthContext';
 import { createOrder } from '@/actions/orders';
 import { validateCoupon } from '@/actions/coupons';
 import { validateGiftCard } from '@/actions/gift-cards';
-import { calculateCouponDiscount, calculateShipping, STANDARD_SHIPPING_COST, FREE_SHIPPING_THRESHOLD } from '@/lib/pricing';
+import { calculateCouponDiscount, calculateShipping, STANDARD_SHIPPING_COST, FREE_SHIPPING_THRESHOLD, EXPRESS_SHIPPING_SURCHARGE } from '@/lib/pricing';
+import { formatPKR, useCurrency } from '@/context/CurrencyContext';
 import { PAYMENT_METHOD_LABELS, type CheckoutPaymentMethod, type CheckoutPaymentOptions } from '@/lib/payments';
 import PaymentInstructions from './PaymentInstructions';
 
@@ -19,6 +20,7 @@ type AppliedCode =
 
 const PAYMENT_METHOD_HINTS: Record<CheckoutPaymentMethod, string> = {
     cod: 'Pay when you receive your order',
+    card: 'Visa, Mastercard and more, on Stripe’s secure page',
     bank_transfer: 'Transfer to our bank account',
     jazzcash: 'Pay via JazzCash mobile wallet',
     easypaisa: 'Pay via EasyPaisa mobile wallet',
@@ -33,6 +35,7 @@ interface PlacedOrder {
 export default function CheckoutForm({ paymentOptions }: { paymentOptions: CheckoutPaymentOptions }) {
     const { items, subtotal, clearCart } = useCart();
     const { user } = useAuth();
+    const { currency, formatPrice } = useCurrency();
 
     const [step, setStep] = useState<CheckoutStep>('information');
     const [isProcessing, setIsProcessing] = useState(false);
@@ -139,7 +142,7 @@ export default function CheckoutForm({ paymentOptions }: { paymentOptions: Check
             const giftCardResult = await validateGiftCard(code);
             if (giftCardResult.valid && giftCardResult.balance) {
                 setAppliedCode({ kind: 'gift_card', code, balance: giftCardResult.balance });
-                setCouponMessage({ type: 'success', text: `Gift Card applied! Balance: PKR ${giftCardResult.balance.toLocaleString()}` });
+                setCouponMessage({ type: 'success', text: `Gift Card applied! Balance: ${formatPrice(giftCardResult.balance)}` });
                 return;
             }
 
@@ -156,6 +159,7 @@ export default function CheckoutForm({ paymentOptions }: { paymentOptions: Check
 
         setIsProcessing(true);
         setOrderError(null);
+        let leavingForPayment = false;
 
         try {
             const result = await createOrder({
@@ -186,6 +190,13 @@ export default function CheckoutForm({ paymentOptions }: { paymentOptions: Check
                 return;
             }
 
+            // Card: pay on Stripe; the cart is cleared once the payment succeeds.
+            if (result.data.paymentUrl) {
+                leavingForPayment = true; // keep the button disabled while the page changes
+                window.location.assign(result.data.paymentUrl);
+                return;
+            }
+
             // Clear cart and show success
             clearCart();
             setPlacedOrder({
@@ -197,7 +208,7 @@ export default function CheckoutForm({ paymentOptions }: { paymentOptions: Check
             console.error('Order processing error:', error);
             setOrderError('There was an error processing your order. Please try again.');
         } finally {
-            setIsProcessing(false);
+            if (!leavingForPayment) setIsProcessing(false);
         }
     };
 
@@ -464,7 +475,7 @@ export default function CheckoutForm({ paymentOptions }: { paymentOptions: Check
                                                 <p className="text-sm text-muted-foreground">3-5 business days</p>
                                             </div>
                                             <span className="font-medium text-foreground">
-                                                {shipping === 0 ? 'Free' : `PKR ${shipping}`}
+                                                {shipping === 0 ? 'Free' : formatPrice(shipping)}
                                             </span>
                                         </label>
 
@@ -488,7 +499,7 @@ export default function CheckoutForm({ paymentOptions }: { paymentOptions: Check
                                                 <p className="font-medium text-foreground">Express Shipping</p>
                                                 <p className="text-sm text-muted-foreground">1-2 business days</p>
                                             </div>
-                                            <span className="font-medium text-foreground">PKR 300</span>
+                                            <span className="font-medium text-foreground">+{formatPrice(EXPRESS_SHIPPING_SURCHARGE)}</span>
                                         </label>
                                     </div>
 
@@ -542,7 +553,17 @@ export default function CheckoutForm({ paymentOptions }: { paymentOptions: Check
                                                                 <p className="text-sm text-muted-foreground">{PAYMENT_METHOD_HINTS[method]}</p>
                                                             </div>
                                                         </label>
-                                                        {selected && method !== 'cod' && (
+                                                        {selected && method === 'card' && (
+                                                            <div className="mt-2 p-4 bg-muted/50 rounded-xl border border-border text-sm text-muted-foreground space-y-2">
+                                                                <p>After you place the order you will be taken to Stripe to pay. Your card details never touch our site.</p>
+                                                                {paymentOptions.cardTestMode && (
+                                                                    <p className="text-amber-600 dark:text-amber-400">
+                                                                        Test mode: no real money is taken. Pay with card <span className="font-mono">4242 4242 4242 4242</span>, any future expiry date and any CVC.
+                                                                    </p>
+                                                                )}
+                                                            </div>
+                                                        )}
+                                                        {selected && method !== 'cod' && method !== 'card' && (
                                                             <PaymentInstructions
                                                                 className="mt-2"
                                                                 details={paymentOptions.details[method] ?? []}
@@ -609,7 +630,7 @@ export default function CheckoutForm({ paymentOptions }: { paymentOptions: Check
                                                 Processing...
                                             </>
                                         ) : (
-                                            `Place Order — PKR ${total.toLocaleString()} `
+                                            `${formData.paymentMethod === 'card' && total > 0 ? 'Pay with card' : 'Place Order'} — ${formatPKR(total)}`
                                         )}
                                     </button>
                                 )}
@@ -641,7 +662,7 @@ export default function CheckoutForm({ paymentOptions }: { paymentOptions: Check
                                             <div className="flex-1 min-w-0">
                                                 <p className="text-sm font-medium text-foreground truncate">{item.name}</p>
                                                 <p className="text-xs text-muted-foreground">{item.size} / {item.color}</p>
-                                                <p className="text-sm font-medium text-foreground mt-1">PKR {(item.price * item.quantity).toLocaleString()}</p>
+                                                <p className="text-sm font-medium text-foreground mt-1">{formatPrice(item.price * item.quantity)}</p>
                                             </div>
                                         </div>
                                     ))}
@@ -651,12 +672,12 @@ export default function CheckoutForm({ paymentOptions }: { paymentOptions: Check
                                 <div className="border-t border-border pt-4 space-y-2 text-sm">
                                     <div className="flex justify-between">
                                         <span className="text-muted-foreground">Subtotal</span>
-                                        <span className="font-medium text-foreground">PKR {subtotal.toLocaleString()}</span>
+                                        <span className="font-medium text-foreground">{formatPrice(subtotal)}</span>
                                     </div>
                                     <div className="flex justify-between">
                                         <span className="text-muted-foreground">Shipping</span>
                                         <span className="font-medium text-foreground">
-                                            {shippingCost === 0 ? 'Free' : `PKR ${shippingCost.toLocaleString()}`}
+                                            {shippingCost === 0 ? 'Free' : formatPrice(shippingCost)}
                                         </span>
                                     </div>
 
@@ -664,7 +685,7 @@ export default function CheckoutForm({ paymentOptions }: { paymentOptions: Check
                                     {discount > 0 && (
                                         <div className="flex justify-between text-green-600 dark:text-green-400">
                                             <span className="font-medium">Discount</span>
-                                            <span className="font-medium">- PKR {discount.toLocaleString()}</span>
+                                            <span className="font-medium">- {formatPrice(discount)}</span>
                                         </div>
                                     )}
 
@@ -672,14 +693,19 @@ export default function CheckoutForm({ paymentOptions }: { paymentOptions: Check
                                     {giftCard && potentialGiftCardUsage > 0 && (
                                         <div className="flex justify-between text-emerald-600 dark:text-emerald-400">
                                             <span className="font-medium">Gift Card ({giftCard.code})</span>
-                                            <span className="font-medium">- PKR {potentialGiftCardUsage.toLocaleString()}</span>
+                                            <span className="font-medium">- {formatPrice(potentialGiftCardUsage)}</span>
                                         </div>
                                     )}
 
                                     <div className="flex justify-between pt-2 border-t border-border">
                                         <span className="font-bold text-foreground">Total to Pay</span>
-                                        <span className="text-lg font-bold text-foreground">PKR {total.toLocaleString()}</span>
+                                        <span className="text-lg font-bold text-foreground">{formatPrice(total)}</span>
                                     </div>
+                                    {currency !== 'PKR' && (
+                                        <p className="text-xs text-muted-foreground text-right">
+                                            Approximate. You will be charged {formatPKR(total)}.
+                                        </p>
+                                    )}
 
                                     {/* Coupon Input */}
                                     <div className="pt-4 border-t border-border mt-4">

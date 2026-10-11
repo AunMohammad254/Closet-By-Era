@@ -7,6 +7,8 @@ import { ActionResult } from '@/types/shared';
 import { getAdminContext, FORBIDDEN } from '@/lib/auth';
 import { normalizePaymentSettings, type PaymentSettings } from '@/lib/payments';
 import type { Json } from '@/types/supabase';
+import { getStripeMode, type StripeMode } from '@/lib/stripe';
+import { describeEmailProviders, getSender, type EmailProviderId } from '@/lib/email/transport';
 
 // Interface matching the store_settings table
 export interface StoreSettings {
@@ -110,4 +112,28 @@ export async function updateStoreSettings(data: Partial<StoreSettings>): Promise
         logger.error('Error updating settings', error);
         return { success: false, error: (error as { message?: string })?.message ?? 'Failed to update settings' };
     }
+}
+
+export interface IntegrationStatus {
+    stripe: StripeMode;
+    stripeWebhook: boolean;
+    emailProviders: { id: EmailProviderId; configured: boolean }[];
+    sender: string;
+    authEmailHook: boolean;
+}
+
+/** Which payment/email integrations have their server keys set (admin only). */
+export async function getIntegrationStatus(): Promise<ActionResult<IntegrationStatus>> {
+    if (!(await getAdminContext())) return { success: false, error: FORBIDDEN };
+    const sender = getSender();
+    return {
+        success: true,
+        data: {
+            stripe: getStripeMode(),
+            stripeWebhook: !!process.env.STRIPE_WEBHOOK_SECRET,
+            emailProviders: describeEmailProviders(),
+            sender: `${sender.name} <${sender.address}>`,
+            authEmailHook: !!process.env.SEND_EMAIL_HOOK_SECRET,
+        },
+    };
 }

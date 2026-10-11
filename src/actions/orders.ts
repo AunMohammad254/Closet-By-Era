@@ -10,7 +10,7 @@ import type { OrderStatus, PaymentStatus } from '@/types/database';
 import { logger } from '@/lib/logger';
 import { checkRateLimit, RateLimits } from '@/lib/rate-limit';
 import { UpdateOrderStatusSchema, UpdatePaymentStatusSchema, OrderStatusSchema, PaymentStatusSchema } from '@/lib/validations';
-import { sendOrderConfirmationEmail, sendOrderStatusEmail, formatOrderForEmail } from '@/lib/nodemailer';
+import { sendOrderConfirmationEmail, sendOrderStatusEmail, formatOrderForEmail } from '@/lib/email/orders';
 import { getAdminContext, getSessionUser, FORBIDDEN } from '@/lib/auth';
 import { getClientIp } from '@/lib/request';
 import {
@@ -21,6 +21,9 @@ import {
 } from '@/lib/pricing';
 import { CHECKOUT_PAYMENT_METHODS, getPaymentDetails, isPaymentMethodAvailable } from '@/lib/payments';
 import { loadPaymentSettings } from '@/lib/store-settings';
+import { isCardPaymentReady } from '@/lib/stripe';
+import { createCardCheckout, expireCheckoutSession } from '@/lib/card-payments';
+import { getRequestOrigin } from '@/lib/request';
 
 // ---------------------------------------------------------------------------
 // Checkout
@@ -58,6 +61,8 @@ export interface CreateOrderResult {
     shippingCost: number;
     discount: number;
     total: number;
+    /** Card orders: send the customer here (Stripe Checkout) to pay. */
+    paymentUrl?: string;
 }
 
 function stockError(name: string, available: number): string {
@@ -173,9 +178,11 @@ export async function createOrder(input: CheckoutInput): Promise<ActionResult<Cr
 
         // Only methods the store has enabled and configured (Admin > Settings).
         const { payment: paymentSettings } = await loadPaymentSettings();
-        if (paymentStatus !== 'paid' && !isPaymentMethodAvailable(paymentSettings, data.paymentMethod)) {
+        if (paymentStatus !== 'paid'
+            && !isPaymentMethodAvailable(paymentSettings, data.paymentMethod, { cardReady: isCardPaymentReady() })) {
             return { success: false, error: 'That payment method is not available. Please choose another.' };
         }
+        const payByCard = data.paymentMethod === 'card' && paymentStatus !== 'paid';
 
         // 3. Resolve the customer from the session, never from the client.
         let customerId: string | null = null;
@@ -256,7 +263,33 @@ export async function createOrder(input: CheckoutInput): Promise<ActionResult<Cr
             throw reserveError;
         }
 
-        // 6. Consume the coupon / gift card.
+        // 6. Card: open a Stripe Checkout session before any discount is
+        // consumed, so a Stripe failure can still delete the order cleanly.
+        let cardCheckout: { url: string; sessionId: string } | null = null;
+        if (payByCard) {
+            try {
+                cardCheckout = await createCardCheckout({
+                    orderId: order.id,
+                    orderNumber,
+                    total,
+                    email: data.email,
+                    summary: lines.map(l => `${l.quantity} × ${l.product.name}`).join(', '),
+                    couponId: coupon?.id ?? null,
+                    origin: await getRequestOrigin(),
+                });
+            } catch (error) {
+                await admin.from('orders').delete().eq('id', order.id);
+                logger.error('Could not start card payment', error, { orderId: order.id });
+                return { success: false, error: 'Card payment is unavailable right now. Please choose another payment method.' };
+            }
+        }
+
+        const abandon = async () => {
+            if (cardCheckout) await expireCheckoutSession(cardCheckout.sessionId);
+            await admin.from('orders').delete().eq('id', order.id);
+        };
+
+        // 7. Consume the coupon / gift card.
         if (giftCard) {
             const { data: redeemed, error: redeemError } = await admin.rpc('redeem_gift_card_atomic', {
                 p_code: giftCard.code,
@@ -266,7 +299,7 @@ export async function createOrder(input: CheckoutInput): Promise<ActionResult<Cr
             const result = redeemed as { success?: boolean; amount_redeemed?: number } | null;
 
             if (redeemError || !result?.success) {
-                await admin.from('orders').delete().eq('id', order.id);
+                await abandon();
                 return { success: false, error: 'Gift card could not be applied. Please try again.' };
             }
         }
@@ -274,17 +307,28 @@ export async function createOrder(input: CheckoutInput): Promise<ActionResult<Cr
         if (coupon) {
             const claimed = await claimCouponUse(admin, coupon.id);
             if (!claimed) {
-                await admin.from('orders').delete().eq('id', order.id);
+                await abandon();
                 return { success: false, error: 'Coupon usage limit reached' };
             }
         }
 
-        // 7. Loyalty points (1 point per PKR 100 actually paid).
+        // 8. Loyalty points (1 point per PKR 100 actually paid).
         if (session && customerId) {
             await awardLoyaltyPointsForOrder(admin, session.user.id, customerId, total, orderNumber);
         }
 
-        // 8. Confirmation email after the response is sent.
+        revalidatePath('/admin/orders');
+        revalidatePath('/account');
+
+        // Card orders are confirmed by email once Stripe reports the payment.
+        if (cardCheckout) {
+            return {
+                success: true,
+                data: { orderId: order.id, orderNumber, subtotal, shippingCost, discount, total, paymentUrl: cardCheckout.url },
+            };
+        }
+
+        // 9. Confirmation email after the response is sent.
         after(async () => {
             const result = await sendOrderConfirmationEmail(formatOrderForEmail(
                 { order_number: orderNumber, subtotal, shipping_cost: shippingCost, discount, total },
@@ -301,12 +345,10 @@ export async function createOrder(input: CheckoutInput): Promise<ActionResult<Cr
                 shippingAddress,
                 paymentStatus === 'paid' ? 'gift_card' : data.paymentMethod,
                 paymentStatus === 'paid' ? [] : getPaymentDetails(paymentSettings, data.paymentMethod),
+                paymentStatus === 'paid',
             ));
             if (!result.success) logger.warn('Order confirmation email failed', { orderId: order.id });
         });
-
-        revalidatePath('/admin/orders');
-        revalidatePath('/account');
 
         return {
             success: true,

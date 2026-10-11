@@ -3,6 +3,7 @@
 import { getAdminContext, getSessionUser, FORBIDDEN } from '@/lib/auth';
 import { revalidatePath } from 'next/cache';
 import { ActionResult } from '@/types/shared';
+import type { TablesUpdate } from '@/types/supabase';
 
 // Types
 interface Return {
@@ -86,14 +87,11 @@ export async function updateReturnStatus(
     const { supabase } = ctx;
 
     try {
-        const updateData: Record<string, unknown> = {
+        const updateData: TablesUpdate<'returns'> = {
             status,
-            updated_at: new Date().toISOString()
+            updated_at: new Date().toISOString(),
+            ...(adminNotes ? { admin_notes: adminNotes } : {}),
         };
-
-        if (adminNotes) {
-            updateData.admin_notes = adminNotes;
-        }
 
         const { error } = await supabase
             .from('returns')

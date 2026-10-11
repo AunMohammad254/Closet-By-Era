@@ -1,10 +1,12 @@
 'use client';
 
+import { formatPKR, useCurrency } from '@/context/CurrencyContext';
 import Link from 'next/link';
 import { useCart } from '@/context/CartContext';
 
 export default function CartPage() {
     const { items, removeItem, updateQuantity, subtotal, itemCount, clearCart } = useCart();
+    const { currency, formatPrice } = useCurrency();
 
     const shipping = subtotal >= 5000 ? 0 : 500;
     const total = subtotal + shipping;
@@ -113,7 +115,7 @@ export default function CartPage() {
 
                                                 {/* Price */}
                                                 <span className="font-semibold text-foreground">
-                                                    PKR {(item.price * item.quantity).toLocaleString()}
+                                                    {formatPrice(item.price * item.quantity)}
                                                 </span>
                                             </div>
                                         </div>
@@ -153,7 +155,7 @@ export default function CartPage() {
                                 <div className="space-y-3 text-sm">
                                     <div className="flex justify-between">
                                         <span className="text-muted-foreground">Subtotal</span>
-                                        <span className="font-medium text-foreground">PKR {subtotal.toLocaleString()}</span>
+                                        <span className="font-medium text-foreground">{formatPrice(subtotal)}</span>
                                     </div>
                                     <div className="flex justify-between">
                                         <span className="text-muted-foreground">Shipping</span>
@@ -161,20 +163,25 @@ export default function CartPage() {
                                             {shipping === 0 ? (
                                                 <span className="text-emerald-600">Free</span>
                                             ) : (
-                                                `PKR ${shipping.toLocaleString()}`
+                                                formatPrice(shipping)
                                             )}
                                         </span>
                                     </div>
                                     {subtotal < 5000 && (
                                         <p className="text-xs text-muted-foreground">
-                                            Add PKR {(5000 - subtotal).toLocaleString()} more for free shipping
+                                            Add {formatPrice(5000 - subtotal)} more for free shipping
                                         </p>
                                     )}
                                     <div className="pt-3 border-t border-border">
                                         <div className="flex justify-between">
                                             <span className="font-medium text-foreground">Total</span>
-                                            <span className="text-lg font-bold text-foreground">PKR {total.toLocaleString()}</span>
+                                            <span className="text-lg font-bold text-foreground">{formatPrice(total)}</span>
                                         </div>
+                                        {currency !== 'PKR' && (
+                                            <p className="mt-1 text-xs text-muted-foreground text-right">
+                                                Approximate. Orders are charged in PKR ({formatPKR(total)}).
+                                            </p>
+                                        )}
                                         <div className="mt-2 text-right">
                                             <span className="text-xs text-rose-600 font-medium">
                                                 You will earn {Math.floor(total / 100)} loyalty points
