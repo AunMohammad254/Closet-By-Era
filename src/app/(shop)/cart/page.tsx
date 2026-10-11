@@ -1,15 +1,51 @@
 'use client';
 
+import { useState } from 'react';
 import { formatPKR, useCurrency } from '@/context/CurrencyContext';
 import Link from 'next/link';
 import { useCart } from '@/context/CartContext';
+import { validateCoupon } from '@/actions/coupons';
+import { validateGiftCard } from '@/actions/gift-cards';
+import { FREE_SHIPPING_THRESHOLD, STANDARD_SHIPPING_COST } from '@/lib/pricing';
+import { saveCheckoutCode } from '@/lib/checkout-code';
 
 export default function CartPage() {
     const { items, removeItem, updateQuantity, subtotal, itemCount, clearCart } = useCart();
     const { currency, formatPrice } = useCurrency();
+    const [code, setCode] = useState('');
+    const [codeMessage, setCodeMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+    const [checkingCode, setCheckingCode] = useState(false);
 
-    const shipping = subtotal >= 5000 ? 0 : 500;
+    const shipping = subtotal >= FREE_SHIPPING_THRESHOLD ? 0 : STANDARD_SHIPPING_COST;
     const total = subtotal + shipping;
+
+    // The discount itself is applied (and re-checked) at checkout; this only
+    // validates the code and remembers it for the checkout page.
+    const handleApplyCode = async () => {
+        const value = code.trim().toUpperCase();
+        if (!value) return;
+        setCheckingCode(true);
+        setCodeMessage(null);
+        try {
+            const coupon = await validateCoupon(value, subtotal);
+            if (coupon.success) {
+                saveCheckoutCode(value);
+                setCodeMessage({ type: 'success', text: `Code ${value} will be applied at checkout.` });
+                return;
+            }
+            const giftCard = await validateGiftCard(value);
+            if (giftCard.valid) {
+                saveCheckoutCode(value);
+                setCodeMessage({ type: 'success', text: `Gift card ${value} will be applied at checkout.` });
+                return;
+            }
+            setCodeMessage({ type: 'error', text: coupon.error || giftCard.message || 'Invalid code' });
+        } catch {
+            setCodeMessage({ type: 'error', text: 'Could not check that code. Please try again.' });
+        } finally {
+            setCheckingCode(false);
+        }
+    };
 
     if (items.length === 0) {
         return (
@@ -83,6 +119,7 @@ export default function CartPage() {
                                                 </div>
                                                 <button
                                                     onClick={() => removeItem(item.id)}
+                                                    aria-label={`Remove ${item.name}`}
                                                     className="p-2 text-muted-foreground hover:text-rose-600 transition-colors"
                                                 >
                                                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -96,15 +133,17 @@ export default function CartPage() {
                                                 <div className="flex items-center border border-border rounded-lg bg-background">
                                                     <button
                                                         onClick={() => updateQuantity(item.id, item.quantity - 1)}
+                                                        aria-label={`Decrease quantity of ${item.name}`}
                                                         className="px-3 py-1.5 text-muted-foreground hover:text-foreground transition-colors"
                                                     >
                                                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
                                                         </svg>
                                                     </button>
-                                                    <span className="px-3 py-1.5 text-sm font-medium text-foreground">{item.quantity}</span>
+                                                    <span className="px-3 py-1.5 text-sm font-medium text-foreground" aria-label={`Quantity of ${item.name}`}>{item.quantity}</span>
                                                     <button
                                                         onClick={() => updateQuantity(item.id, item.quantity + 1)}
+                                                        aria-label={`Increase quantity of ${item.name}`}
                                                         className="px-3 py-1.5 text-muted-foreground hover:text-foreground transition-colors"
                                                     >
                                                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -138,18 +177,33 @@ export default function CartPage() {
                                 <h2 className="text-lg font-bold text-foreground mb-6">Order Summary</h2>
 
                                 {/* Coupon Code */}
-                                <div className="mb-6">
+                                <form
+                                    className="mb-6"
+                                    onSubmit={(e) => { e.preventDefault(); handleApplyCode(); }}
+                                >
                                     <div className="flex gap-2">
                                         <input
                                             type="text"
-                                            placeholder="Coupon code"
-                                            className="flex-1 px-4 py-3 border border-border bg-background rounded-lg text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-rose-500 focus:border-transparent"
+                                            value={code}
+                                            onChange={(e) => setCode(e.target.value)}
+                                            placeholder="Coupon or gift card"
+                                            aria-label="Coupon or gift card code"
+                                            className="flex-1 min-w-0 px-4 py-3 border border-border bg-background rounded-lg text-sm text-foreground uppercase focus:outline-none focus:ring-2 focus:ring-rose-500 focus:border-transparent"
                                         />
-                                        <button className="px-4 py-3 bg-muted text-muted-foreground text-sm font-medium rounded-lg hover:bg-muted/80 transition-colors">
-                                            Apply
+                                        <button
+                                            type="submit"
+                                            disabled={checkingCode || !code.trim()}
+                                            className="px-4 py-3 bg-muted text-muted-foreground text-sm font-medium rounded-lg hover:bg-muted/80 transition-colors disabled:opacity-50"
+                                        >
+                                            {checkingCode ? 'Checking…' : 'Apply'}
                                         </button>
                                     </div>
-                                </div>
+                                    {codeMessage && (
+                                        <p role="status" className={`mt-2 text-xs ${codeMessage.type === 'success' ? 'text-emerald-600' : 'text-destructive'}`}>
+                                            {codeMessage.text}
+                                        </p>
+                                    )}
+                                </form>
 
                                 {/* Totals */}
                                 <div className="space-y-3 text-sm">
@@ -167,9 +221,9 @@ export default function CartPage() {
                                             )}
                                         </span>
                                     </div>
-                                    {subtotal < 5000 && (
+                                    {subtotal < FREE_SHIPPING_THRESHOLD && (
                                         <p className="text-xs text-muted-foreground">
-                                            Add {formatPrice(5000 - subtotal)} more for free shipping
+                                            Add {formatPrice(FREE_SHIPPING_THRESHOLD - subtotal)} more for free shipping
                                         </p>
                                     )}
                                     <div className="pt-3 border-t border-border">

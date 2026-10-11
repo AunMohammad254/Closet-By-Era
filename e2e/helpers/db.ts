@@ -44,7 +44,8 @@ export async function resetDatabase(): Promise<void> {
         await client.query('begin');
         await client.query(`truncate ${tables.map(t => `public."${t.tablename}"`).join(', ')} restart identity cascade`);
         await client.query('delete from auth.users');
-        await client.query("delete from storage.objects where bucket_id in ('products', 'review-images')");
+        // Uploaded test images stay in storage: Supabase forbids deleting
+        // storage rows directly, and nothing reads files that are not linked.
         await client.query(readFileSync(path.join(ROOT, 'e2e', 'supabase', 'seed.sql'), 'utf8'));
         await client.query('refresh materialized view public.mv_product_stats');
         await client.query('commit');

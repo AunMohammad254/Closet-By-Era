@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useCart } from '@/context/CartContext';
 import { useAuth } from '@/context/AuthContext';
@@ -11,6 +11,7 @@ import { calculateCouponDiscount, calculateShipping, STANDARD_SHIPPING_COST, FRE
 import { formatPKR, useCurrency } from '@/context/CurrencyContext';
 import { PAYMENT_METHOD_LABELS, type CheckoutPaymentMethod, type CheckoutPaymentOptions } from '@/lib/payments';
 import PaymentInstructions from './PaymentInstructions';
+import { takeCheckoutCode } from '@/lib/checkout-code';
 
 type CheckoutStep = 'information' | 'shipping' | 'payment';
 
@@ -120,8 +121,8 @@ export default function CheckoutForm({ paymentOptions }: { paymentOptions: Check
         else if (step === 'shipping') setStep('information');
     };
 
-    const handleApplyCoupon = async () => {
-        const code = couponCode.trim();
+    const handleApplyCoupon = async (codeToApply?: string) => {
+        const code = (codeToApply ?? couponCode).trim().toUpperCase();
         if (!code) return;
         setIsValidatingCoupon(true);
         setCouponMessage(null);
@@ -153,6 +154,19 @@ export default function CheckoutForm({ paymentOptions }: { paymentOptions: Check
             setIsValidatingCoupon(false);
         }
     };
+
+    // A code entered in the cart is applied (and validated again) once the
+    // cart has loaded, so minimum-order rules see the real subtotal.
+    const cartCodeChecked = useRef(false);
+    useEffect(() => {
+        if (cartCodeChecked.current || subtotal <= 0) return;
+        cartCodeChecked.current = true;
+        const saved = takeCheckoutCode();
+        if (!saved) return;
+        setCouponCode(saved);
+        handleApplyCoupon(saved);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [subtotal]);
 
     const handlePlaceOrder = async () => {
         if (!validateStep('payment')) return;
@@ -719,7 +733,7 @@ export default function CheckoutForm({ paymentOptions }: { paymentOptions: Check
                                                 className="flex-1 px-4 py-2.5 bg-background/50 border border-white/10 rounded-xl text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary uppercase transition-all duration-200 placeholder:text-muted-foreground/50"
                                             />
                                             <button
-                                                onClick={handleApplyCoupon}
+                                                onClick={() => handleApplyCoupon()}
                                                 disabled={isValidatingCoupon || !couponCode}
                                                 className="px-6 py-2.5 bg-primary/10 hover:bg-primary/20 text-primary border border-primary/20 text-sm font-medium rounded-xl transition-all duration-200 disabled:opacity-50"
                                             >
