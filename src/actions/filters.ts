@@ -1,194 +1,165 @@
 'use server';
 
-import { createClient } from '@/lib/supabase/server';
-import type { SupabaseClient } from '@supabase/supabase-js';
+import { z } from 'zod';
+import { getAdminContext, FORBIDDEN } from '@/lib/auth';
+import { logger } from '@/lib/logger';
 import { ActionResult } from '@/types/shared';
+import type { Tables } from '@/types/supabase';
 
-// filter_presets is not in the generated Database types, so query it untyped.
-const untyped = (client: Awaited<ReturnType<typeof createClient>>) => client as unknown as SupabaseClient;
+// Saved filter presets live in admin_saved_filters, one set per staff member
+// (admin_id = customers.id); `page` is the admin list they belong to.
+
+export type FilterEntity = 'orders' | 'products' | 'customers';
+export type FilterValues = Record<string, string>;
 
 export interface FilterPreset {
     id: string;
     name: string;
-    entity_type: 'orders' | 'products' | 'customers';
-    filters: Record<string, unknown>;
+    entity_type: FilterEntity;
+    filters: FilterValues;
     is_default: boolean;
-    created_by: string;
     created_at: string;
 }
 
-/**
- * Get filter presets for an entity type
- */
-export async function getFilterPresets(entityType: 'orders' | 'products' | 'customers'): Promise<ActionResult<FilterPreset[]>> {
-    const supabase = await createClient();
-    const db = untyped(supabase);
+const EntitySchema = z.enum(['orders', 'products', 'customers']);
+const NameSchema = z.string().trim().min(1).max(60);
+const FiltersSchema = z
+    .record(z.string().max(50), z.string().max(200))
+    .refine(filters => Object.keys(filters).length <= 20);
 
-    try {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) return { success: false, error: 'Unauthorized' };
-
-        const { data, error } = await db
-            .from('filter_presets')
-            .select('*')
-            .eq('entity_type', entityType)
-            .or(`created_by.eq.${user.id},is_shared.eq.true`)
-            .order('name');
-
-        if (error) {
-            console.error('Error fetching filter presets:', error);
-            return { success: false, error: 'Failed to fetch presets' };
-        }
-
-        return { success: true, data: data || [] };
-    } catch {
-        return { success: false, error: 'An unexpected error occurred' };
-    }
+function toPreset(row: Pick<Tables<'admin_saved_filters'>, 'id' | 'name' | 'page' | 'filters' | 'is_default' | 'created_at'>): FilterPreset {
+    const parsed = FiltersSchema.safeParse(row.filters);
+    return {
+        id: row.id,
+        name: row.name,
+        entity_type: row.page as FilterEntity,
+        filters: parsed.success ? parsed.data : {},
+        is_default: row.is_default,
+        created_at: row.created_at,
+    };
 }
 
-/**
- * Create a new filter preset
- */
-export async function createFilterPreset(data: {
+export async function getFilterPresets(entityType: FilterEntity): Promise<ActionResult<FilterPreset[]>> {
+    const ctx = await getAdminContext();
+    if (!ctx) return { success: false, error: FORBIDDEN };
+    if (!EntitySchema.safeParse(entityType).success) return { success: false, error: 'Invalid list' };
+
+    const { data, error } = await ctx.supabase
+        .from('admin_saved_filters')
+        .select('id, name, page, filters, is_default, created_at')
+        .eq('admin_id', ctx.customerId)
+        .eq('page', entityType)
+        .order('name');
+
+    if (error) {
+        logger.error('Error fetching filter presets', error, { action: 'getFilterPresets' });
+        return { success: false, error: 'Failed to fetch presets' };
+    }
+
+    return { success: true, data: data.map(toPreset) };
+}
+
+export async function createFilterPreset(input: {
     name: string;
-    entity_type: 'orders' | 'products' | 'customers';
-    filters: Record<string, unknown>;
-    is_shared?: boolean;
+    entity_type: FilterEntity;
+    filters: FilterValues;
 }): Promise<ActionResult<{ id: string }>> {
-    const supabase = await createClient();
-    const db = untyped(supabase);
+    const ctx = await getAdminContext();
+    if (!ctx) return { success: false, error: FORBIDDEN };
 
-    try {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) return { success: false, error: 'Unauthorized' };
+    const parsed = z.object({ name: NameSchema, entity_type: EntitySchema, filters: FiltersSchema }).safeParse(input);
+    if (!parsed.success) return { success: false, error: 'Give the preset a name (up to 60 characters)' };
 
-        // Verify admin
-        const { data: customer } = await supabase
-            .from('customers')
-            .select('role')
-            .eq('auth_id', user.id)
-            .single();
+    const { data, error } = await ctx.supabase
+        .from('admin_saved_filters')
+        .insert({
+            admin_id: ctx.customerId,
+            name: parsed.data.name,
+            page: parsed.data.entity_type,
+            filters: parsed.data.filters,
+        })
+        .select('id')
+        .single();
 
-        if (customer?.role !== 'admin' && customer?.role !== 'super_admin') {
-            return { success: false, error: 'Admin access required' };
-        }
-
-        const { data: preset, error } = await db
-            .from('filter_presets')
-            .insert({
-                name: data.name,
-                entity_type: data.entity_type,
-                filters: data.filters,
-                is_shared: data.is_shared || false,
-                created_by: user.id
-            })
-            .select('id')
-            .single();
-
-        if (error) {
-            console.error('Error creating filter preset:', error);
-            return { success: false, error: 'Failed to create preset' };
-        }
-
-        return { success: true, data: { id: preset.id } };
-    } catch {
-        return { success: false, error: 'An unexpected error occurred' };
+    if (error) {
+        logger.error('Error creating filter preset', error, { action: 'createFilterPreset' });
+        return { success: false, error: 'Failed to create preset' };
     }
+
+    return { success: true, data: { id: data.id } };
 }
 
-/**
- * Update a filter preset
- */
 export async function updateFilterPreset(
     presetId: string,
-    data: { name?: string; filters?: Record<string, unknown>; is_shared?: boolean }
+    input: { name?: string; filters?: FilterValues }
 ): Promise<ActionResult> {
-    const supabase = await createClient();
-    const db = untyped(supabase);
+    const ctx = await getAdminContext();
+    if (!ctx) return { success: false, error: FORBIDDEN };
 
-    try {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) return { success: false, error: 'Unauthorized' };
+    const parsed = z.object({ name: NameSchema.optional(), filters: FiltersSchema.optional() }).safeParse(input);
+    if (!parsed.success) return { success: false, error: 'Invalid preset' };
 
-        const { error } = await db
-            .from('filter_presets')
-            .update(data)
-            .eq('id', presetId)
-            .eq('created_by', user.id);
+    const { data, error } = await ctx.supabase
+        .from('admin_saved_filters')
+        .update(parsed.data)
+        .eq('id', presetId)
+        .eq('admin_id', ctx.customerId)
+        .select('id');
 
-        if (error) {
-            console.error('Error updating filter preset:', error);
-            return { success: false, error: 'Failed to update preset' };
-        }
-
-        return { success: true };
-    } catch {
-        return { success: false, error: 'An unexpected error occurred' };
+    if (error || !data.length) {
+        if (error) logger.error('Error updating filter preset', error, { action: 'updateFilterPreset' });
+        return { success: false, error: 'Failed to update preset' };
     }
+
+    return { success: true };
 }
 
-/**
- * Delete a filter preset
- */
 export async function deleteFilterPreset(presetId: string): Promise<ActionResult> {
-    const supabase = await createClient();
-    const db = untyped(supabase);
+    const ctx = await getAdminContext();
+    if (!ctx) return { success: false, error: FORBIDDEN };
 
-    try {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) return { success: false, error: 'Unauthorized' };
+    const { error } = await ctx.supabase
+        .from('admin_saved_filters')
+        .delete()
+        .eq('id', presetId)
+        .eq('admin_id', ctx.customerId);
 
-        const { error } = await db
-            .from('filter_presets')
-            .delete()
-            .eq('id', presetId)
-            .eq('created_by', user.id);
-
-        if (error) {
-            console.error('Error deleting filter preset:', error);
-            return { success: false, error: 'Failed to delete preset' };
-        }
-
-        return { success: true };
-    } catch {
-        return { success: false, error: 'An unexpected error occurred' };
+    if (error) {
+        logger.error('Error deleting filter preset', error, { action: 'deleteFilterPreset' });
+        return { success: false, error: 'Failed to delete preset' };
     }
+
+    return { success: true };
 }
 
-/**
- * Set a preset as default
- */
-export async function setDefaultPreset(
-    presetId: string,
-    entityType: 'orders' | 'products' | 'customers'
-): Promise<ActionResult> {
-    const supabase = await createClient();
-    const db = untyped(supabase);
+/** Makes one preset the default for that list (applied when the list opens unfiltered). */
+export async function setDefaultPreset(presetId: string, entityType: FilterEntity): Promise<ActionResult> {
+    const ctx = await getAdminContext();
+    if (!ctx) return { success: false, error: FORBIDDEN };
+    if (!EntitySchema.safeParse(entityType).success) return { success: false, error: 'Invalid list' };
 
-    try {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) return { success: false, error: 'Unauthorized' };
+    // A unique index allows one default per admin and list, so clear first.
+    const { error: clearError } = await ctx.supabase
+        .from('admin_saved_filters')
+        .update({ is_default: false })
+        .eq('admin_id', ctx.customerId)
+        .eq('page', entityType)
+        .eq('is_default', true);
 
-        // Remove default from other presets
-        await db
-            .from('filter_presets')
-            .update({ is_default: false })
-            .eq('entity_type', entityType)
-            .eq('created_by', user.id);
-
-        // Set this one as default
-        const { error } = await db
-            .from('filter_presets')
+    const { data, error } = clearError
+        ? { data: null, error: clearError }
+        : await ctx.supabase
+            .from('admin_saved_filters')
             .update({ is_default: true })
-            .eq('id', presetId);
+            .eq('id', presetId)
+            .eq('admin_id', ctx.customerId)
+            .eq('page', entityType)
+            .select('id');
 
-        if (error) {
-            console.error('Error setting default preset:', error);
-            return { success: false, error: 'Failed to set default' };
-        }
-
-        return { success: true };
-    } catch {
-        return { success: false, error: 'An unexpected error occurred' };
+    if (error || !data?.length) {
+        if (error) logger.error('Error setting default preset', error, { action: 'setDefaultPreset' });
+        return { success: false, error: 'Failed to set default' };
     }
+
+    return { success: true };
 }

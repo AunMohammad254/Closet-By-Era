@@ -3,8 +3,85 @@
 import { useState, useEffect } from 'react';
 import { Save, Loader2, Store, CreditCard, Bell, Lock, LayoutTemplate } from 'lucide-react';
 import { getStoreSettings, updateStoreSettings, StoreSettings } from '@/actions/settings';
+import {
+    isPaymentMethodAvailable,
+    normalizePaymentSettings,
+    PAYMENT_METHOD_LABELS,
+    type PaymentSettings,
+} from '@/lib/payments';
 
 type ActiveTab = 'general' | 'payment' | 'content' | 'notifications' | 'security';
+
+function PaymentMethodCard({
+    title,
+    description,
+    enabled,
+    onToggle,
+    missingDetails = false,
+    children,
+}: {
+    title: string;
+    description: string;
+    enabled: boolean;
+    onToggle: (enabled: boolean) => void;
+    missingDetails?: boolean;
+    children?: React.ReactNode;
+}) {
+    return (
+        <div className="p-4 rounded-xl bg-slate-800/30 border border-slate-700/50 space-y-4">
+            <div className="flex items-center justify-between gap-4">
+                <div className="flex items-center gap-4">
+                    <div className="w-10 h-10 rounded-lg bg-green-500/10 flex items-center justify-center text-green-400">
+                        <Store size={20} />
+                    </div>
+                    <div>
+                        <h3 className="font-medium text-slate-200">{title}</h3>
+                        <p className="text-sm text-slate-500">{description}</p>
+                    </div>
+                </div>
+                <label className="relative inline-flex items-center cursor-pointer">
+                    <input
+                        type="checkbox"
+                        className="sr-only peer"
+                        checked={enabled}
+                        onChange={(e) => onToggle(e.target.checked)}
+                        aria-label={`Offer ${title} at checkout`}
+                    />
+                    <div className="w-11 h-6 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-slate-300 after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-rose-500 peer-checked:after:bg-white"></div>
+                </label>
+            </div>
+            {enabled && children && <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">{children}</div>}
+            {missingDetails && (
+                <p className="text-xs text-amber-400">Hidden from checkout until the account details are complete.</p>
+            )}
+        </div>
+    );
+}
+
+function AccountField({
+    label,
+    value,
+    placeholder,
+    onChange,
+}: {
+    label: string;
+    value: string;
+    placeholder?: string;
+    onChange: (value: string) => void;
+}) {
+    return (
+        <label className="block">
+            <span className="block text-xs font-medium text-slate-400 mb-1">{label}</span>
+            <input
+                type="text"
+                value={value}
+                placeholder={placeholder}
+                onChange={(e) => onChange(e.target.value)}
+                className="w-full px-3 py-2 bg-slate-800/50 border border-slate-700/50 text-slate-200 rounded-lg focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500/50 outline-none transition-all text-sm"
+            />
+        </label>
+    );
+}
 
 export default function SettingsPage() {
     const [saving, setSaving] = useState(false);
@@ -18,7 +95,7 @@ export default function SettingsPage() {
         support_email: '',
         support_phone: '',
         currency: 'PKR',
-        payment_methods: { stripe: true, cod: true },
+        payment_methods: normalizePaymentSettings(null),
         content: {
             hero_title: '',
             hero_subtitle: '',
@@ -42,6 +119,16 @@ export default function SettingsPage() {
         };
         fetchSettings();
     }, []);
+
+    const payment = settings.payment_methods;
+    const updatePayment = <K extends keyof PaymentSettings>(method: K, patch: Partial<PaymentSettings[K]>) =>
+        setSettings((prev) => ({
+            ...prev,
+            payment_methods: {
+                ...prev.payment_methods,
+                [method]: { ...prev.payment_methods[method], ...patch },
+            },
+        }));
 
     const handleSave = async () => {
         setSaving(true);
@@ -165,56 +252,44 @@ export default function SettingsPage() {
                         {activeTab === 'payment' && (
                             <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-300">
                                 <div>
-                                    <h2 className="text-lg font-bold text-slate-100 mb-1">Payment Configuration</h2>
-                                    <p className="text-sm text-slate-400">Manage payment gateways and checkout options.</p>
+                                    <h2 className="text-lg font-bold text-slate-100 mb-1">Payment Methods</h2>
+                                    <p className="text-sm text-slate-400">
+                                        Choose what customers can use at checkout. Transfer methods only appear once their account details are filled in.
+                                        Card payments need a payment processor and are not available yet.
+                                    </p>
                                 </div>
                                 <div className="space-y-4">
-                                    <div className="flex items-center justify-between p-4 rounded-xl bg-slate-800/30 border border-slate-700/50">
-                                        <div className="flex items-center gap-4">
-                                            <div className="w-10 h-10 rounded-lg bg-indigo-500/10 flex items-center justify-center text-indigo-400">
-                                                <CreditCard size={20} />
-                                            </div>
-                                            <div>
-                                                <h3 className="font-medium text-slate-200">Stripe Payments</h3>
-                                                <p className="text-sm text-slate-500">Credit card processing</p>
-                                            </div>
-                                        </div>
-                                        <label className="relative inline-flex items-center cursor-pointer">
-                                            <input
-                                                type="checkbox"
-                                                className="sr-only peer"
-                                                checked={settings.payment_methods.stripe}
-                                                onChange={(e) => setSettings({
-                                                    ...settings,
-                                                    payment_methods: { ...settings.payment_methods, stripe: e.target.checked }
-                                                })}
-                                            />
-                                            <div className="w-11 h-6 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-slate-300 after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-rose-500 peer-checked:after:bg-white"></div>
-                                        </label>
-                                    </div>
-                                    <div className="flex items-center justify-between p-4 rounded-xl bg-slate-800/30 border border-slate-700/50">
-                                        <div className="flex items-center gap-4">
-                                            <div className="w-10 h-10 rounded-lg bg-green-500/10 flex items-center justify-center text-green-400">
-                                                <Store size={20} />
-                                            </div>
-                                            <div>
-                                                <h3 className="font-medium text-slate-200">Cash on Delivery</h3>
-                                                <p className="text-sm text-slate-500">Pay upon receipt</p>
-                                            </div>
-                                        </div>
-                                        <label className="relative inline-flex items-center cursor-pointer">
-                                            <input
-                                                type="checkbox"
-                                                className="sr-only peer"
-                                                checked={settings.payment_methods.cod}
-                                                onChange={(e) => setSettings({
-                                                    ...settings,
-                                                    payment_methods: { ...settings.payment_methods, cod: e.target.checked }
-                                                })}
-                                            />
-                                            <div className="w-11 h-6 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-slate-300 after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-rose-500 peer-checked:after:bg-white"></div>
-                                        </label>
-                                    </div>
+                                    <PaymentMethodCard
+                                        title="Cash on Delivery"
+                                        description="Customer pays the courier on delivery"
+                                        enabled={payment.cod.enabled}
+                                        onToggle={(enabled) => updatePayment('cod', { enabled })}
+                                    />
+                                    <PaymentMethodCard
+                                        title="Bank Transfer"
+                                        description="Customer transfers to your bank account"
+                                        enabled={payment.bank_transfer.enabled}
+                                        onToggle={(enabled) => updatePayment('bank_transfer', { enabled })}
+                                        missingDetails={payment.bank_transfer.enabled && !isPaymentMethodAvailable(payment, 'bank_transfer')}
+                                    >
+                                        <AccountField label="Bank name" value={payment.bank_transfer.bank_name} placeholder="e.g. HBL" onChange={(bank_name) => updatePayment('bank_transfer', { bank_name })} />
+                                        <AccountField label="Account title" value={payment.bank_transfer.account_title} onChange={(account_title) => updatePayment('bank_transfer', { account_title })} />
+                                        <AccountField label="Account number" value={payment.bank_transfer.account_number} onChange={(account_number) => updatePayment('bank_transfer', { account_number })} />
+                                        <AccountField label="IBAN" value={payment.bank_transfer.iban} placeholder="PK.." onChange={(iban) => updatePayment('bank_transfer', { iban })} />
+                                    </PaymentMethodCard>
+                                    {(['jazzcash', 'easypaisa'] as const).map((wallet) => (
+                                        <PaymentMethodCard
+                                            key={wallet}
+                                            title={PAYMENT_METHOD_LABELS[wallet]}
+                                            description="Customer sends money to your mobile wallet"
+                                            enabled={payment[wallet].enabled}
+                                            onToggle={(enabled) => updatePayment(wallet, { enabled })}
+                                            missingDetails={payment[wallet].enabled && !isPaymentMethodAvailable(payment, wallet)}
+                                        >
+                                            <AccountField label="Account title" value={payment[wallet].account_title} onChange={(account_title) => updatePayment(wallet, { account_title })} />
+                                            <AccountField label="Mobile number" value={payment[wallet].account_number} placeholder="03XX-XXXXXXX" onChange={(account_number) => updatePayment(wallet, { account_number })} />
+                                        </PaymentMethodCard>
+                                    ))}
                                 </div>
                             </div>
                         )}

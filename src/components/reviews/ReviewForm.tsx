@@ -91,7 +91,7 @@ export default function ReviewForm({ productId }: { productId: string }) {
             if (result.error) {
                 setMessage({ type: 'error', text: result.error });
             } else {
-                setMessage({ type: 'success', text: 'Review submitted successfully!' });
+                setMessage({ type: 'success', text: result.message || 'Thanks! Your review will appear once it has been approved.' });
                 setRating(0);
                 setComment('');
                 setImages([]);

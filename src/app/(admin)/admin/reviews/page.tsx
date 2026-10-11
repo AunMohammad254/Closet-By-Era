@@ -1,8 +1,21 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { getAllReviews, deleteReview, type AdminReview } from '@/actions/reviews';
-import { Star, Trash2, Loader2, RefreshCw, ExternalLink, MessageSquare } from 'lucide-react';
+import {
+    getAllReviews,
+    deleteReview,
+    bulkDeleteReviews,
+    setReviewsApproval,
+    type AdminReview,
+    type ReviewStatusFilter,
+} from '@/actions/reviews';
+import { Star, Trash2, Loader2, RefreshCw, ExternalLink, MessageSquare, Check, EyeOff } from 'lucide-react';
+
+const STATUS_TABS: { value: ReviewStatusFilter; label: string }[] = [
+    { value: 'pending', label: 'Pending' },
+    { value: 'approved', label: 'Published' },
+    { value: 'all', label: 'All' },
+];
 import Link from 'next/link';
 
 export default function ReviewsPage() {
@@ -11,14 +24,18 @@ export default function ReviewsPage() {
     const [loading, setLoading] = useState(true);
     const [page, setPage] = useState(1);
     const [ratingFilter, setRatingFilter] = useState<number | undefined>();
+    const [statusFilter, setStatusFilter] = useState<ReviewStatusFilter>('pending');
+    const [selected, setSelected] = useState<string[]>([]);
+    const [busy, setBusy] = useState(false);
     const pageSize = 15;
 
     // Callers set `loading` before this runs; it starts true for the initial load.
-    const loadReviews = useCallback(() => getAllReviews(page, pageSize, { rating: ratingFilter }).then(result => {
+    const loadReviews = useCallback(() => getAllReviews(page, pageSize, { rating: ratingFilter, status: statusFilter }).then(result => {
         setReviews(result.reviews);
         setTotal(result.total);
+        setSelected([]);
         setLoading(false);
-    }), [page, ratingFilter]);
+    }), [page, ratingFilter, statusFilter]);
 
     useEffect(() => {
         loadReviews();
@@ -29,11 +46,37 @@ export default function ReviewsPage() {
         return loadReviews();
     };
 
-    const changeQuery = (nextRating: number | undefined, nextPage: number) => {
-        if (nextRating !== ratingFilter || nextPage !== page) setLoading(true);
+    const changeQuery = (nextRating: number | undefined, nextPage: number, nextStatus: ReviewStatusFilter = statusFilter) => {
+        if (nextRating !== ratingFilter || nextPage !== page || nextStatus !== statusFilter) setLoading(true);
         setRatingFilter(nextRating);
         setPage(nextPage);
+        setStatusFilter(nextStatus);
     };
+
+    const runAction = async (action: () => Promise<{ success: boolean; error?: string }>) => {
+        setBusy(true);
+        try {
+            const result = await action();
+            if (!result.success) {
+                alert('Error: ' + result.error);
+                return;
+            }
+            await fetchReviews();
+        } finally {
+            setBusy(false);
+        }
+    };
+
+    const handleApproval = (ids: string[], approved: boolean) => runAction(() => setReviewsApproval(ids, approved));
+
+    const handleBulkDelete = () => {
+        if (!confirm(`Delete ${selected.length} review(s)? This cannot be undone.`)) return;
+        return runAction(() => bulkDeleteReviews(selected));
+    };
+
+    const toggleSelected = (id: string) =>
+        setSelected(prev => (prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]));
+    const allSelected = reviews.length > 0 && selected.length === reviews.length;
 
     const handleDelete = async (id: string) => {
         if (!confirm('Are you sure you want to delete this review? This action cannot be undone.')) return;
@@ -80,7 +123,23 @@ export default function ReviewsPage() {
 
             {/* Filters */}
             <div className="bg-[#1e293b] p-4 rounded-xl border border-slate-700/50 flex flex-wrap items-center gap-4">
-                <span className="text-sm text-slate-400">Filter by rating:</span>
+                <div className="flex gap-2" role="tablist" aria-label="Review status">
+                    {STATUS_TABS.map(tab => (
+                        <button
+                            key={tab.value}
+                            role="tab"
+                            aria-selected={statusFilter === tab.value}
+                            onClick={() => changeQuery(ratingFilter, 1, tab.value)}
+                            className={`px-3 py-1.5 text-sm rounded-lg transition-colors ${statusFilter === tab.value
+                                ? 'bg-slate-100 text-slate-900'
+                                : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+                                }`}
+                        >
+                            {tab.label}
+                        </button>
+                    ))}
+                </div>
+                <span className="text-sm text-slate-400">Rating:</span>
                 <div className="flex gap-2">
                     <button
                         onClick={() => changeQuery(undefined, 1)}
@@ -109,14 +168,51 @@ export default function ReviewsPage() {
                 </span>
             </div>
 
+            {selected.length > 0 && (
+                <div className="bg-[#1e293b] px-4 py-3 rounded-xl border border-slate-700/50 flex flex-wrap items-center gap-3">
+                    <span className="text-sm text-slate-300">{selected.length} selected</span>
+                    <button
+                        onClick={() => handleApproval(selected, true)}
+                        disabled={busy}
+                        className="inline-flex items-center px-3 py-1.5 text-sm rounded-lg bg-emerald-600 text-white hover:bg-emerald-500 disabled:opacity-50"
+                    >
+                        <Check className="w-4 h-4 mr-1" /> Approve
+                    </button>
+                    <button
+                        onClick={() => handleApproval(selected, false)}
+                        disabled={busy}
+                        className="inline-flex items-center px-3 py-1.5 text-sm rounded-lg bg-slate-700 text-slate-200 hover:bg-slate-600 disabled:opacity-50"
+                    >
+                        <EyeOff className="w-4 h-4 mr-1" /> Hide
+                    </button>
+                    <button
+                        onClick={handleBulkDelete}
+                        disabled={busy}
+                        className="inline-flex items-center px-3 py-1.5 text-sm rounded-lg text-rose-400 hover:bg-rose-500/10 disabled:opacity-50"
+                    >
+                        <Trash2 className="w-4 h-4 mr-1" /> Delete
+                    </button>
+                </div>
+            )}
+
             {/* Reviews Table */}
             <div className="bg-[#1e293b] rounded-xl border border-slate-700/50 overflow-hidden">
                 <table className="min-w-full divide-y divide-slate-700/50">
                     <thead className="bg-slate-800/50">
                         <tr>
+                            <th className="pl-6 py-4 w-8">
+                                <input
+                                    type="checkbox"
+                                    aria-label="Select all reviews on this page"
+                                    checked={allSelected}
+                                    onChange={() => setSelected(allSelected ? [] : reviews.map(r => r.id))}
+                                    className="rounded border-slate-600 bg-slate-800"
+                                />
+                            </th>
                             <th className="px-6 py-4 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">Product</th>
                             <th className="px-6 py-4 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">Rating</th>
                             <th className="px-6 py-4 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">Comment</th>
+                            <th className="px-6 py-4 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">Status</th>
                             <th className="px-6 py-4 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">Date</th>
                             <th className="px-6 py-4 text-right text-xs font-semibold text-slate-400 uppercase tracking-wider">Actions</th>
                         </tr>
@@ -124,14 +220,14 @@ export default function ReviewsPage() {
                     <tbody className="divide-y divide-slate-700/50">
                         {loading ? (
                             <tr>
-                                <td colSpan={5} className="px-6 py-12 text-center">
+                                <td colSpan={7} className="px-6 py-12 text-center">
                                     <Loader2 className="w-6 h-6 animate-spin mx-auto text-slate-500" />
                                     <p className="text-slate-500 mt-2">Loading reviews...</p>
                                 </td>
                             </tr>
                         ) : reviews.length === 0 ? (
                             <tr>
-                                <td colSpan={5} className="px-6 py-12 text-center">
+                                <td colSpan={7} className="px-6 py-12 text-center">
                                     <MessageSquare className="w-12 h-12 mx-auto text-slate-600 mb-3" />
                                     <p className="text-slate-500">No reviews found</p>
                                     <p className="text-slate-600 text-sm">Reviews will appear here when customers submit them</p>
@@ -140,6 +236,15 @@ export default function ReviewsPage() {
                         ) : (
                             reviews.map((review) => (
                                 <tr key={review.id} className="hover:bg-slate-800/30 transition-colors">
+                                    <td className="pl-6 py-4">
+                                        <input
+                                            type="checkbox"
+                                            aria-label="Select review"
+                                            checked={selected.includes(review.id)}
+                                            onChange={() => toggleSelected(review.id)}
+                                            className="rounded border-slate-600 bg-slate-800"
+                                        />
+                                    </td>
                                     <td className="px-6 py-4">
                                         <div className="flex items-center gap-2">
                                             <span className="text-slate-200 font-medium truncate max-w-[200px]">
@@ -164,6 +269,13 @@ export default function ReviewsPage() {
                                             {review.comment || <span className="text-slate-500 italic">No comment</span>}
                                         </p>
                                     </td>
+                                    <td className="px-6 py-4 whitespace-nowrap">
+                                        {review.is_approved ? (
+                                            <span className="px-2 py-0.5 rounded-full text-xs bg-emerald-500/10 text-emerald-400">Published</span>
+                                        ) : (
+                                            <span className="px-2 py-0.5 rounded-full text-xs bg-amber-500/10 text-amber-400">Pending</span>
+                                        )}
+                                    </td>
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-400">
                                         {new Date(review.created_at).toLocaleDateString('en-PK', {
                                             day: 'numeric',
@@ -171,7 +283,15 @@ export default function ReviewsPage() {
                                             year: 'numeric'
                                         })}
                                     </td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-right">
+                                    <td className="px-6 py-4 whitespace-nowrap text-right space-x-4">
+                                        <button
+                                            onClick={() => handleApproval([review.id], !review.is_approved)}
+                                            disabled={busy}
+                                            className={`inline-flex items-center text-sm font-medium transition-colors disabled:opacity-50 ${review.is_approved ? 'text-slate-400 hover:text-slate-200' : 'text-emerald-400 hover:text-emerald-300'}`}
+                                        >
+                                            {review.is_approved ? <EyeOff className="w-4 h-4 mr-1" /> : <Check className="w-4 h-4 mr-1" />}
+                                            {review.is_approved ? 'Hide' : 'Approve'}
+                                        </button>
                                         <button
                                             onClick={() => handleDelete(review.id)}
                                             className="inline-flex items-center text-sm text-rose-400 hover:text-rose-300 font-medium transition-colors"

@@ -112,6 +112,7 @@ export type Database = {
           created_at: string
           filters: Json
           id: string
+          is_default: boolean
           name: string
           page: string
         }
@@ -120,6 +121,7 @@ export type Database = {
           created_at?: string
           filters?: Json
           id?: string
+          is_default?: boolean
           name: string
           page: string
         }
@@ -128,6 +130,7 @@ export type Database = {
           created_at?: string
           filters?: Json
           id?: string
+          is_default?: boolean
           name?: string
           page?: string
         }
@@ -679,6 +682,7 @@ export type Database = {
           shipping_address: string
           shipping_cost: number | null
           status: Database["public"]["Enums"]["order_status"]
+          stock_reserved: boolean | null
           subtotal: number | null
           total: number | null
           total_amount: number
@@ -690,12 +694,14 @@ export type Database = {
           customer_name: string
           discount?: number | null
           id?: string
+          notes?: string | null
           order_number?: string | null
           payment_method: Database["public"]["Enums"]["payment_method"]
           payment_status?: Database["public"]["Enums"]["payment_status"]
           shipping_address: string
           shipping_cost?: number | null
           status?: Database["public"]["Enums"]["order_status"]
+          stock_reserved?: boolean | null
           subtotal?: number | null
           total?: number | null
           total_amount: number
@@ -707,12 +713,14 @@ export type Database = {
           customer_name?: string
           discount?: number | null
           id?: string
+          notes?: string | null
           order_number?: string | null
           payment_method?: Database["public"]["Enums"]["payment_method"]
           payment_status?: Database["public"]["Enums"]["payment_status"]
           shipping_address?: string
           shipping_cost?: number | null
           status?: Database["public"]["Enums"]["order_status"]
+          stock_reserved?: boolean | null
           subtotal?: number | null
           total?: number | null
           total_amount?: number
@@ -1067,6 +1075,7 @@ export type Database = {
           created_at: string
           id: string
           images: string[] | null
+          is_approved: boolean
           product_id: string
           rating: number
           user_id: string
@@ -1076,6 +1085,7 @@ export type Database = {
           created_at?: string
           id?: string
           images?: string[] | null
+          is_approved?: boolean
           product_id: string
           rating: number
           user_id: string
@@ -1085,11 +1095,20 @@ export type Database = {
           created_at?: string
           id?: string
           images?: string[] | null
+          is_approved?: boolean
           product_id?: string
           rating?: number
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "reviews_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       shipping_rates: {
         Row: {
@@ -1414,6 +1433,7 @@ export type Database = {
         Returns: Json
       }
       refresh_product_stats: { Args: never; Returns: undefined }
+      reserve_order_stock: { Args: { p_order_id: string }; Returns: undefined }
       search_products: {
         Args: {
           category_ids?: string[]

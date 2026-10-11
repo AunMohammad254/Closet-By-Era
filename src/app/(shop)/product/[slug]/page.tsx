@@ -103,7 +103,8 @@ function mapDBToProduct(data: Omit<Tables<'products'>, 'category'> & { category?
         images: data.images?.length ? data.images : (data.image_url ? [data.image_url] : ['/products/placeholder.png']),
         sizes: data.sizes || [],
         colors: (data.colors || []).map((c: string) => ({ name: c, hex: getColorHex(c) })),
-        inStock: data.in_stock ?? false,
+        // Checkout enforces products.stock, so both must allow the sale.
+        inStock: (data.in_stock ?? false) && data.stock > 0,
         isNew: data.is_new ?? false,
         isSale: data.is_sale ?? false,
         features: [],
