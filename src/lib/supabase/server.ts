@@ -24,6 +24,26 @@ function getSupabaseConfig() {
     return { supabaseUrl, supabaseAnonKey };
 }
 
+export function createAdminClient() {
+    const { supabaseUrl } = getSupabaseConfig();
+    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+    if (!serviceRoleKey) {
+        throw new Error('Missing SUPABASE_SERVICE_ROLE_KEY environment variable.');
+    }
+
+    return createServerClient<Database>(
+        supabaseUrl,
+        serviceRoleKey,
+        {
+            cookies: {
+                getAll() { return []; },
+                setAll() { },
+            },
+        }
+    );
+}
+
 export function createStaticClient() {
     const { supabaseUrl, supabaseAnonKey } = getSupabaseConfig();
     return createServerClient<Database>(
@@ -34,7 +54,7 @@ export function createStaticClient() {
                 getAll() {
                     return [];
                 },
-                setAll(cookiesToSet) {
+                setAll() {
                     // Static client, no-op
                 },
             },

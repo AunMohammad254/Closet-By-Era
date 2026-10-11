@@ -14,13 +14,13 @@ export default function Error({
     }, [error]);
 
     return (
-        <div className="flex flex-col items-center justify-center min-h-screen bg-slate-50 px-4">
+        <div className="flex flex-col items-center justify-center min-h-screen bg-background px-4">
             <div className="text-center space-y-4">
-                <h2 className="text-2xl font-bold text-slate-900">Something went wrong!</h2>
-                <p className="text-gray-600">We apologize for the inconvenience. Please try again.</p>
+                <h2 className="text-2xl font-bold text-foreground">Something went wrong!</h2>
+                <p className="text-muted-foreground">We apologize for the inconvenience. Please try again.</p>
                 <button
                     onClick={reset}
-                    className="px-4 py-2 bg-rose-600 text-white rounded-lg hover:bg-rose-700 transition-colors"
+                    className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
                 >
                     Try again
                 </button>

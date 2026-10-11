@@ -3,12 +3,10 @@
 import { useState, useEffect, useRef } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { getTickets, getMessages, sendMessage, Ticket, Message } from '@/actions/chat';
-import { useAuth } from '@/context/AuthContext';
 import { format } from 'date-fns';
 import { MessageCircle, Send } from 'lucide-react';
 
 export default function AdminChatInterface() {
-    const { user } = useAuth();
     const [tickets, setTickets] = useState<Ticket[]>([]);
     const [selectedTicketId, setSelectedTicketId] = useState<string | null>(null);
     const [messages, setMessages] = useState<Message[]>([]);

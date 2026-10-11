@@ -1,6 +1,7 @@
 'use server';
 
 import { createClient } from '@/lib/supabase/server';
+import { getAdminContext, FORBIDDEN } from '@/lib/auth';
 import { revalidatePath } from 'next/cache';
 import { ActionResult } from '@/types/shared';
 
@@ -21,7 +22,7 @@ export async function getTaxRules(): Promise<ActionResult<TaxRule[]>> {
     const supabase = await createClient();
 
     try {
-        const { data, error } = await (supabase as any)
+        const { data, error } = await supabase
             .from('tax_rules')
             .select('*')
             .order('name', { ascending: true });
@@ -31,7 +32,7 @@ export async function getTaxRules(): Promise<ActionResult<TaxRule[]>> {
             return { success: false, error: 'Failed to fetch tax rules' };
         }
 
-        return { success: true, data: data || [] };
+        return { success: true, data: (data || []) as TaxRule[] };
     } catch {
         return { success: false, error: 'An unexpected error occurred' };
     }
@@ -46,10 +47,12 @@ export async function createTaxRule(data: {
     rate: number;
     applies_to: 'all' | 'products' | 'shipping';
 }): Promise<ActionResult<{ id: string }>> {
-    const supabase = await createClient();
+    const ctx = await getAdminContext();
+    if (!ctx) return { success: false, error: FORBIDDEN };
+    const { supabase } = ctx;
 
     try {
-        const { data: rule, error } = await (supabase as any)
+        const { data: rule, error } = await supabase
             .from('tax_rules')
             .insert({
                 name: data.name,
@@ -76,10 +79,12 @@ export async function createTaxRule(data: {
  * Toggle tax rule active status
  */
 export async function toggleTaxRule(ruleId: string, isActive: boolean): Promise<ActionResult> {
-    const supabase = await createClient();
+    const ctx = await getAdminContext();
+    if (!ctx) return { success: false, error: FORBIDDEN };
+    const { supabase } = ctx;
 
     try {
-        const { error } = await (supabase as any)
+        const { error } = await supabase
             .from('tax_rules')
             .update({ is_active: isActive })
             .eq('id', ruleId);
@@ -100,10 +105,12 @@ export async function toggleTaxRule(ruleId: string, isActive: boolean): Promise<
  * Delete a tax rule
  */
 export async function deleteTaxRule(ruleId: string): Promise<ActionResult> {
-    const supabase = await createClient();
+    const ctx = await getAdminContext();
+    if (!ctx) return { success: false, error: FORBIDDEN };
+    const { supabase } = ctx;
 
     try {
-        const { error } = await (supabase as any)
+        const { error } = await supabase
             .from('tax_rules')
             .delete()
             .eq('id', ruleId);

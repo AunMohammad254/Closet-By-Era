@@ -1,6 +1,6 @@
 'use server';
 
-import { createClient } from '@/lib/supabase/server';
+import { getAdminContext, getSessionUser, FORBIDDEN } from '@/lib/auth';
 import { revalidatePath } from 'next/cache';
 import { ActionResult } from '@/types/shared';
 
@@ -25,14 +25,16 @@ export async function getReturns(options?: {
     limit?: number;
     offset?: number;
 }): Promise<ActionResult<{ returns: Return[]; total: number }>> {
-    const supabase = await createClient();
+    const ctx = await getAdminContext();
+    if (!ctx) return { success: false, error: FORBIDDEN };
+    const { supabase } = ctx;
 
     try {
         const limit = options?.limit ?? 20;
         const offset = options?.offset ?? 0;
 
         // Count query
-        let countQuery = (supabase as any)
+        let countQuery = supabase
             .from('returns')
             .select('*', { count: 'exact', head: true });
 
@@ -43,7 +45,7 @@ export async function getReturns(options?: {
         const { count } = await countQuery;
 
         // Data query
-        let query = (supabase as any)
+        let query = supabase
             .from('returns')
             .select(`
                 *,
@@ -64,7 +66,7 @@ export async function getReturns(options?: {
             return { success: false, error: 'Failed to fetch returns' };
         }
 
-        return { success: true, data: { returns: data || [], total: count || 0 } };
+        return { success: true, data: { returns: (data ?? []) as unknown as Return[], total: count || 0 } };
     } catch (error) {
         console.error('Error in getReturns:', error);
         return { success: false, error: 'An unexpected error occurred' };
@@ -79,7 +81,9 @@ export async function updateReturnStatus(
     status: 'approved' | 'rejected' | 'refunded',
     adminNotes?: string
 ): Promise<ActionResult> {
-    const supabase = await createClient();
+    const ctx = await getAdminContext();
+    if (!ctx) return { success: false, error: FORBIDDEN };
+    const { supabase } = ctx;
 
     try {
         const updateData: Record<string, unknown> = {
@@ -91,7 +95,7 @@ export async function updateReturnStatus(
             updateData.admin_notes = adminNotes;
         }
 
-        const { error } = await (supabase as any)
+        const { error } = await supabase
             .from('returns')
             .update(updateData)
             .eq('id', returnId);
@@ -110,24 +114,43 @@ export async function updateReturnStatus(
 }
 
 /**
- * Create a new return request (typically by customer or admin)
+ * Create a return request for one of the signed-in customer's own orders.
+ * The refund amount is decided by an admin, never by the requester.
  */
 export async function createReturn(data: {
     order_id: string;
-    customer_id: string;
     reason: string;
-    refund_amount?: number;
 }): Promise<ActionResult<{ id: string }>> {
-    const supabase = await createClient();
+    const session = await getSessionUser();
+    if (!session) return { success: false, error: 'Please sign in to request a return' };
+
+    const reason = data.reason?.trim();
+    if (!reason || reason.length > 1000) return { success: false, error: 'Please describe the reason (max 1000 characters)' };
 
     try {
-        const { data: returnData, error } = await (supabase as any)
+        const { supabase, user } = session;
+        const { data: customer } = await supabase
+            .from('customers')
+            .select('id')
+            .eq('auth_id', user.id)
+            .maybeSingle();
+        if (!customer) return { success: false, error: 'Customer profile not found' };
+
+        const { data: order } = await supabase
+            .from('orders')
+            .select('id')
+            .eq('id', data.order_id)
+            .eq('customer_id', customer.id)
+            .maybeSingle();
+        if (!order) return { success: false, error: 'Order not found' };
+
+        const { data: returnData, error } = await supabase
             .from('returns')
             .insert({
-                order_id: data.order_id,
-                customer_id: data.customer_id,
-                reason: data.reason,
-                refund_amount: data.refund_amount || 0,
+                order_id: order.id,
+                customer_id: customer.id,
+                reason,
+                refund_amount: 0,
                 status: 'pending'
             })
             .select('id')

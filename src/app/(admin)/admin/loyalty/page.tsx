@@ -40,17 +40,27 @@ export default function LoyaltyPage() {
     const [history, setHistory] = useState<LoyaltyHistory[]>([]);
     const [loadingHistory, setLoadingHistory] = useState(false);
 
-    const fetchCustomers = useCallback(async () => {
-        setLoading(true);
-        const result = await getAllCustomersWithLoyalty(page, pageSize, search || undefined);
+    // Callers set `loading` before this runs; it starts true for the initial load.
+    const loadCustomers = useCallback(() => getAllCustomersWithLoyalty(page, pageSize, search || undefined).then(result => {
         setCustomers(result.customers);
         setTotal(result.total);
         setLoading(false);
-    }, [page, search]);
+    }), [page, search]);
 
     useEffect(() => {
-        fetchCustomers();
-    }, [fetchCustomers]);
+        loadCustomers();
+    }, [loadCustomers]);
+
+    const fetchCustomers = () => {
+        setLoading(true);
+        return loadCustomers();
+    };
+
+    const changeQuery = (nextSearch: string, nextPage: number) => {
+        if (nextSearch !== search || nextPage !== page) setLoading(true);
+        setSearch(nextSearch);
+        setPage(nextPage);
+    };
 
     const handleSearch = (e: React.FormEvent) => {
         e.preventDefault();
@@ -114,7 +124,7 @@ export default function LoyaltyPage() {
                         <input
                             type="text"
                             value={search}
-                            onChange={(e) => setSearch(e.target.value)}
+                            onChange={(e) => changeQuery(e.target.value, page)}
                             placeholder="Search by name or email..."
                             className="w-full pl-10 pr-4 py-2.5 bg-slate-800/50 border border-slate-700/50 text-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500/50 transition-all placeholder:text-slate-500"
                         />
@@ -204,14 +214,14 @@ export default function LoyaltyPage() {
                     </p>
                     <div className="flex gap-2">
                         <button
-                            onClick={() => setPage(p => Math.max(1, p - 1))}
+                            onClick={() => changeQuery(search, Math.max(1, page - 1))}
                             disabled={page <= 1}
                             className="px-4 py-2 border border-slate-700/50 text-slate-300 rounded-xl hover:bg-slate-700/50 transition-colors disabled:opacity-50 disabled:pointer-events-none"
                         >
                             Previous
                         </button>
                         <button
-                            onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                            onClick={() => changeQuery(search, Math.min(totalPages, page + 1))}
                             disabled={page >= totalPages}
                             className="px-4 py-2 bg-rose-500 text-white rounded-xl hover:bg-rose-600 transition-colors disabled:opacity-50 disabled:pointer-events-none"
                         >

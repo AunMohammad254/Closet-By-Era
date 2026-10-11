@@ -1,4 +1,5 @@
 import { Metadata } from 'next';
+import { cache } from 'react';
 import { notFound } from 'next/navigation';
 import ProductView, { ProductDetails } from '@/components/ProductView';
 import { createClient } from '@/lib/supabase/server';
@@ -22,7 +23,8 @@ const getColorHex = (name: string) => {
     return colors[name] || '#cccccc';
 };
 
-async function getProduct(slug: string) {
+// cache(): generateMetadata and the page both call this; dedupe to one fetch per request.
+const getProduct = cache(async (slug: string) => {
     const supabase = await createClient();
 
     const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(slug);
@@ -85,7 +87,7 @@ async function getProduct(slug: string) {
 
     if (!data) return null;
     return mapDBToProduct(data, data.category);
-}
+});
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function mapDBToProduct(data: Omit<Tables<'products'>, 'category'> & { category?: any }, categoryData: { name: string; slug: string } | null): ProductDetails {
@@ -98,7 +100,7 @@ function mapDBToProduct(data: Omit<Tables<'products'>, 'category'> & { category?
         shortDescription: data.short_description ?? undefined,
         category: categoryData?.name || 'Uncategorized',
         categorySlug: categoryData?.slug || 'all',
-        images: data.images || (data.image_url ? [data.image_url] : ['/products/placeholder.png']),
+        images: data.images?.length ? data.images : (data.image_url ? [data.image_url] : ['/products/placeholder.png']),
         sizes: data.sizes || [],
         colors: (data.colors || []).map((c: string) => ({ name: c, hex: getColorHex(c) })),
         inStock: data.in_stock ?? false,
@@ -147,18 +149,20 @@ export default async function Page({ params }: { params: Promise<{ slug: string 
     const [relatedDataSimple, reviews] = await Promise.all([
         supabase
             .from('products')
-            .select('*')
+            .select('id, name, price, original_price, image_url, images, is_new, is_sale')
             .neq('id', product.id)
+            .eq('is_active', true)
+            .eq('in_stock', true)
             .limit(4),
         getProductReviews(product.id)
     ]);
 
-    const relatedProducts: RelatedProduct[] = (relatedDataSimple.data || []).map((p: Tables<'products'>) => ({
+    const relatedProducts: RelatedProduct[] = (relatedDataSimple.data || []).map((p) => ({
         id: p.id,
         name: p.name,
         price: p.price,
         originalPrice: p.original_price ?? undefined,
-        image: p.image_url || (p.images && p.images[0]) || '',
+        image: p.image_url || p.images?.[0] || '/products/placeholder.png',
         category: 'View Details', // Placeholder
         isNew: p.is_new ?? false,
         isSale: p.is_sale ?? false,

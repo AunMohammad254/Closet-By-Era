@@ -1,3 +1,4 @@
+import type { ComponentProps } from 'react';
 import Link from 'next/link';
 import { ChevronLeft } from 'lucide-react';
 import ProductForm from '@/components/admin/products/ProductForm';
@@ -30,7 +31,7 @@ export default async function EditProductPage({ params }: { params: Promise<{ id
                 <h1 className="text-2xl font-bold text-gray-900">Edit Product</h1>
             </div>
 
-            <ProductForm product={product as any} categories={categories as any[]} />
+            <ProductForm product={product as ComponentProps<typeof ProductForm>['product']} categories={categories} />
         </div>
     );
 }

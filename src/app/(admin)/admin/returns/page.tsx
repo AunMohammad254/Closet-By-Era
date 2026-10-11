@@ -41,24 +41,33 @@ export default function ReturnsPage() {
 
     const [processingId, setProcessingId] = useState<string | null>(null);
 
-    const fetchReturns = useCallback(async () => {
-        setLoading(true);
-        const result = await getReturns({
-            status: statusFilter !== 'all' ? statusFilter : undefined,
-            offset: (page - 1) * pageSize,
-            limit: pageSize
-        });
-
+    // Callers set `loading` before this runs; it starts true for the initial load.
+    const loadReturns = useCallback(() => getReturns({
+        status: statusFilter !== 'all' ? statusFilter : undefined,
+        offset: (page - 1) * pageSize,
+        limit: pageSize
+    }).then(result => {
         if (result.success && result.data) {
             setReturns(result.data.returns);
             setTotal(result.data.total);
         }
         setLoading(false);
-    }, [statusFilter, page]);
+    }), [statusFilter, page]);
 
     useEffect(() => {
-        fetchReturns();
-    }, [fetchReturns]);
+        loadReturns();
+    }, [loadReturns]);
+
+    const fetchReturns = () => {
+        setLoading(true);
+        return loadReturns();
+    };
+
+    const changeQuery = (nextStatus: string, nextPage: number) => {
+        if (nextStatus !== statusFilter || nextPage !== page) setLoading(true);
+        setStatusFilter(nextStatus);
+        setPage(nextPage);
+    };
 
     const handleUpdateStatus = async (returnId: string, newStatus: 'approved' | 'rejected' | 'refunded') => {
         setProcessingId(returnId);
@@ -91,7 +100,7 @@ export default function ReturnsPage() {
             <div className="bg-[#1e293b] p-4 rounded-xl border border-slate-700/50 flex flex-wrap gap-4 items-center">
                 <select
                     value={statusFilter}
-                    onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}
+                    onChange={(e) => changeQuery(e.target.value, 1)}
                     className="px-4 py-2.5 bg-slate-800/50 border border-slate-700/50 text-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-rose-500/20"
                 >
                     <option value="all">All Status</option>
@@ -214,14 +223,14 @@ export default function ReturnsPage() {
                     </p>
                     <div className="flex gap-2">
                         <button
-                            onClick={() => setPage(p => Math.max(1, p - 1))}
+                            onClick={() => changeQuery(statusFilter, Math.max(1, page - 1))}
                             disabled={page <= 1}
                             className="px-4 py-2 border border-slate-700/50 text-slate-300 rounded-xl hover:bg-slate-700/50 transition-colors disabled:opacity-50"
                         >
                             Previous
                         </button>
                         <button
-                            onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                            onClick={() => changeQuery(statusFilter, Math.min(totalPages, page + 1))}
                             disabled={page >= totalPages}
                             className="px-4 py-2 bg-rose-500 text-white rounded-xl hover:bg-rose-600 transition-colors disabled:opacity-50"
                         >

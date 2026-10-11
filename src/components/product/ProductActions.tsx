@@ -24,14 +24,14 @@ export default function ProductActions({ price, quantity, onAddToCart, product }
         <div className="mt-8 flex gap-4">
             <button
                 onClick={onAddToCart}
-                className="flex-1 py-4 bg-slate-900 text-white font-medium rounded-full hover:bg-slate-800 transition-colors"
+                className="flex-1 py-4 bg-slate-900 text-white font-medium rounded-full hover:bg-slate-800 dark:bg-white dark:text-slate-900 dark:hover:bg-gray-200 transition-colors"
             >
                 Add to Cart — {formatPrice(price * quantity)}
             </button>
             <AddToCompareButton
                 product={product}
                 iconOnly={true}
-                className="w-14 h-14 !rounded-full !bg-white !text-gray-600 !border !border-gray-200 hover:!bg-gray-50 flex-shrink-0"
+                className="w-14 h-14 !rounded-full !bg-white dark:!bg-slate-800 !text-gray-600 dark:!text-gray-300 !border !border-gray-200 dark:!border-slate-700 hover:!bg-gray-50 dark:hover:!bg-slate-700 flex-shrink-0"
             />
         </div>
     );

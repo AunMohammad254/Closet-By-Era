@@ -2,6 +2,7 @@ import { getOrders } from '@/actions/orders';
 import Link from 'next/link';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import OrdersToolbar from '@/components/admin/orders/OrdersToolbar';
+import { getOrderCustomerEmail, getOrderCustomerName } from '@/lib/order-display';
 
 export const metadata = {
     title: 'Orders | Admin Dashboard',
@@ -11,13 +12,15 @@ export const dynamic = 'force-dynamic';
 
 interface Order {
     id: string;
-    order_number: string;
+    order_number: string | null;
     created_at: string;
     status: string;
-    total: number;
-    shipping_address: any;
-    customer?: { first_name: string; last_name: string; email: string };
-    items?: any[];
+    total: number | null;
+    customer_name?: string | null;
+    customer_email?: string | null;
+    shipping_address: unknown;
+    customer?: { first_name: string | null; last_name: string | null; email?: string | null } | null;
+    items?: unknown[];
 }
 
 export default async function OrdersPage({
@@ -51,19 +54,6 @@ export default async function OrdersPage({
             hour: '2-digit',
             minute: '2-digit'
         });
-    };
-
-    const getCustomerName = (order: Order) => {
-        // @ts-expect-error - customers relation
-        if (order.customers) {
-            // @ts-expect-error - customers relation
-            return `${order.customers.first_name || ''} ${order.customers.last_name || ''}`.trim() || order.customers.email;
-        }
-        const addr = order.shipping_address;
-        if (addr && typeof addr === 'object') {
-            return `${addr.firstName || ''} ${addr.lastName || ''}`.trim();
-        }
-        return 'Guest';
     };
 
     return (
@@ -104,7 +94,7 @@ export default async function OrdersPage({
                                     </td>
                                 </tr>
                             ) : (
-                                orders.map((order: any) => (
+                                orders.map((order: Order) => (
                                     <tr key={order.id} className="hover:bg-slate-800/30 transition-colors group">
                                         <td className="px-6 py-4 font-medium text-slate-200">
                                             #{order.order_number}
@@ -112,11 +102,11 @@ export default async function OrdersPage({
                                         <td className="px-6 py-4">
                                             <div className="flex items-center gap-3">
                                                 <div className="w-8 h-8 rounded-lg bg-slate-700/50 flex items-center justify-center text-xs font-bold text-slate-400 group-hover:bg-rose-500/10 group-hover:text-rose-400 transition-all">
-                                                    {getCustomerName(order).charAt(0).toUpperCase()}
+                                                    {getOrderCustomerName(order).charAt(0).toUpperCase()}
                                                 </div>
                                                 <div>
-                                                    <div className="font-medium text-slate-200">{getCustomerName(order)}</div>
-                                                    <div className="text-xs text-slate-500">{order.email || order.shipping_address?.email || 'No email'}</div>
+                                                    <div className="font-medium text-slate-200">{getOrderCustomerName(order)}</div>
+                                                    <div className="text-xs text-slate-500">{getOrderCustomerEmail(order) || 'No email'}</div>
                                                 </div>
                                             </div>
                                         </td>

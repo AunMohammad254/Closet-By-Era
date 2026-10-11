@@ -46,7 +46,7 @@ export default function ProductImportForm() {
                     list: res.errors
                 });
             }
-        } catch (err) {
+        } catch {
             setResult({ type: 'error', message: 'An unexpected error occurred.' });
         } finally {
             setIsUploading(false);

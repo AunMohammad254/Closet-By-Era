@@ -1,7 +1,6 @@
 import dotenv from 'dotenv';
-dotenv.config({ path: '.env.local' });
+dotenv.config({ path: '.env.test.local' });
 import { defineConfig, devices } from '@playwright/test';
-import path from 'path';
 
 /**
  * Read environment variables from file.
@@ -44,16 +43,15 @@ export default defineConfig({
   /* Run your local dev server before starting the tests */
   webServer: [
     {
-      command: 'npx maildev --smtp 4000 --web 1080',
+      command: 'bunx maildev --smtp 4000 --web 1080',
       url: 'http://localhost:1080',
       reuseExistingServer: !process.env.CI,
     },
     {
-      command: 'npm run dev',
+      command: 'bun run dev',
       url: 'http://localhost:3000',
       reuseExistingServer: !process.env.CI,
       env: {
-        NEXT_PUBLIC_IS_E2E: 'true',
         SMTP_HOST: 'localhost',
         SMTP_PORT: '4000',
         SMTP_SECURE: 'false',

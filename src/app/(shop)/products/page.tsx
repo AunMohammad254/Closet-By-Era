@@ -49,7 +49,7 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
         .eq('is_active', true)
         .order('display_order');
 
-    const categories = [...(categoriesData?.map((c: { name: string; slug: string }) => c.name) || [])];
+    const categories = Array.from(new Set(categoriesData?.map((c: { name: string; slug: string }) => c.name) || []));
 
     // 2. Parse Filters from URL
     const selectedCategories = typeof params.categories === 'string' ? params.categories.split(',') : [];
@@ -96,12 +96,12 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
     }));
 
     return (
-        <main className="min-h-screen bg-white">
+        <main className="min-h-screen bg-background">
             {/* Hero Banner */}
-            <section className="pt-32 pb-12 bg-gradient-to-br from-slate-50 to-gray-100">
+            <section className="pt-32 pb-12 bg-linear-to-br from-muted/50 to-muted">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                    <h1 className="text-4xl sm:text-5xl font-bold text-gray-900 mb-4">All Products</h1>
-                    <p className="text-lg text-gray-600 max-w-2xl">
+                    <h1 className="text-4xl sm:text-5xl font-bold text-foreground mb-4">All Products</h1>
+                    <p className="text-lg text-muted-foreground max-w-2xl">
                         Explore our complete collection of premium fashion essentials
                     </p>
                 </div>
@@ -111,7 +111,7 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                     <div className="flex flex-col lg:flex-row gap-8">
                         {/* Sidebar Filters */}
-                        <aside className="lg:w-64 flex-shrink-0">
+                        <aside className="lg:w-64 shrink-0">
                             <div className="sticky top-32">
                                 <ProductFilters categories={categories} />
                             </div>

@@ -33,17 +33,21 @@ export default function StaffPage() {
     const [searchResults, setSearchResults] = useState<StaffMember[]>([]);
     const [showSearch, setShowSearch] = useState(false);
 
-    const fetchStaff = async () => {
-        setLoading(true);
-        const result = await getStaffMembers();
+    // `loading` starts true, so the initial load doesn't need to set it.
+    const loadStaff = () => getStaffMembers().then(result => {
         if (result.success && result.data) {
             setStaff(result.data);
         }
         setLoading(false);
+    });
+
+    const fetchStaff = () => {
+        setLoading(true);
+        return loadStaff();
     };
 
     useEffect(() => {
-        fetchStaff();
+        loadStaff();
     }, []);
 
     const handleSearch = async () => {

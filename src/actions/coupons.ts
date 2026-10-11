@@ -1,9 +1,13 @@
 'use server';
 
-import { createClient } from '@/lib/supabase/server';
 import { revalidatePath } from 'next/cache';
+import { createAdminClient } from '@/lib/supabase/server';
 import { logger } from '@/lib/logger';
 import { ActionResult } from '@/types/shared';
+import { getAdminContext, getSessionUser, FORBIDDEN } from '@/lib/auth';
+import { checkRateLimit } from '@/lib/rate-limit';
+import { getClientIp } from '@/lib/request';
+import { getCouponProblem } from '@/lib/pricing';
 
 export interface Coupon {
     id: string;
@@ -19,63 +23,58 @@ export interface Coupon {
     created_at: string;
 }
 
+const COUPON_COLUMNS = 'id, code, description, discount_type, discount_value, min_order_amount, max_uses, uses_count, ends_at, is_active, created_at';
+
+function errorMessage(error: unknown): string {
+    return error instanceof Error ? error.message : (error as { message?: string })?.message ?? 'Unexpected error';
+}
+
 // ADMIN ACTIONS
 
 export async function getCoupons(): Promise<ActionResult<Coupon[]>> {
-    const supabase = await createClient();
+    const ctx = await getAdminContext();
+    if (!ctx) return { success: false, error: FORBIDDEN };
+
     try {
-        // Auth check happens via RLS mostly, but strict admin check is better for actions
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) return { success: false, error: 'Unauthorized' };
-
-        const { data: customer } = await supabase.from('customers').select('role').eq('auth_id', user.id).single();
-        if (customer?.role !== 'admin') return { success: false, error: 'Forbidden' };
-
-        const { data, error } = await supabase
-            .from('coupons' as any)
-            .select('id, code, description, discount_type, discount_value, min_order_amount, max_uses, uses_count, ends_at, is_active, created_at')
+        const { data, error } = await ctx.supabase
+            .from('coupons')
+            .select(COUPON_COLUMNS)
             .order('created_at', { ascending: false });
 
         if (error) throw error;
 
         return { success: true, data: data as unknown as Coupon[] };
-    } catch (error: any) {
+    } catch (error) {
         logger.error('Error fetching coupons', error);
-        return { success: false, error: error.message };
+        return { success: false, error: errorMessage(error) };
     }
 }
 
 export async function createCoupon(data: Omit<Coupon, 'id' | 'created_at' | 'uses_count'>): Promise<ActionResult<Coupon>> {
-    const supabase = await createClient();
-    try {
-        // Verify Admin
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) return { success: false, error: 'Unauthorized' };
-        const { data: customer } = await supabase.from('customers').select('role').eq('auth_id', user.id).single();
-        if (customer?.role !== 'admin') return { success: false, error: 'Forbidden' };
+    const ctx = await getAdminContext();
+    if (!ctx) return { success: false, error: FORBIDDEN };
 
+    try {
         // Validate
         if (data.discount_value <= 0) return { success: false, error: 'Value must be positive' };
+        if (data.discount_type === 'percentage' && data.discount_value > 100) {
+            return { success: false, error: 'Percentage discount cannot exceed 100' };
+        }
         if (data.min_order_amount < 0) return { success: false, error: 'Min order amount cannot be negative' };
 
-        const couponData = {
-            ...data,
-            code: data.code.toUpperCase(),
-        };
-
-        const { data: newCoupon, error } = await supabase
-            .from('coupons' as any)
+        const { data: newCoupon, error } = await ctx.supabase
+            .from('coupons')
             .insert({
-                code: couponData.code,
-                description: couponData.description,
-                discount_type: couponData.discount_type,
-                discount_value: couponData.discount_value,
-                min_order_amount: couponData.min_order_amount,
-                max_uses: couponData.max_uses,
-                ends_at: couponData.ends_at,
-                is_active: couponData.is_active,
+                code: data.code.trim().toUpperCase(),
+                description: data.description,
+                discount_type: data.discount_type,
+                discount_value: data.discount_value,
+                min_order_amount: data.min_order_amount,
+                max_uses: data.max_uses,
+                ends_at: data.ends_at,
+                is_active: data.is_active,
             })
-            .select('id, code, description, discount_type, discount_value, min_order_amount, max_uses, uses_count, ends_at, is_active, created_at')
+            .select(COUPON_COLUMNS)
             .single();
 
         if (error) {
@@ -87,36 +86,38 @@ export async function createCoupon(data: Omit<Coupon, 'id' | 'created_at' | 'use
 
         revalidatePath('/admin/coupons');
         return { success: true, data: newCoupon as unknown as Coupon };
-    } catch (error: any) {
+    } catch (error) {
         logger.error('Error creating coupon', error);
-        return { success: false, error: error.message };
+        return { success: false, error: errorMessage(error) };
     }
 }
 
 export async function updateCoupon(id: string, data: Partial<Omit<Coupon, 'id' | 'created_at' | 'uses_count'>>): Promise<ActionResult<Coupon>> {
-    const supabase = await createClient();
-    try {
-        // Verify Admin
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) return { success: false, error: 'Unauthorized' };
-        const { data: customer } = await supabase.from('customers').select('role').eq('auth_id', user.id).single();
-        if (customer?.role !== 'admin') return { success: false, error: 'Forbidden' };
+    const ctx = await getAdminContext();
+    if (!ctx) return { success: false, error: FORBIDDEN };
 
+    try {
         // Validate
         if (data.discount_value !== undefined && data.discount_value <= 0) return { success: false, error: 'Value must be positive' };
         if (data.min_order_amount !== undefined && data.min_order_amount < 0) return { success: false, error: 'Min order amount cannot be negative' };
 
-        // Upper case code if provided
-        const couponData = { ...data };
-        if (couponData.code) {
-            couponData.code = couponData.code.toUpperCase();
-        }
+        // Only allow known columns through (the client controls this object).
+        const couponData = {
+            code: data.code?.trim().toUpperCase(),
+            description: data.description,
+            discount_type: data.discount_type,
+            discount_value: data.discount_value,
+            min_order_amount: data.min_order_amount,
+            max_uses: data.max_uses,
+            ends_at: data.ends_at,
+            is_active: data.is_active,
+        };
 
-        const { data: updatedCoupon, error } = await supabase
-            .from('coupons' as any)
+        const { data: updatedCoupon, error } = await ctx.supabase
+            .from('coupons')
             .update(couponData)
             .eq('id', id)
-            .select('id, code, description, discount_type, discount_value, min_order_amount, max_uses, uses_count, ends_at, is_active, created_at')
+            .select(COUPON_COLUMNS)
             .single();
 
         if (error) {
@@ -128,23 +129,19 @@ export async function updateCoupon(id: string, data: Partial<Omit<Coupon, 'id' |
 
         revalidatePath('/admin/coupons');
         return { success: true, data: updatedCoupon as unknown as Coupon };
-    } catch (error: any) {
+    } catch (error) {
         logger.error('Error updating coupon', error);
-        return { success: false, error: error.message };
+        return { success: false, error: errorMessage(error) };
     }
 }
 
 export async function deleteCoupon(id: string): Promise<ActionResult> {
-    const supabase = await createClient();
-    try {
-        // Verify Admin
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) return { success: false, error: 'Unauthorized' };
-        const { data: customer } = await supabase.from('customers').select('role').eq('auth_id', user.id).single();
-        if (customer?.role !== 'admin') return { success: false, error: 'Forbidden' };
+    const ctx = await getAdminContext();
+    if (!ctx) return { success: false, error: FORBIDDEN };
 
-        const { error } = await supabase
-            .from('coupons' as any)
+    try {
+        const { error } = await ctx.supabase
+            .from('coupons')
             .delete()
             .eq('id', id);
 
@@ -152,93 +149,46 @@ export async function deleteCoupon(id: string): Promise<ActionResult> {
 
         revalidatePath('/admin/coupons');
         return { success: true };
-    } catch (error: any) {
+    } catch (error) {
         logger.error('Error deleting coupon', error);
-        return { success: false, error: error.message };
+        return { success: false, error: errorMessage(error) };
     }
 }
 
 // PUBLIC ACTIONS
 
+/**
+ * Checks a coupon for the checkout preview. createOrder re-validates and
+ * consumes the coupon; nothing here is trusted for pricing.
+ */
 export async function validateCoupon(code: string, cartTotal: number): Promise<ActionResult<Coupon>> {
-    const supabase = await createClient();
+    const session = await getSessionUser();
+    const rateKey = session ? `user-${session.user.id}` : `ip-${await getClientIp()}`;
+    const rateCheck = await checkRateLimit(rateKey, 'validate-code', { limit: 10, windowSeconds: 300 });
+    if (!rateCheck.allowed) {
+        return { success: false, error: `Too many attempts. Try again in ${rateCheck.resetIn}s` };
+    }
+
     try {
-        // Note: Ideally use rate limiting here
+        // Service role: RLS hides coupons whose start/end dates are NULL.
+        const { data: coupon } = await createAdminClient()
+            .from('coupons')
+            .select(`${COUPON_COLUMNS}, starts_at`)
+            .eq('code', code.trim().toUpperCase())
+            .maybeSingle();
 
-        const { data: coupon, error } = await supabase
-            .from('coupons' as any)
-            .select('id, code, description, discount_type, discount_value, min_order_amount, max_uses, uses_count, ends_at, is_active, created_at')
-            .eq('code', code.toUpperCase())
-            .eq('is_active', true)
-            .single();
-
-        if (error || !coupon) {
+        if (!coupon) {
             return { success: false, error: 'Invalid coupon code' };
         }
 
-        const typedCoupon = coupon as unknown as Coupon;
+        const problem = getCouponProblem(coupon, cartTotal);
+        if (problem) return { success: false, error: problem };
 
-        // Check Expiry
-        if (typedCoupon.ends_at && new Date() > new Date(typedCoupon.ends_at)) {
-            return { success: false, error: 'Coupon has expired' };
-        }
-
-        // Check Usage Limit
-        if (typedCoupon.max_uses !== null && typedCoupon.uses_count >= typedCoupon.max_uses) {
-            return { success: false, error: 'Coupon usage limit reached' };
-        }
-
-        // Check Min Order
-        if (cartTotal < typedCoupon.min_order_amount) {
-            return {
-                success: false,
-                error: `Minimum order of ${typedCoupon.min_order_amount} required`
-            };
-        }
-
-        return { success: true, data: typedCoupon };
-    } catch (error: any) {
+        return { success: true, data: coupon as unknown as Coupon };
+    } catch (error) {
         logger.error('Error validating coupon', error);
         // Don't expose internal errors to public
         return { success: false, error: 'Invalid coupon code' };
-    }
-}
-
-export async function incrementCouponUsage(code: string): Promise<ActionResult> {
-    const supabase = await createClient();
-    try {
-        // Cast to any to bypass strict type checking if RPC is not in generated types
-        // Note: You might need to update the RPC function to use proper column names too if needed
-        const { error } = await supabase.rpc('increment_coupon_usage' as any, {
-            coupon_code: code.toUpperCase()
-        });
-
-        if (error) {
-            // If RPC missing, fallback to simple update
-            if (error.code === 'PGRST202' || error.message.includes('function')) {
-                const { data } = await supabase
-                    .from('coupons' as any)
-                    .select('id, uses_count')
-                    .eq('code', code.toUpperCase())
-                    .single();
-
-                const coupon = data as any;
-
-                if (coupon) {
-                    await supabase
-                        .from('coupons' as any)
-                        .update({ uses_count: (coupon.uses_count || 0) + 1 })
-                        .eq('id', coupon.id);
-                    return { success: true };
-                }
-            }
-            throw error;
-        }
-
-        return { success: true };
-    } catch (error: any) {
-        logger.error('Error incrementing coupon usage', error);
-        return { success: false, error: error.message };
     }
 }
 
@@ -251,17 +201,14 @@ export async function bulkToggleCoupons(
     ids: string[],
     isActive: boolean
 ): Promise<ActionResult<{ updated: number }>> {
-    const supabase = await createClient();
-    try {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) return { success: false, error: 'Unauthorized' };
-        const { data: customer } = await supabase.from('customers').select('role').eq('auth_id', user.id).single();
-        if (customer?.role !== 'admin') return { success: false, error: 'Forbidden' };
+    const ctx = await getAdminContext();
+    if (!ctx) return { success: false, error: FORBIDDEN };
 
+    try {
         if (ids.length > 50) return { success: false, error: 'Maximum 50 coupons at once' };
 
-        const { data, error } = await supabase
-            .from('coupons' as any)
+        const { data, error } = await ctx.supabase
+            .from('coupons')
             .update({ is_active: isActive })
             .in('id', ids)
             .select('id');
@@ -269,10 +216,10 @@ export async function bulkToggleCoupons(
         if (error) throw error;
 
         revalidatePath('/admin/coupons');
-        return { success: true, data: { updated: (data as any[])?.length || 0 } };
-    } catch (error: any) {
+        return { success: true, data: { updated: data?.length || 0 } };
+    } catch (error) {
         logger.error('Error bulk toggling coupons', error);
-        return { success: false, error: error.message };
+        return { success: false, error: errorMessage(error) };
     }
 }
 
@@ -280,17 +227,14 @@ export async function bulkToggleCoupons(
  * Bulk delete coupons
  */
 export async function bulkDeleteCoupons(ids: string[]): Promise<ActionResult> {
-    const supabase = await createClient();
-    try {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) return { success: false, error: 'Unauthorized' };
-        const { data: customer } = await supabase.from('customers').select('role').eq('auth_id', user.id).single();
-        if (customer?.role !== 'admin') return { success: false, error: 'Forbidden' };
+    const ctx = await getAdminContext();
+    if (!ctx) return { success: false, error: FORBIDDEN };
 
+    try {
         if (ids.length > 50) return { success: false, error: 'Maximum 50 coupons at once' };
 
-        const { error } = await supabase
-            .from('coupons' as any)
+        const { error } = await ctx.supabase
+            .from('coupons')
             .delete()
             .in('id', ids);
 
@@ -298,9 +242,9 @@ export async function bulkDeleteCoupons(ids: string[]): Promise<ActionResult> {
 
         revalidatePath('/admin/coupons');
         return { success: true };
-    } catch (error: any) {
+    } catch (error) {
         logger.error('Error bulk deleting coupons', error);
-        return { success: false, error: error.message };
+        return { success: false, error: errorMessage(error) };
     }
 }
 
@@ -308,17 +252,14 @@ export async function bulkDeleteCoupons(ids: string[]): Promise<ActionResult> {
  * Bulk reset coupon usage counts
  */
 export async function bulkResetCouponUsage(ids: string[]): Promise<ActionResult<{ updated: number }>> {
-    const supabase = await createClient();
-    try {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) return { success: false, error: 'Unauthorized' };
-        const { data: customer } = await supabase.from('customers').select('role').eq('auth_id', user.id).single();
-        if (customer?.role !== 'admin') return { success: false, error: 'Forbidden' };
+    const ctx = await getAdminContext();
+    if (!ctx) return { success: false, error: FORBIDDEN };
 
+    try {
         if (ids.length > 50) return { success: false, error: 'Maximum 50 coupons at once' };
 
-        const { data, error } = await supabase
-            .from('coupons' as any)
+        const { data, error } = await ctx.supabase
+            .from('coupons')
             .update({ uses_count: 0 })
             .in('id', ids)
             .select('id');
@@ -326,10 +267,9 @@ export async function bulkResetCouponUsage(ids: string[]): Promise<ActionResult<
         if (error) throw error;
 
         revalidatePath('/admin/coupons');
-        return { success: true, data: { updated: (data as any[])?.length || 0 } };
-    } catch (error: any) {
+        return { success: true, data: { updated: data?.length || 0 } };
+    } catch (error) {
         logger.error('Error resetting coupon usage', error);
-        return { success: false, error: error.message };
+        return { success: false, error: errorMessage(error) };
     }
 }
-

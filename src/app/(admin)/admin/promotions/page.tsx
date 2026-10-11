@@ -40,17 +40,21 @@ export default function PromotionsPage() {
     const [startsAt, setStartsAt] = useState('');
     const [endsAt, setEndsAt] = useState('');
 
-    const fetchPromos = async () => {
-        setLoading(true);
-        const result = await getPromotions();
+    // `loading` starts true, so the initial load doesn't need to set it.
+    const loadPromos = () => getPromotions().then(result => {
         if (result.success && result.data) {
             setPromos(result.data);
         }
         setLoading(false);
+    });
+
+    const fetchPromos = () => {
+        setLoading(true);
+        return loadPromos();
     };
 
     useEffect(() => {
-        fetchPromos();
+        loadPromos();
     }, []);
 
     const handleCreate = async () => {

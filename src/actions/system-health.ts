@@ -1,6 +1,7 @@
 'use server';
 
 import { createClient } from '@/lib/supabase/server';
+import { getAdminContext, FORBIDDEN } from '@/lib/auth';
 import { ActionResult } from '@/types/shared';
 
 export interface SystemHealth {
@@ -58,7 +59,7 @@ export async function getSystemHealth(): Promise<ActionResult<SystemHealth>> {
         const startTime = Date.now();
 
         // Database health check
-        const { count: tablesCount } = await supabase
+        await supabase
             .from('products')
             .select('*', { count: 'exact', head: true });
 
@@ -138,11 +139,11 @@ export async function getSystemHealth(): Promise<ActionResult<SystemHealth>> {
         };
 
         return { success: true, data: health };
-    } catch (error: any) {
+    } catch (error) {
         console.error('System Health Error:', error);
         return {
             success: false,
-            error: error.message,
+            error: (error as Error).message,
         };
     }
 }
@@ -151,19 +152,21 @@ export async function getSystemHealth(): Promise<ActionResult<SystemHealth>> {
  * Get database row counts for monitoring
  */
 export async function getTableStats(): Promise<ActionResult<{ table: string; count: number }[]>> {
-    const supabase = await createClient();
+    const ctx = await getAdminContext();
+    if (!ctx) return { success: false, error: FORBIDDEN };
+    const { supabase } = ctx;
 
     try {
-        const tables = ['products', 'orders', 'customers', 'categories', 'reviews', 'coupons'];
+        const tables = ['products', 'orders', 'customers', 'categories', 'reviews', 'coupons'] as const;
         const results = await Promise.all(
             tables.map(async (table) => {
-                const { count } = await (supabase as any).from(table).select('*', { count: 'exact', head: true });
+                const { count } = await supabase.from(table).select('*', { count: 'exact', head: true });
                 return { table, count: count || 0 };
             })
         );
 
         return { success: true, data: results };
-    } catch (error: any) {
-        return { success: false, error: error.message };
+    } catch (error) {
+        return { success: false, error: (error as Error).message };
     }
 }

@@ -7,6 +7,12 @@ import {
     CheckCircle, XCircle, RefreshCw, Loader2, Clock, Server
 } from 'lucide-react';
 
+function StatusIndicator({ ok }: { ok: boolean }) {
+    return ok
+        ? <CheckCircle className="w-5 h-5 text-emerald-400" />
+        : <XCircle className="w-5 h-5 text-rose-400" />;
+}
+
 export default function SystemHealthPage() {
     const [health, setHealth] = useState<SystemHealth | null>(null);
     const [tableStats, setTableStats] = useState<{ table: string; count: number }[]>([]);
@@ -14,15 +20,10 @@ export default function SystemHealthPage() {
     const [refreshing, setRefreshing] = useState(false);
     const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
 
-    const loadHealth = async (showRefresh = false) => {
-        if (showRefresh) setRefreshing(true);
-        else setLoading(true);
-
-        const [healthResult, statsResult] = await Promise.all([
-            getSystemHealth(),
-            getTableStats()
-        ]);
-
+    const fetchHealth = () => Promise.all([
+        getSystemHealth(),
+        getTableStats()
+    ]).then(([healthResult, statsResult]) => {
         if (healthResult.success && healthResult.data) {
             setHealth(healthResult.data);
         }
@@ -33,20 +34,23 @@ export default function SystemHealthPage() {
         setLastUpdate(new Date());
         setLoading(false);
         setRefreshing(false);
+    });
+
+    const refreshHealth = () => {
+        setRefreshing(true);
+        return fetchHealth();
     };
 
     useEffect(() => {
-        loadHealth();
+        // `loading` starts true, so the initial load doesn't need to set it.
+        fetchHealth();
         // Refresh every 30 seconds
-        const interval = setInterval(() => loadHealth(true), 30000);
+        const interval = setInterval(() => {
+            setRefreshing(true);
+            fetchHealth();
+        }, 30000);
         return () => clearInterval(interval);
     }, []);
-
-    const StatusIndicator = ({ ok }: { ok: boolean }) => (
-        ok
-            ? <CheckCircle className="w-5 h-5 text-emerald-400" />
-            : <XCircle className="w-5 h-5 text-rose-400" />
-    );
 
     if (loading) {
         return (
@@ -80,7 +84,7 @@ export default function SystemHealthPage() {
                         </p>
                     )}
                     <button
-                        onClick={() => loadHealth(true)}
+                        onClick={refreshHealth}
                         disabled={refreshing}
                         className="px-4 py-2 bg-slate-800/50 text-slate-400 rounded-xl hover:text-slate-200 transition-colors flex items-center gap-2"
                     >

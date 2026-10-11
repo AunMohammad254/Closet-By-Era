@@ -54,9 +54,9 @@ export default function OrderTracking({ orderId, currentStatus: initialStatus, c
     // Handle cancelled state specially
     if (status === 'cancelled') {
         return (
-            <div className="w-full bg-red-50 p-6 rounded-xl border border-red-100 mb-6">
-                <div className="flex items-center gap-4 text-red-700">
-                    <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center">
+            <div className="w-full bg-red-50 dark:bg-red-950/30 p-6 rounded-xl border border-red-100 dark:border-red-900/50 mb-6">
+                <div className="flex items-center gap-4 text-red-700 dark:text-red-400">
+                    <div className="w-10 h-10 rounded-full bg-red-100 dark:bg-red-900/50 flex items-center justify-center">
                         <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                         </svg>
@@ -82,7 +82,7 @@ export default function OrderTracking({ orderId, currentStatus: initialStatus, c
         <div className="w-full py-6">
             <div className="relative">
                 {/* Progress Bar Background */}
-                <div className="absolute top-1/2 left-0 w-full h-1 bg-gray-100 -translate-y-1/2 rounded-full" />
+                <div className="absolute top-1/2 left-0 w-full h-1 bg-gray-100 dark:bg-slate-700 -translate-y-1/2 rounded-full" />
 
                 {/* Active Progress Bar */}
                 <div
@@ -103,9 +103,9 @@ export default function OrderTracking({ orderId, currentStatus: initialStatus, c
                                         w-10 h-10 rounded-full flex items-center justify-center border-2 z-10 transition-all duration-300
                                         ${isCompleted
                                             ? 'bg-emerald-500 border-emerald-500 text-white'
-                                            : 'bg-white border-gray-200 text-gray-300'
+                                            : 'bg-white border-gray-200 text-gray-300 dark:bg-slate-900 dark:border-slate-700 dark:text-slate-600'
                                         }
-                                        ${isCurrent ? 'ring-4 ring-emerald-100 scale-110' : ''}
+                                        ${isCurrent ? 'ring-4 ring-emerald-100 dark:ring-emerald-900/30 scale-110' : ''}
                                     `}
                                 >
                                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -113,11 +113,11 @@ export default function OrderTracking({ orderId, currentStatus: initialStatus, c
                                     </svg>
                                 </div>
                                 <div className="absolute mt-14 flex flex-col items-center w-32 text-center">
-                                    <span className={`text-sm font-medium transition-colors duration-300 ${isCompleted ? 'text-gray-900' : 'text-gray-400'}`}>
+                                    <span className={`text-sm font-medium transition-colors duration-300 ${isCompleted ? 'text-gray-900 dark:text-white' : 'text-gray-400 dark:text-slate-600'}`}>
                                         {step.label}
                                     </span>
                                     {index === 0 && (
-                                        <span className="text-xs text-gray-400 mt-1">
+                                        <span className="text-xs text-gray-400 dark:text-slate-500 mt-1">
                                             {new Date(createdAt).toLocaleDateString()}
                                         </span>
                                     )}

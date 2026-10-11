@@ -1,6 +1,7 @@
 'use server';
 
 import { createClient } from '@/lib/supabase/server';
+import { getAdminContext } from '@/lib/auth';
 import { revalidatePath } from 'next/cache';
 
 import { ActionResult } from '@/types/shared';
@@ -95,7 +96,9 @@ export async function getAllReviews(
     pageSize: number = 20,
     filter?: { rating?: number }
 ): Promise<{ reviews: AdminReview[]; total: number }> {
-    const supabase = await createClient();
+    const ctx = await getAdminContext();
+    if (!ctx) return { reviews: [], total: 0 };
+    const { supabase } = ctx;
 
     let query = supabase
         .from('reviews')
@@ -119,8 +122,11 @@ export async function getAllReviews(
 
     if (!reviews) return { reviews: [], total: 0 };
 
+    // The reviews→products relation is missing from the generated types.
+    type ReviewWithProduct = Tables<'reviews'> & { products: { name: string; slug: string } | null };
+
     return {
-        reviews: reviews.map((r: any) => ({
+        reviews: (reviews as unknown as ReviewWithProduct[]).map((r) => ({
             id: r.id,
             product_id: r.product_id || '',
             user_id: r.user_id || '',
@@ -249,7 +255,7 @@ export async function bulkApproveReviews(ids: string[]): Promise<ActionResult<{ 
         // If table has is_approved column, update it
         const { data, error } = await supabase
             .from('reviews')
-            .update({ is_approved: true } as any)
+            .update({ is_approved: true } as unknown as Database['public']['Tables']['reviews']['Update'])
             .in('id', ids)
             .select('id');
 

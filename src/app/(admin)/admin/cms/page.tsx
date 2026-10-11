@@ -45,18 +45,22 @@ export default function CMSPage() {
     const [faqAnswer, setFaqAnswer] = useState('');
     const [faqCategory, setFaqCategory] = useState('');
 
-    useEffect(() => {
-        loadData();
-    }, []);
-
-    const loadData = async () => {
-        setLoading(true);
-        const [b, p, f] = await Promise.all([getBanners(), getPopups(), getFAQs()]);
+    // `loading` starts true, so the initial load doesn't need to set it.
+    const fetchData = () => Promise.all([getBanners(), getPopups(), getFAQs()]).then(([b, p, f]) => {
         if (b.success && b.data) setBanners(b.data);
         if (p.success && p.data) setPopups(p.data);
         if (f.success && f.data) setFAQs(f.data);
         setLoading(false);
+    });
+
+    const loadData = () => {
+        setLoading(true);
+        return fetchData();
     };
+
+    useEffect(() => {
+        fetchData();
+    }, []);
 
     const handleCreateBanner = async () => {
         if (!bannerTitle || !bannerImage) {
@@ -228,7 +232,7 @@ export default function CMSPage() {
                     ))}
                     {banners.length === 0 && (
                         <div className="col-span-full text-center py-12 text-slate-500">
-                            No banners yet. Click "Add banner" to create one.
+                            No banners yet. Click &quot;Add banner&quot; to create one.
                         </div>
                     )}
                 </div>
@@ -268,7 +272,7 @@ export default function CMSPage() {
                     ))}
                     {popups.length === 0 && (
                         <div className="text-center py-12 text-slate-500">
-                            No popups yet. Click "Add popup" to create one.
+                            No popups yet. Click &quot;Add popup&quot; to create one.
                         </div>
                     )}
                 </div>
@@ -319,7 +323,7 @@ export default function CMSPage() {
                     ))}
                     {faqs.length === 0 && (
                         <div className="text-center py-12 text-slate-500">
-                            No FAQs yet. Click "Add FAQ" to create one.
+                            No FAQs yet. Click &quot;Add FAQ&quot; to create one.
                         </div>
                     )}
                 </div>
@@ -337,7 +341,7 @@ export default function CMSPage() {
                             <input type="text" placeholder="Title" value={bannerTitle} onChange={e => setBannerTitle(e.target.value)} className="w-full px-4 py-2.5 bg-slate-800/50 border border-slate-700/50 text-slate-200 rounded-xl" />
                             <input type="text" placeholder="Image URL" value={bannerImage} onChange={e => setBannerImage(e.target.value)} className="w-full px-4 py-2.5 bg-slate-800/50 border border-slate-700/50 text-slate-200 rounded-xl" />
                             <input type="text" placeholder="Link URL (optional)" value={bannerLink} onChange={e => setBannerLink(e.target.value)} className="w-full px-4 py-2.5 bg-slate-800/50 border border-slate-700/50 text-slate-200 rounded-xl" />
-                            <select value={bannerPosition} onChange={e => setBannerPosition(e.target.value as any)} className="w-full px-4 py-2.5 bg-slate-800/50 border border-slate-700/50 text-slate-200 rounded-xl">
+                            <select value={bannerPosition} onChange={e => setBannerPosition(e.target.value as typeof bannerPosition)} className="w-full px-4 py-2.5 bg-slate-800/50 border border-slate-700/50 text-slate-200 rounded-xl">
                                 <option value="hero">Hero</option>
                                 <option value="sidebar">Sidebar</option>
                                 <option value="footer">Footer</option>
@@ -362,7 +366,7 @@ export default function CMSPage() {
                         <div className="p-6 space-y-4">
                             <input type="text" placeholder="Title" value={popupTitle} onChange={e => setPopupTitle(e.target.value)} className="w-full px-4 py-2.5 bg-slate-800/50 border border-slate-700/50 text-slate-200 rounded-xl" />
                             <textarea placeholder="Content" value={popupContent} onChange={e => setPopupContent(e.target.value)} rows={3} className="w-full px-4 py-2.5 bg-slate-800/50 border border-slate-700/50 text-slate-200 rounded-xl" />
-                            <select value={popupTrigger} onChange={e => setPopupTrigger(e.target.value as any)} className="w-full px-4 py-2.5 bg-slate-800/50 border border-slate-700/50 text-slate-200 rounded-xl">
+                            <select value={popupTrigger} onChange={e => setPopupTrigger(e.target.value as typeof popupTrigger)} className="w-full px-4 py-2.5 bg-slate-800/50 border border-slate-700/50 text-slate-200 rounded-xl">
                                 <option value="page_load">Page Load</option>
                                 <option value="exit_intent">Exit Intent</option>
                                 <option value="scroll">On Scroll (50%)</option>

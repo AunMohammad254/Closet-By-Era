@@ -15,7 +15,7 @@ export default async function AdminDashboardPage() {
             {/* Page Title */}
             <div>
                 <h1 className="text-2xl font-bold text-slate-100">Dashboard</h1>
-                <p className="text-slate-400 text-sm mt-1">Overview of your store's performance.</p>
+                <p className="text-slate-400 text-sm mt-1">Overview of your store&apos;s performance.</p>
             </div>
 
             {/* Quick Actions */}

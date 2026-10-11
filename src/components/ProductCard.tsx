@@ -72,7 +72,7 @@ function ProductCard({
     return (
         <article className="group relative">
             {/* Image Container */}
-            <Link href={productLink} className="block relative aspect-[3/4] overflow-hidden rounded-xl bg-gray-100">
+            <Link href={productLink} className="block relative aspect-3/4 overflow-hidden rounded-xl bg-secondary">
                 {/* Product Image */}
                 {image && image.startsWith('/products/') ? (
                     <Image
@@ -85,8 +85,8 @@ function ProductCard({
                         blurDataURL={shimmerPlaceholder(500, 600)}
                     />
                 ) : (
-                    <div className="absolute inset-0 bg-gradient-to-br from-gray-100 via-gray-50 to-gray-100 flex items-center justify-center">
-                        <svg className="w-16 h-16 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <div className="absolute inset-0 bg-linear-to-br from-secondary via-muted to-secondary flex items-center justify-center">
+                        <svg className="w-16 h-16 text-muted-foreground/20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                         </svg>
                     </div>
@@ -99,15 +99,15 @@ function ProductCard({
                 <div className="absolute bottom-4 left-4 right-4 flex gap-2 opacity-0 translate-y-4 group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-300">
                     <button
                         onClick={handleQuickAdd}
-                        className="flex-1 py-3 bg-white text-slate-900 text-sm font-medium rounded-lg hover:bg-rose-50 transition-colors shadow-lg"
+                        className="flex-1 py-3 bg-card text-card-foreground text-sm font-medium rounded-lg hover:bg-accent hover:text-accent-foreground transition-colors shadow-lg"
                     >
                         Quick Add
                     </button>
                     <button
                         onClick={handleWishlistToggle}
                         className={`p-3 rounded-lg shadow-lg transition-colors ${isWishlisted
-                            ? 'bg-rose-100 text-rose-600'
-                            : 'bg-white text-slate-900 hover:bg-rose-50'
+                            ? 'bg-primary/10 text-primary'
+                            : 'bg-card text-card-foreground hover:bg-accent hover:text-accent-foreground'
                             }`}
                     >
                         <svg className="w-5 h-5" fill={isWishlisted ? 'currentColor' : 'none'} stroke="currentColor" viewBox="0 0 24 24">
@@ -119,12 +119,12 @@ function ProductCard({
                 {/* Badges */}
                 <div className="absolute top-4 left-4 flex flex-col gap-2">
                     {isNew && (
-                        <span className="px-3 py-1 bg-slate-900 text-white text-xs font-medium rounded-full tracking-wide">
+                        <span className="px-3 py-1 bg-foreground text-background text-xs font-medium rounded-full tracking-wide">
                             NEW
                         </span>
                     )}
                     {isSale && discount > 0 && (
-                        <span className="px-3 py-1 bg-rose-600 text-white text-xs font-medium rounded-full tracking-wide">
+                        <span className="px-3 py-1 bg-primary text-primary-foreground text-xs font-medium rounded-full tracking-wide">
                             -{discount}%
                         </span>
                     )}
@@ -133,16 +133,16 @@ function ProductCard({
 
             {/* Product Info */}
             <div className="mt-4 space-y-2">
-                <p className="text-xs text-gray-500 uppercase tracking-wider">{category}</p>
-                <h3 className="font-medium text-gray-900 group-hover:text-rose-600 transition-colors line-clamp-2">
+                <p className="text-xs text-muted-foreground uppercase tracking-wider">{category}</p>
+                <h3 className="font-medium text-foreground group-hover:text-primary transition-colors line-clamp-2">
                     <Link href={productLink}>{name}</Link>
                 </h3>
                 <div className="flex items-center gap-2">
-                    <span className="text-lg font-semibold text-gray-900">
+                    <span className="text-lg font-semibold text-foreground">
                         PKR {price.toLocaleString()}
                     </span>
                     {originalPrice && originalPrice > price && (
-                        <span className="text-sm text-gray-400 line-through">
+                        <span className="text-sm text-muted-foreground/60 line-through">
                             PKR {originalPrice.toLocaleString()}
                         </span>
                     )}

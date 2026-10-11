@@ -1,8 +1,8 @@
 'use server';
 
 import { createClient } from '@/lib/supabase/server';
+import { getAdminContext, FORBIDDEN } from '@/lib/auth';
 import { revalidatePath, revalidateTag } from 'next/cache';
-import { redirect } from 'next/navigation';
 import { ProductFormSchema } from '@/lib/validations';
 import { logger } from '@/lib/logger';
 
@@ -26,11 +26,13 @@ export async function getProductsByIds(ids: string[]) {
     // Maintain order
     return ids
         .map(id => data.find(p => p.id === id))
-        .filter(Boolean);
+        .filter((p): p is NonNullable<typeof p> => Boolean(p));
 }
 
 export async function getLowStockProducts(threshold = 5) {
-    const supabase = await createClient();
+    const ctx = await getAdminContext();
+    if (!ctx) return [];
+    const { supabase } = ctx;
     const { data, error } = await supabase
         .from('products')
         .select('id, name, stock, slug, price, images')
@@ -116,7 +118,9 @@ export async function getProducts(
 }
 
 export async function getProductById(id: string) {
-    const supabase = await createClient();
+    const ctx = await getAdminContext();
+    if (!ctx) return null;
+    const { supabase } = ctx;
     const { data, error } = await supabase
         .from('products')
         .select('*')
@@ -162,11 +166,13 @@ export async function createProduct(data: ProductFormData): Promise<{ success: b
         return { success: false, error: errorMessage };
     }
 
-    const supabase = await createClient();
+    const ctx = await getAdminContext();
+    if (!ctx) return { success: false, error: FORBIDDEN };
+    const { supabase } = ctx;
     const validData = validation.data;
     const slug = validData.name.toLowerCase().replace(/ /g, '-').replace(/[^\w-]+/g, '');
 
-    const { data: newProduct, error } = await supabase
+    const { error } = await supabase
         .from('products')
         .insert({
             name: validData.name,
@@ -203,7 +209,9 @@ export async function updateProduct(id: string, data: ProductFormData): Promise<
         return { success: false, error: errorMessage };
     }
 
-    const supabase = await createClient();
+    const ctx = await getAdminContext();
+    if (!ctx) return { success: false, error: FORBIDDEN };
+    const { supabase } = ctx;
     const validData = validation.data;
     const { error } = await supabase
         .from('products')
@@ -234,7 +242,9 @@ export async function updateProduct(id: string, data: ProductFormData): Promise<
 }
 
 export async function deleteProduct(id: string): Promise<{ success: boolean; error?: string }> {
-    const supabase = await createClient();
+    const ctx = await getAdminContext();
+    if (!ctx) return { success: false, error: FORBIDDEN };
+    const { supabase } = ctx;
     const { error } = await supabase
         .from('products')
         .delete()
@@ -253,7 +263,9 @@ export async function deleteProduct(id: string): Promise<{ success: boolean; err
 }
 
 export async function toggleProductStatus(id: string, inStock: boolean): Promise<{ success: boolean; error?: string }> {
-    const supabase = await createClient();
+    const ctx = await getAdminContext();
+    if (!ctx) return { success: false, error: FORBIDDEN };
+    const { supabase } = ctx;
     const { error } = await supabase
         .from('products')
         .update({ in_stock: inStock })
@@ -275,9 +287,20 @@ export async function uploadProductImage(formData: FormData): Promise<{ success:
         return { success: false, error: 'No file provided' };
     }
 
-    const supabase = await createClient();
-    const fileExt = file.name.split('.').pop();
-    const fileName = `${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
+    const ctx = await getAdminContext();
+    if (!ctx) return { success: false, error: FORBIDDEN };
+    const { supabase } = ctx;
+
+    // Only raster images: SVG/HTML in a public bucket is a stored-XSS vector.
+    const allowedTypes: Record<string, string> = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp', 'image/avif': 'avif', 'image/gif': 'gif' };
+    const fileExt = allowedTypes[file.type];
+    if (!fileExt) {
+        return { success: false, error: 'Only JPEG, PNG, WebP, AVIF or GIF images are allowed' };
+    }
+    if (file.size > 5 * 1024 * 1024) {
+        return { success: false, error: 'Image must be 5 MB or smaller' };
+    }
+    const fileName = `${Date.now()}-${crypto.randomUUID()}.${fileExt}`;
     const filePath = `products/${fileName}`;
 
     const { error: uploadError } = await supabase.storage
@@ -299,7 +322,9 @@ export async function uploadProductImage(formData: FormData): Promise<{ success:
 export async function bulkDeleteProducts(ids: string[]): Promise<{ success: boolean; error?: string }> {
     if (!ids || ids.length === 0) return { success: true };
 
-    const supabase = await createClient();
+    const ctx = await getAdminContext();
+    if (!ctx) return { success: false, error: FORBIDDEN };
+    const { supabase } = ctx;
     const { error } = await supabase
         .from('products')
         .delete()
@@ -327,7 +352,9 @@ export async function bulkUpdateProductStatus(
     if (!ids || ids.length === 0) return { success: true, updated: 0 };
     if (ids.length > 100) return { success: false, updated: 0, error: 'Maximum 100 products at once' };
 
-    const supabase = await createClient();
+    const ctx = await getAdminContext();
+    if (!ctx) return { success: false, updated: 0, error: FORBIDDEN };
+    const { supabase } = ctx;
     const { data, error } = await supabase
         .from('products')
         .update({ is_active: isActive })
@@ -354,7 +381,9 @@ export async function bulkUpdateProductCategory(
     if (!ids || ids.length === 0) return { success: true, updated: 0 };
     if (ids.length > 100) return { success: false, updated: 0, error: 'Maximum 100 products at once' };
 
-    const supabase = await createClient();
+    const ctx = await getAdminContext();
+    if (!ctx) return { success: false, updated: 0, error: FORBIDDEN };
+    const { supabase } = ctx;
     const { data, error } = await supabase
         .from('products')
         .update({ category_id: categoryId })
@@ -384,7 +413,9 @@ export async function bulkAdjustPrices(
         return { success: false, updated: 0, error: 'Price change must be between -90% and +500%' };
     }
 
-    const supabase = await createClient();
+    const ctx = await getAdminContext();
+    if (!ctx) return { success: false, updated: 0, error: FORBIDDEN };
+    const { supabase } = ctx;
 
     // Fetch current products
     const { data: products, error: fetchError } = await supabase

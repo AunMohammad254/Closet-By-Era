@@ -1,5 +1,5 @@
 import '@testing-library/jest-dom';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import ProductCard from '../ProductCard';
 
 // Mock contexts
@@ -20,7 +20,7 @@ jest.mock('@/context/WishlistContext', () => ({
 // Mock next/image
 jest.mock('next/image', () => ({
     __esModule: true,
-    default: (props: any) => {
+    default: (props: React.ImgHTMLAttributes<HTMLImageElement>) => {
         // eslint-disable-next-line @next/next/no-img-element
         return <img {...props} alt={props.alt} />;
     },

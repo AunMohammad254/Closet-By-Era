@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { getRecentOrders } from '@/actions/orders';
 import Link from 'next/link';
+import { getOrderCustomerName } from '@/lib/order-display';
 
 // Define Order type based on what we get from Supabase
 interface Order {
@@ -53,20 +54,6 @@ export default function RecentOrdersTable() {
             day: 'numeric',
             year: 'numeric'
         });
-    };
-
-    // Helper to get customer name
-    const getCustomerName = (order: Order) => {
-        // If we have customer relation (from auth)
-        if (order.customers) {
-            return `${order.customers.first_name || ''} ${order.customers.last_name || ''}`.trim() || order.customers.email || 'Customer';
-        }
-        // Fallback to shipping address
-        const addr = order.shipping_address;
-        if (addr && typeof addr === 'object') {
-            return `${addr.firstName || ''} ${addr.lastName || ''}`.trim();
-        }
-        return 'Guest';
     };
 
     if (loading) {
@@ -125,9 +112,9 @@ export default function RecentOrdersTable() {
                                     <td className="px-8 py-5 text-slate-300 font-medium">
                                         <div className="flex items-center gap-3">
                                             <div className="w-8 h-8 rounded-lg bg-slate-700/50 flex items-center justify-center text-xs font-bold text-slate-400 group-hover:bg-rose-500/10 group-hover:text-rose-400 transition-all">
-                                                {getCustomerName(order).charAt(0).toUpperCase()}
+                                                {getOrderCustomerName(order).charAt(0).toUpperCase()}
                                             </div>
-                                            {getCustomerName(order)}
+                                            {getOrderCustomerName(order)}
                                         </div>
                                     </td>
                                     <td className="px-8 py-5 text-slate-500">{formatDate(order.created_at)}</td>

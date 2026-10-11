@@ -1,7 +1,8 @@
 'use server';
 
-import { createClient } from '@/lib/supabase/server';
 import { revalidatePath } from 'next/cache';
+import { createAdminClient } from '@/lib/supabase/server';
+import { getAdminContext, getSessionUser } from '@/lib/auth';
 
 export interface Ticket {
     id: string;
@@ -21,27 +22,28 @@ export interface Message {
     created_at: string;
 }
 
-export async function createTicket(message: string) {
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
+const MAX_MESSAGE_LENGTH = 2000;
 
-    if (!user) throw new Error('Unauthorized');
+export async function createTicket(message: string) {
+    const session = await getSessionUser();
+    if (!session) throw new Error('Unauthorized');
+    const { supabase, user } = session;
 
     // Check for existing open ticket to avoid spam
-    const { data: existing } = await (supabase as any)
+    const { data: existing } = await supabase
         .from('support_tickets')
         .select('id')
         .eq('user_id', user.id)
         .eq('status', 'open')
-        .single();
+        .maybeSingle();
 
     let ticketId = existing?.id;
 
     if (!ticketId) {
-        const { data: newTicket, error } = await (supabase as any)
+        const { data: newTicket, error } = await supabase
             .from('support_tickets')
             .insert({ user_id: user.id })
-            .select()
+            .select('id')
             .single();
 
         if (error) throw new Error(error.message);
@@ -54,37 +56,55 @@ export async function createTicket(message: string) {
     return ticketId;
 }
 
+/**
+ * Customers may only post to their own tickets; staff may reply to any.
+ * Authorization is checked here, then writes go through the service role
+ * (support_* RLS only grants access to the ticket owner).
+ */
 export async function sendMessage(ticketId: string, message: string) {
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) throw new Error('Unauthorized');
+    const text = message.trim();
+    if (!text || text.length > MAX_MESSAGE_LENGTH) throw new Error('Invalid message');
 
-    // Check if user is admin
-    const { data: profile } = await (supabase as any)
-        .from('profiles')
-        .select('role')
-        .eq('id', user.id)
-        .single();
+    const session = await getSessionUser();
+    if (!session) throw new Error('Unauthorized');
 
-    const isAdmin = profile?.role === 'admin';
+    const isAdmin = (await getAdminContext()) !== null;
+    const admin = createAdminClient();
 
-    const { error } = await (supabase as any)
+    const { data: ticket } = await admin
+        .from('support_tickets')
+        .select('id, user_id')
+        .eq('id', ticketId)
+        .maybeSingle();
+
+    if (!ticket || (!isAdmin && ticket.user_id !== session.user.id)) {
+        throw new Error('Ticket not found');
+    }
+
+    const { error } = await admin
         .from('support_messages')
         .insert({
             ticket_id: ticketId,
-            sender_id: user.id,
-            message,
+            sender_id: session.user.id,
+            message: text,
             is_admin_reply: isAdmin
         });
 
     if (error) throw new Error(error.message);
 
+    await admin
+        .from('support_tickets')
+        .update({ last_message: text.slice(0, 200), updated_at: new Date().toISOString() })
+        .eq('id', ticketId);
+
     revalidatePath('/dashboard/chat');
 }
 
+/** Staff inbox: every ticket. */
 export async function getTickets() {
-    const supabase = await createClient();
-    const { data: tickets, error } = await (supabase as any)
+    if (!(await getAdminContext())) throw new Error('Forbidden');
+
+    const { data: tickets, error } = await createAdminClient()
         .from('support_tickets')
         .select('*')
         .order('updated_at', { ascending: false });
@@ -94,23 +114,28 @@ export async function getTickets() {
 }
 
 export async function getUserActiveTicket() {
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return null;
+    const session = await getSessionUser();
+    if (!session) return null;
 
-    const { data: ticket } = await (supabase as any)
+    const { data: ticket } = await session.supabase
         .from('support_tickets')
         .select('*')
-        .eq('user_id', user.id)
+        .eq('user_id', session.user.id)
         .eq('status', 'open')
-        .single();
+        .maybeSingle();
 
     return (ticket || null) as Ticket | null;
 }
 
 export async function getMessages(ticketId: string) {
-    const supabase = await createClient();
-    const { data: messages, error } = await (supabase as any)
+    const session = await getSessionUser();
+    if (!session) throw new Error('Unauthorized');
+
+    const isAdmin = (await getAdminContext()) !== null;
+    // Staff read through the service role; customers through RLS (own tickets only).
+    const client = isAdmin ? createAdminClient() : session.supabase;
+
+    const { data: messages, error } = await client
         .from('support_messages')
         .select('*')
         .eq('ticket_id', ticketId)

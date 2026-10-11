@@ -1,6 +1,7 @@
 'use server';
 
 import { createClient } from '@/lib/supabase/server';
+import { getAdminContext, FORBIDDEN } from '@/lib/auth';
 import { revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import { logger } from '@/lib/logger';
@@ -37,7 +38,9 @@ export async function createCategory(data: CategoryFormData) {
         return { success: false, error: validation.error.message };
     }
 
-    const supabase = await createClient();
+    const ctx = await getAdminContext();
+    if (!ctx) return { success: false, error: FORBIDDEN };
+    const { supabase } = ctx;
     const slug = data.name.toLowerCase().replace(/ /g, '-').replace(/[^\w-]+/g, '');
 
     const { error } = await supabase
@@ -65,7 +68,9 @@ export async function updateCategory(id: string, data: CategoryFormData) {
         return { success: false, error: validation.error.message };
     }
 
-    const supabase = await createClient();
+    const ctx = await getAdminContext();
+    if (!ctx) return { success: false, error: FORBIDDEN };
+    const { supabase } = ctx;
     const slug = data.name.toLowerCase().replace(/ /g, '-').replace(/[^\w-]+/g, '');
 
     const { error } = await supabase
@@ -89,7 +94,9 @@ export async function updateCategory(id: string, data: CategoryFormData) {
 }
 
 export async function deleteCategory(id: string) {
-    const supabase = await createClient();
+    const ctx = await getAdminContext();
+    if (!ctx) return { success: false, error: FORBIDDEN };
+    const { supabase } = ctx;
     const { error } = await supabase
         .from('categories')
         .delete()

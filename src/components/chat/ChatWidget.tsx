@@ -12,7 +12,6 @@ export default function ChatWidget() {
     const [messages, setMessages] = useState<Message[]>([]);
     const [input, setInput] = useState('');
     const [ticketId, setTicketId] = useState<string | null>(null);
-    const [loading, setLoading] = useState(false);
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const supabase = createClient();
 
@@ -96,7 +95,7 @@ export default function ChatWidget() {
         <div className="fixed bottom-6 right-6 z-40">
             {/* Chat Window */}
             {isOpen && (
-                <div className="absolute bottom-16 right-0 w-80 sm:w-96 h-[500px] bg-white rounded-2xl shadow-2xl border border-gray-100 flex flex-col overflow-hidden animate-fade-in-up">
+                <div className="absolute bottom-16 right-0 w-80 sm:w-96 h-[500px] bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-gray-100 dark:border-slate-800 flex flex-col overflow-hidden animate-fade-in-up">
                     {/* Header */}
                     <div className="bg-slate-900 px-6 py-4 flex items-center justify-between">
                         <div>

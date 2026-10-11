@@ -41,7 +41,7 @@ export default function WhatsAppButton({
                 {/* Tooltip */}
                 <span
                     className={`
-                        hidden sm:block bg-white text-gray-800 text-sm font-medium 
+                        hidden sm:block bg-white dark:bg-slate-800 text-gray-800 dark:text-white text-sm font-medium 
                         px-4 py-2 rounded-full shadow-lg
                         transition-all duration-300 transform
                         ${isHovered ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-4'}

@@ -114,20 +114,20 @@ export default function ProductView({ product, relatedProducts, reviews = [] }: 
     };
 
     return (
-        <main className="min-h-screen bg-white">
+        <main className="min-h-screen bg-background">
             {/* Breadcrumb */}
-            <div className="pt-32 pb-4 bg-gray-50">
+            <div className="pt-32 pb-4 bg-muted/30">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                    <nav className="flex items-center text-sm text-gray-500">
-                        <Link href="/" className="hover:text-gray-900 transition-colors">Home</Link>
+                    <nav className="flex items-center text-sm text-muted-foreground">
+                        <Link href="/" className="hover:text-foreground transition-colors">Home</Link>
                         <svg className="w-4 h-4 mx-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                         </svg>
-                        <Link href="/products" className="hover:text-gray-900 transition-colors">Products</Link>
+                        <Link href="/products" className="hover:text-foreground transition-colors">Products</Link>
                         <svg className="w-4 h-4 mx-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                         </svg>
-                        <span className="text-gray-900">{product.name}</span>
+                        <span className="text-foreground">{product.name}</span>
                     </nav>
                 </div>
             </div>
@@ -151,26 +151,26 @@ export default function ProductView({ product, relatedProducts, reviews = [] }: 
                         <div className="lg:py-4">
                             <div className="sticky top-32">
                                 {/* Category */}
-                                <Link href={`/category/${product.categorySlug}`} className="text-sm text-rose-600 font-medium tracking-wider uppercase hover:text-rose-700 transition-colors">
+                                <Link href={`/category/${product.categorySlug}`} className="text-sm text-primary font-medium tracking-wider uppercase hover:text-primary/80 transition-colors">
                                     {product.category}
                                 </Link>
 
                                 {/* Title */}
-                                <h1 className="mt-2 text-3xl lg:text-4xl font-bold text-gray-900">{product.name}</h1>
+                                <h1 className="mt-2 text-3xl lg:text-4xl font-bold text-foreground">{product.name}</h1>
 
                                 {/* Price */}
                                 <div className="mt-4 flex items-baseline gap-3">
-                                    <span className="text-2xl font-bold text-gray-900">{formatPrice(product.price)}</span>
+                                    <span className="text-2xl font-bold text-foreground">{formatPrice(product.price)}</span>
                                     {product.originalPrice && (
                                         <>
-                                            <span className="text-lg text-gray-400 line-through">{formatPrice(product.originalPrice)}</span>
-                                            <span className="px-2 py-0.5 bg-rose-100 text-rose-600 text-sm font-medium rounded">Save {discount}%</span>
+                                            <span className="text-lg text-muted-foreground line-through">{formatPrice(product.originalPrice)}</span>
+                                            <span className="px-2 py-0.5 bg-rose-100 dark:bg-rose-900/30 text-rose-600 dark:text-rose-400 text-sm font-medium rounded">Save {discount}%</span>
                                         </>
                                     )}
                                 </div>
 
                                 {/* Short Description */}
-                                <p className="mt-4 text-gray-600 leading-relaxed">{product.shortDescription}</p>
+                                <p className="mt-4 text-muted-foreground leading-relaxed">{product.shortDescription}</p>
 
                                 <ColorSelector
                                     colors={product.colors}
@@ -205,29 +205,29 @@ export default function ProductView({ product, relatedProducts, reviews = [] }: 
                                 />
 
                                 {/* Features Icons */}
-                                <div className="mt-8 grid grid-cols-3 gap-4 py-6 border-t border-gray-100">
+                                <div className="mt-8 grid grid-cols-3 gap-4 py-6 border-t border-border">
                                     <div className="text-center">
-                                        <svg className="w-6 h-6 mx-auto text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <svg className="w-6 h-6 mx-auto text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
                                         </svg>
-                                        <p className="mt-2 text-xs text-gray-500">Free Shipping</p>
+                                        <p className="mt-2 text-xs text-muted-foreground">Free Shipping</p>
                                     </div>
                                     <div className="text-center">
-                                        <svg className="w-6 h-6 mx-auto text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <svg className="w-6 h-6 mx-auto text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                                         </svg>
-                                        <p className="mt-2 text-xs text-gray-500">Easy Returns</p>
+                                        <p className="mt-2 text-xs text-muted-foreground">Easy Returns</p>
                                     </div>
                                     <div className="text-center">
-                                        <svg className="w-6 h-6 mx-auto text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <svg className="w-6 h-6 mx-auto text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
                                         </svg>
-                                        <p className="mt-2 text-xs text-gray-500">Secure Payment</p>
+                                        <p className="mt-2 text-xs text-muted-foreground">Secure Payment</p>
                                     </div>
                                 </div>
 
                                 {/* SKU */}
-                                <p className="text-xs text-gray-400">SKU: {product.sku}</p>
+                                <p className="text-xs text-muted-foreground/60">SKU: {product.sku}</p>
                             </div>
                         </div>
                     </div>
@@ -238,14 +238,14 @@ export default function ProductView({ product, relatedProducts, reviews = [] }: 
             <ProductTabs description={product.description} features={product.features} />
 
             {/* User Reviews */}
-            <section className="py-16 border-t border-gray-100 bg-white" id="reviews">
+            <section className="py-16 border-t border-border bg-card" id="reviews">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                    <h2 className="text-2xl font-bold text-gray-900 mb-8">Customer Reviews</h2>
+                    <h2 className="text-2xl font-bold text-foreground mb-8">Customer Reviews</h2>
                     <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
                         <div className="lg:col-span-4 space-y-6">
-                            <div className="bg-slate-50 p-6 rounded-2xl">
-                                <h3 className="font-semibold text-slate-900 mb-2">Have you bought this?</h3>
-                                <p className="text-sm text-slate-600 mb-6">Share your thoughts with other customers.</p>
+                            <div className="bg-muted/30 p-6 rounded-2xl">
+                                <h3 className="font-semibold text-foreground mb-2">Have you bought this?</h3>
+                                <p className="text-sm text-muted-foreground mb-6">Share your thoughts with other customers.</p>
                                 <ReviewForm productId={product.id} />
                             </div>
                         </div>

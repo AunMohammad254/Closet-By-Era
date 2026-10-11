@@ -35,25 +35,27 @@ export default function NotificationsPanel() {
     const [isOpen, setIsOpen] = useState(false);
     const [notifications, setNotifications] = useState<Notification[]>([]);
     const [unreadCount, setUnreadCount] = useState(0);
-    const [loading, setLoading] = useState(false);
+    // Starts true because the first fetch begins on mount.
+    const [loading, setLoading] = useState(true);
 
-    const fetchNotifications = useCallback(async () => {
-        setLoading(true);
-        const [notifs, count] = await Promise.all([
-            getAdminNotifications({ limit: 10 }),
-            getUnreadNotificationCount()
-        ]);
+    const loadNotifications = useCallback(() => Promise.all([
+        getAdminNotifications({ limit: 10 }),
+        getUnreadNotificationCount()
+    ]).then(([notifs, count]) => {
         setNotifications(notifs);
         setUnreadCount(count);
         setLoading(false);
-    }, []);
+    }), []);
 
     useEffect(() => {
-        fetchNotifications();
+        loadNotifications();
         // Poll for new notifications every 30 seconds
-        const interval = setInterval(fetchNotifications, 30000);
+        const interval = setInterval(() => {
+            setLoading(true);
+            loadNotifications();
+        }, 30000);
         return () => clearInterval(interval);
-    }, [fetchNotifications]);
+    }, [loadNotifications]);
 
     const handleMarkAsRead = async (id: string) => {
         await markNotificationAsRead(id);

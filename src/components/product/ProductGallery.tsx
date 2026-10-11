@@ -32,7 +32,7 @@ export default function ProductGallery({
     return (
         <div className="space-y-4">
             {/* Main Image */}
-            <div className="relative aspect-[3/4] bg-gray-100 rounded-2xl overflow-hidden">
+            <div className="relative aspect-3/4 bg-muted rounded-2xl overflow-hidden">
                 {images.length > 0 && (
                     <Image
                         src={images[selectedImage]}
@@ -46,17 +46,17 @@ export default function ProductGallery({
                 {/* Badges */}
                 <div className="absolute top-4 left-4 flex flex-col gap-2 z-10">
                     {isNew && (
-                        <span className="px-3 py-1 bg-slate-900 text-white text-xs font-medium rounded-full">NEW</span>
+                        <span className="px-3 py-1 bg-primary text-primary-foreground text-xs font-medium rounded-full">NEW</span>
                     )}
                     {isSale && discount > 0 && (
-                        <span className="px-3 py-1 bg-rose-600 text-white text-xs font-medium rounded-full">-{discount}%</span>
+                        <span className="px-3 py-1 bg-destructive text-destructive-foreground text-xs font-medium rounded-full">-{discount}%</span>
                     )}
                 </div>
 
                 {/* Share Button */}
                 <button
                     onClick={handleShare}
-                    className="absolute top-4 right-16 w-10 h-10 bg-white text-gray-600 hover:text-slate-900 rounded-full flex items-center justify-center z-10 transition-all shadow-sm border border-gray-100"
+                    className="absolute top-4 right-16 w-10 h-10 bg-background text-muted-foreground hover:text-foreground rounded-full flex items-center justify-center z-10 transition-all shadow-sm border border-border"
                     title="Share Product"
                 >
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -67,7 +67,7 @@ export default function ProductGallery({
                 {/* Wishlist Button */}
                 <button
                     onClick={onWishlistToggle}
-                    className={`absolute top-4 right-4 w-10 h-10 rounded-full flex items-center justify-center z-10 transition-all ${isWishlisted ? 'bg-rose-100 text-rose-600' : 'bg-white text-gray-600 hover:text-rose-600'
+                    className={`absolute top-4 right-4 w-10 h-10 rounded-full flex items-center justify-center z-10 transition-all ${isWishlisted ? 'bg-destructive/10 text-destructive' : 'bg-background text-muted-foreground hover:text-destructive'
                         }`}
                 >
                     <svg className="w-5 h-5" fill={isWishlisted ? 'currentColor' : 'none'} stroke="currentColor" viewBox="0 0 24 24">
@@ -82,7 +82,7 @@ export default function ProductGallery({
                     <button
                         key={index}
                         onClick={() => setSelectedImage(index)}
-                        className={`aspect-square bg-gray-100 rounded-lg overflow-hidden transition-all ${selectedImage === index ? 'ring-2 ring-slate-900' : 'hover:opacity-80'
+                        className={`aspect-square bg-muted rounded-lg overflow-hidden transition-all ${selectedImage === index ? 'ring-2 ring-primary' : 'hover:opacity-80'
                             }`}
                     >
                         <div className="relative w-full h-full">

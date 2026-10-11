@@ -68,19 +68,16 @@ export default function CustomerSegmentsPage() {
     const [loading, setLoading] = useState(true);
     const [selectedSegment, setSelectedSegment] = useState<RFMSegment | null>(null);
 
+    // Runs once on mount; `loading` starts true.
     useEffect(() => {
-        loadData();
+        getCustomerRFMAnalysis().then(result => {
+            if (result.success && result.data) {
+                setCustomers(result.data.customers);
+                setSegments(result.data.segments);
+            }
+            setLoading(false);
+        });
     }, []);
-
-    const loadData = async () => {
-        setLoading(true);
-        const result = await getCustomerRFMAnalysis();
-        if (result.success && result.data) {
-            setCustomers(result.data.customers);
-            setSegments(result.data.segments);
-        }
-        setLoading(false);
-    };
 
     const filteredCustomers = selectedSegment
         ? customers.filter(c => c.segment === selectedSegment)

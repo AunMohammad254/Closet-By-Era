@@ -1,6 +1,6 @@
 'use server';
 
-import { createClient } from '@/lib/supabase/server';
+import { getAdminContext, FORBIDDEN } from '@/lib/auth';
 import { revalidatePath } from 'next/cache';
 
 export async function importProductsFromCSV(formData: FormData): Promise<{ success: boolean; count?: number; errors?: string[] }> {
@@ -27,7 +27,9 @@ export async function importProductsFromCSV(formData: FormData): Promise<{ succe
         const errors = [];
         const categoriesMap = new Map<string, string>(); // Name -> ID
 
-        const supabase = await createClient();
+        const ctx = await getAdminContext();
+        if (!ctx) return { success: false, errors: [FORBIDDEN] };
+        const { supabase } = ctx;
 
         // 1. Fetch existing categories to map names to IDs
         const { data: categories } = await supabase.from('categories').select('id, name');
@@ -70,7 +72,7 @@ export async function importProductsFromCSV(formData: FormData): Promise<{ succe
             // For now, if not found, we'll try to create it or skip. Let's create it.
             if (!categoryId) {
                 const slug = row.category.toLowerCase().replace(/[^a-z0-9]+/g, '-');
-                const { data: newCat, error: catError } = await supabase
+                const { data: newCat } = await supabase
                     .from('categories')
                     .insert({ name: row.category, slug, description: 'Imported' })
                     .select('id')
@@ -85,7 +87,7 @@ export async function importProductsFromCSV(formData: FormData): Promise<{ succe
                 }
             }
 
-            const slug = row.name.toLowerCase().replace(/space/g, '-').replace(/[^\w-]+/g, '');
+            const slug = row.name.toLowerCase().trim().replace(/\s+/g, '-').replace(/[^\w-]+/g, '');
 
             productsToInsert.push({
                 name: row.name,

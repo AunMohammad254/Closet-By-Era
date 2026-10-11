@@ -10,7 +10,7 @@ export default async function Home() {
   const { data: settings } = await getStoreSettings();
 
   return (
-    <main className="min-h-screen bg-white">
+    <main className="min-h-screen bg-background">
       <Hero
         title={settings?.content?.hero_title}
         subtitle={settings?.content?.hero_subtitle}

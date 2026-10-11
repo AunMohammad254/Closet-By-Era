@@ -2,7 +2,7 @@
 
 import { X, Calendar, ShoppingBag, DollarSign, Mail, Phone, Loader2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { getCustomerDetails } from '@/actions/admin';
+import { getCustomerDetails, type CustomerDetails } from '@/actions/admin';
 
 interface CustomerDetailsModalProps {
     customerId: string | null;
@@ -10,7 +10,7 @@ interface CustomerDetailsModalProps {
 }
 
 export default function CustomerDetailsModal({ customerId, onClose }: CustomerDetailsModalProps) {
-    const [data, setData] = useState<any>(null);
+    const [data, setData] = useState<CustomerDetails | null>(null);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
@@ -21,7 +21,7 @@ export default function CustomerDetailsModal({ customerId, onClose }: CustomerDe
             try {
                 const result = await getCustomerDetails(customerId!);
                 if (result.success) {
-                    setData(result.data);
+                    setData(result.data ?? null);
                 } else {
                     console.error('Failed to fetch details:', result.error);
                 }
@@ -92,7 +92,7 @@ export default function CustomerDetailsModal({ customerId, onClose }: CustomerDe
                                     </div>
                                     <div className="flex items-center gap-2">
                                         <Calendar className="w-4 h-4 text-slate-500" />
-                                        Joined: {new Date(data.created_at).toLocaleDateString()}
+                                        Joined: {new Date(data.created_at!).toLocaleDateString()}
                                     </div>
                                 </div>
                             </div>
@@ -138,7 +138,7 @@ export default function CustomerDetailsModal({ customerId, onClose }: CustomerDe
                                             </tr>
                                         </thead>
                                         <tbody className="divide-y divide-slate-700/50">
-                                            {data.orders.map((order: any) => (
+                                            {data.orders.map((order) => (
                                                 <tr key={order.id} className="hover:bg-slate-800/50">
                                                     <td className="px-4 py-3 font-medium text-slate-300">
                                                         #{order.order_number || order.id.slice(0, 8)}
@@ -155,7 +155,7 @@ export default function CustomerDetailsModal({ customerId, onClose }: CustomerDe
                                                         </span>
                                                     </td>
                                                     <td className="px-4 py-3 text-right font-medium text-slate-200">
-                                                        PKR {order.total.toLocaleString()}
+                                                        PKR {order.total!.toLocaleString()}
                                                     </td>
                                                 </tr>
                                             ))}

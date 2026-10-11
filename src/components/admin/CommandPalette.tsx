@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import {
     Command,
@@ -13,8 +13,7 @@ import {
     Gift,
     Star,
     BarChart3,
-    Plus,
-    X
+    Plus
 } from 'lucide-react';
 
 type CommandItem = {
@@ -64,15 +63,26 @@ export default function CommandPalette() {
 
     const flatFiltered = [...groupedCommands.quick, ...groupedCommands.navigation, ...groupedCommands.action];
 
+    // Search and selection start fresh every time the palette opens or closes.
+    const setOpen = (open: boolean) => {
+        setIsOpen(open);
+        setSearch('');
+        setSelectedIndex(0);
+    };
+
     // Keyboard shortcut to open
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
             if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
                 e.preventDefault();
                 setIsOpen(prev => !prev);
+                setSearch('');
+                setSelectedIndex(0);
             }
             if (e.key === 'Escape') {
                 setIsOpen(false);
+                setSearch('');
+                setSelectedIndex(0);
             }
         };
 
@@ -85,14 +95,10 @@ export default function CommandPalette() {
         if (isOpen && inputRef.current) {
             inputRef.current.focus();
         }
-        if (!isOpen) {
-            setSearch('');
-            setSelectedIndex(0);
-        }
     }, [isOpen]);
 
     // Keyboard navigation within palette
-    const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
+    const handleKeyDown = (e: React.KeyboardEvent) => {
         if (e.key === 'ArrowDown') {
             e.preventDefault();
             setSelectedIndex(prev => Math.min(prev + 1, flatFiltered.length - 1));
@@ -103,14 +109,14 @@ export default function CommandPalette() {
             e.preventDefault();
             if (flatFiltered[selectedIndex]) {
                 flatFiltered[selectedIndex].action();
-                setIsOpen(false);
+                setOpen(false);
             }
         }
-    }, [flatFiltered, selectedIndex]);
+    };
 
     const executeCommand = (command: CommandItem) => {
         command.action();
-        setIsOpen(false);
+        setOpen(false);
     };
 
     if (!isOpen) return null;
@@ -120,7 +126,7 @@ export default function CommandPalette() {
             {/* Backdrop */}
             <div
                 className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50"
-                onClick={() => setIsOpen(false)}
+                onClick={() => setOpen(false)}
             />
 
             {/* Modal */}

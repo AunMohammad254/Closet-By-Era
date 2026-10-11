@@ -1,41 +1,19 @@
 'use server';
 
-import { createClient } from '@/lib/supabase/server';
 import type { Customer } from '@/types/database';
+import { getSessionUser } from '@/lib/auth';
 
-export async function getCustomerByAuthId(authId: string): Promise<Customer | null> {
-    const supabase = await createClient();
-    const { data, error } = await supabase
+/** The signed-in user's customer record, or null for guests. */
+export async function getCurrentCustomer(): Promise<Customer | null> {
+    const session = await getSessionUser();
+    if (!session) return null;
+
+    const { data, error } = await session.supabase
         .from('customers')
         .select('*')
-        .eq('auth_id', authId)
-        .single();
+        .eq('auth_id', session.user.id)
+        .maybeSingle();
 
     if (error || !data) return null;
-    return data;
-}
-
-export async function getOrCreateCustomer(authId: string, email: string, firstName?: string, lastName?: string): Promise<Customer | null> {
-    // First try to get existing customer
-    const existing = await getCustomerByAuthId(authId);
-    if (existing) return existing;
-
-    // Create new customer
-    const supabase = await createClient();
-    const { data, error } = await supabase
-        .from('customers')
-        .insert({
-            auth_id: authId,
-            email: email,
-            first_name: firstName || '',
-            last_name: lastName || '',
-        })
-        .select()
-        .single();
-
-    if (error) {
-        console.error('Error creating customer:', error);
-        return null;
-    }
     return data;
 }

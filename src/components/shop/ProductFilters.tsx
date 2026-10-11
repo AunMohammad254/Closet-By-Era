@@ -103,10 +103,10 @@ export default function ProductFilters({ categories }: ProductFiltersProps) {
         <div className="space-y-8">
             {/* Header */}
             <div className="flex items-center justify-between">
-                <h3 className="text-lg font-semibold text-gray-900">Filters</h3>
+                <h3 className="text-lg font-semibold text-foreground">Filters</h3>
                 <button
                     onClick={clearAll}
-                    className="text-sm text-rose-600 hover:text-rose-700 font-medium"
+                    className="text-sm text-primary hover:text-primary/80 font-medium"
                 >
                     Clear All
                 </button>
@@ -114,11 +114,11 @@ export default function ProductFilters({ categories }: ProductFiltersProps) {
 
             {/* Sort (Mobile/Sidebar friendly) */}
             <div>
-                <h4 className="text-sm font-medium text-gray-700 mb-3">Sort By</h4>
+                <h4 className="text-sm font-medium text-foreground mb-3">Sort By</h4>
                 <select
                     value={sort}
                     onChange={handleSortChange}
-                    className="w-full p-2.5 bg-white border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-rose-500"
+                    className="w-full p-2.5 bg-background border border-border rounded-lg text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
                 >
                     <option value="newest">Newest Arrivals</option>
                     <option value="price_asc">Price: Low to High</option>
@@ -128,7 +128,7 @@ export default function ProductFilters({ categories }: ProductFiltersProps) {
 
             {/* Categories */}
             <div>
-                <h4 className="text-sm font-medium text-gray-700 mb-3">Categories</h4>
+                <h4 className="text-sm font-medium text-foreground mb-3">Categories</h4>
                 <div className="space-y-2 max-h-60 overflow-y-auto custom-scrollbar">
                     {categories.map((cat) => (
                         <label key={cat} className="flex items-center gap-3 cursor-pointer group">
@@ -137,10 +137,10 @@ export default function ProductFilters({ categories }: ProductFiltersProps) {
                                     type="checkbox"
                                     checked={selectedCategories.includes(cat)}
                                     onChange={() => handleCategoryChange(cat)}
-                                    className="peer h-4 w-4 rounded border-gray-300 text-rose-600 focus:ring-rose-500 cursor-pointer"
+                                    className="peer h-4 w-4 rounded border-input bg-background text-primary focus:ring-primary cursor-pointer"
                                 />
                             </div>
-                            <span className="text-sm text-gray-600 group-hover:text-gray-900 transition-colors">
+                            <span className="text-sm text-muted-foreground group-hover:text-foreground transition-colors">
                                 {cat}
                             </span>
                         </label>
@@ -150,32 +150,32 @@ export default function ProductFilters({ categories }: ProductFiltersProps) {
 
             {/* Price Range */}
             <div>
-                <h4 className="text-sm font-medium text-gray-700 mb-3">Price Range (PKR)</h4>
+                <h4 className="text-sm font-medium text-foreground mb-3">Price Range (PKR)</h4>
                 <div className="space-y-4">
                     <div className="flex items-center gap-2">
                         <div className="relative flex-1">
-                            <span className="absolute left-3 top-2.5 text-xs text-gray-400">Min</span>
+                            <span className="absolute left-3 top-2.5 text-xs text-muted-foreground">Min</span>
                             <input
                                 type="number"
                                 value={priceRange.min}
                                 onChange={(e) => handlePriceChange('min', e.target.value)}
-                                className="w-full pl-3 pr-3 py-2 pt-6 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-rose-500"
+                                className="w-full pl-3 pr-3 py-2 pt-6 text-sm bg-background border border-border rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
                             />
                         </div>
-                        <span className="text-gray-400">-</span>
+                        <span className="text-muted-foreground">-</span>
                         <div className="relative flex-1">
-                            <span className="absolute left-3 top-2.5 text-xs text-gray-400">Max</span>
+                            <span className="absolute left-3 top-2.5 text-xs text-muted-foreground">Max</span>
                             <input
                                 type="number"
                                 value={priceRange.max}
                                 onChange={(e) => handlePriceChange('max', e.target.value)}
-                                className="w-full pl-3 pr-3 py-2 pt-6 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-rose-500"
+                                className="w-full pl-3 pr-3 py-2 pt-6 text-sm bg-background border border-border rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
                             />
                         </div>
                     </div>
                     <button
                         onClick={applyPriceFilter}
-                        className="w-full py-2 bg-gray-900 text-white text-sm font-medium rounded-lg hover:bg-gray-800 transition-colors"
+                        className="w-full py-2 bg-primary text-primary-foreground text-sm font-medium rounded-lg hover:bg-primary/90 transition-colors"
                     >
                         Apply Price
                     </button>

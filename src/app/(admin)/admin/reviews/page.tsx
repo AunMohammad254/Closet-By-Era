@@ -13,17 +13,27 @@ export default function ReviewsPage() {
     const [ratingFilter, setRatingFilter] = useState<number | undefined>();
     const pageSize = 15;
 
-    const fetchReviews = useCallback(async () => {
-        setLoading(true);
-        const result = await getAllReviews(page, pageSize, { rating: ratingFilter });
+    // Callers set `loading` before this runs; it starts true for the initial load.
+    const loadReviews = useCallback(() => getAllReviews(page, pageSize, { rating: ratingFilter }).then(result => {
         setReviews(result.reviews);
         setTotal(result.total);
         setLoading(false);
-    }, [page, ratingFilter]);
+    }), [page, ratingFilter]);
 
     useEffect(() => {
-        fetchReviews();
-    }, [fetchReviews]);
+        loadReviews();
+    }, [loadReviews]);
+
+    const fetchReviews = () => {
+        setLoading(true);
+        return loadReviews();
+    };
+
+    const changeQuery = (nextRating: number | undefined, nextPage: number) => {
+        if (nextRating !== ratingFilter || nextPage !== page) setLoading(true);
+        setRatingFilter(nextRating);
+        setPage(nextPage);
+    };
 
     const handleDelete = async (id: string) => {
         if (!confirm('Are you sure you want to delete this review? This action cannot be undone.')) return;
@@ -73,7 +83,7 @@ export default function ReviewsPage() {
                 <span className="text-sm text-slate-400">Filter by rating:</span>
                 <div className="flex gap-2">
                     <button
-                        onClick={() => { setRatingFilter(undefined); setPage(1); }}
+                        onClick={() => changeQuery(undefined, 1)}
                         className={`px-3 py-1.5 text-sm rounded-lg transition-colors ${!ratingFilter
                                 ? 'bg-rose-500 text-white'
                                 : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
@@ -84,7 +94,7 @@ export default function ReviewsPage() {
                     {[5, 4, 3, 2, 1].map((rating) => (
                         <button
                             key={rating}
-                            onClick={() => { setRatingFilter(rating); setPage(1); }}
+                            onClick={() => changeQuery(rating, 1)}
                             className={`px-3 py-1.5 text-sm rounded-lg transition-colors flex items-center gap-1 ${ratingFilter === rating
                                     ? 'bg-rose-500 text-white'
                                     : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
@@ -185,14 +195,14 @@ export default function ReviewsPage() {
                     </p>
                     <div className="flex gap-2">
                         <button
-                            onClick={() => setPage(p => Math.max(1, p - 1))}
+                            onClick={() => changeQuery(ratingFilter, Math.max(1, page - 1))}
                             disabled={page <= 1}
                             className="px-4 py-2 border border-slate-700/50 text-slate-300 rounded-xl hover:bg-slate-700/50 transition-colors disabled:opacity-50 disabled:pointer-events-none"
                         >
                             Previous
                         </button>
                         <button
-                            onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                            onClick={() => changeQuery(ratingFilter, Math.min(totalPages, page + 1))}
                             disabled={page >= totalPages}
                             className="px-4 py-2 bg-rose-500 text-white rounded-xl hover:bg-rose-600 transition-colors disabled:opacity-50 disabled:pointer-events-none"
                         >

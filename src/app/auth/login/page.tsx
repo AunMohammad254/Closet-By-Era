@@ -48,27 +48,27 @@ function LoginForm() {
     };
 
     return (
-        <main className="min-h-screen bg-gradient-to-b from-slate-50/50 to-white flex items-center justify-center py-12 px-4">
+        <main className="min-h-screen bg-linear-to-b from-muted/50 to-background flex items-center justify-center py-12 px-4">
             <div className="w-full max-w-md">
                 {/* Logo */}
                 <div className="text-center mb-10">
                     <Link href="/" className="inline-block">
-                        <h1 className="text-2xl font-bold tracking-tight text-slate-900">
+                        <h1 className="text-2xl font-bold tracking-tight text-foreground">
                             <span className="font-light">CLOSET</span>
-                            <span className="text-rose-600">BY</span>
+                            <span className="text-primary">BY</span>
                             <span className="font-light">ERA</span>
                         </h1>
                     </Link>
                 </div>
 
                 {/* Form Card */}
-                <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8">
-                    <h2 className="text-2xl font-bold text-gray-900 text-center mb-2">Welcome Back</h2>
-                    <p className="text-gray-500 text-center mb-8">Sign in to your account</p>
+                <div className="bg-card rounded-2xl shadow-sm border border-border p-8">
+                    <h2 className="text-2xl font-bold text-foreground text-center mb-2">Welcome Back</h2>
+                    <p className="text-muted-foreground text-center mb-8">Sign in to your account</p>
 
                     {error && (
-                        <div className="mb-6 p-4 bg-rose-50 border border-rose-100 rounded-xl text-rose-600 text-sm flex items-center gap-3">
-                            <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <div className="mb-6 p-4 bg-destructive/10 border border-destructive/20 rounded-xl text-destructive text-sm flex items-center gap-3">
+                            <svg className="w-5 h-5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                             </svg>
                             {error}
@@ -78,7 +78,7 @@ function LoginForm() {
                     <form onSubmit={handleSubmit} className="space-y-5">
                         {/* Email Input */}
                         <div className="relative">
-                            <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400">
+                            <div className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground">
                                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                                 </svg>
@@ -89,14 +89,14 @@ function LoginForm() {
                                 onChange={(e) => setEmail(e.target.value)}
                                 required
                                 suppressHydrationWarning
-                                className="w-full pl-12 pr-4 py-4 border border-gray-200 rounded-xl focus:outline-none focus:border-rose-500 focus:ring-2 focus:ring-rose-500/20 transition-all text-gray-900 placeholder:text-gray-400"
+                                className="w-full pl-12 pr-4 py-4 bg-background border border-input rounded-xl focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all text-foreground placeholder:text-muted-foreground"
                                 placeholder="you@example.com"
                             />
                         </div>
 
                         {/* Password Input */}
                         <div className="relative">
-                            <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400">
+                            <div className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground">
                                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                                 </svg>
@@ -106,13 +106,13 @@ function LoginForm() {
                                 value={password}
                                 onChange={(e) => setPassword(e.target.value)}
                                 required
-                                className="w-full pl-12 pr-12 py-4 border border-gray-200 rounded-xl focus:outline-none focus:border-rose-500 focus:ring-2 focus:ring-rose-500/20 transition-all text-gray-900 placeholder:text-gray-400"
+                                className="w-full pl-12 pr-12 py-4 bg-background border border-input rounded-xl focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all text-foreground placeholder:text-muted-foreground"
                                 placeholder="••••••••"
                             />
                             <button
                                 type="button"
                                 onClick={() => setShowPassword(!showPassword)}
-                                className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                                className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
                             >
                                 {showPassword ? (
                                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -131,7 +131,7 @@ function LoginForm() {
                         <div className="text-right">
                             <Link
                                 href="/auth/forgot-password"
-                                className="text-sm text-rose-600 hover:text-rose-700 transition-colors font-medium"
+                                className="text-sm text-primary hover:text-primary/80 transition-colors font-medium"
                             >
                                 Forgot password?
                             </Link>
@@ -141,11 +141,11 @@ function LoginForm() {
                         <button
                             type="submit"
                             disabled={isLoading}
-                            className="w-full py-4 bg-rose-600 text-white font-medium rounded-xl hover:bg-rose-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                            className="w-full py-4 bg-primary text-primary-foreground font-medium rounded-xl hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                         >
                             {isLoading ? (
                                 <>
-                                    <svg className="animate-spin h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
+                                    <svg className="animate-spin h-5 w-5 text-primary-foreground" fill="none" viewBox="0 0 24 24">
                                         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                                         <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                                     </svg>
@@ -164,9 +164,9 @@ function LoginForm() {
 
                     {/* Register Link */}
                     <div className="mt-8 text-center">
-                        <p className="text-gray-500">
+                        <p className="text-muted-foreground">
                             Don&apos;t have an account?{' '}
-                            <Link href="/auth/register" className="text-rose-600 font-medium hover:text-rose-700 transition-colors">
+                            <Link href="/auth/register" className="text-primary font-medium hover:text-primary/80 transition-colors">
                                 Sign Up
                             </Link>
                         </p>
@@ -175,7 +175,7 @@ function LoginForm() {
 
                 {/* Back to Home */}
                 <div className="mt-8 text-center">
-                    <Link href="/" className="text-gray-400 text-sm hover:text-gray-600 transition-colors inline-flex items-center gap-2">
+                    <Link href="/" className="text-muted-foreground text-sm hover:text-foreground transition-colors inline-flex items-center gap-2">
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
                         </svg>
@@ -190,8 +190,8 @@ function LoginForm() {
 export default function LoginPage() {
     return (
         <Suspense fallback={
-            <div className="min-h-screen bg-gradient-to-b from-slate-50/50 to-white flex items-center justify-center">
-                <div className="animate-spin w-8 h-8 border-2 border-gray-200 border-t-rose-600 rounded-full"></div>
+            <div className="min-h-screen bg-linear-to-b from-muted/50 to-background flex items-center justify-center">
+                <div className="animate-spin w-8 h-8 border-2 border-input border-t-primary rounded-full"></div>
             </div>
         }>
             <LoginForm />

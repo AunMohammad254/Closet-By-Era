@@ -5,17 +5,19 @@ import { getFilterPresets, createFilterPreset, deleteFilterPreset, setDefaultPre
 import { SlidersHorizontal, Save, Trash2, Star, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 
+type FilterValues = Record<string, string>;
+
 type FilterPreset = {
     id: string;
     name: string;
-    filters: Record<string, any>;
+    filters: FilterValues;
     is_default: boolean;
 };
 
 interface AdvancedFiltersProps {
     entityType: 'orders' | 'products' | 'customers';
-    currentFilters: Record<string, any>;
-    onApplyFilters: (filters: Record<string, any>) => void;
+    currentFilters: FilterValues;
+    onApplyFilters: (filters: FilterValues) => void;
     filterFields: {
         key: string;
         label: string;
@@ -32,27 +34,27 @@ export default function AdvancedFilters({
 }: AdvancedFiltersProps) {
     const [isOpen, setIsOpen] = useState(false);
     const [presets, setPresets] = useState<FilterPreset[]>([]);
-    const [filters, setFilters] = useState<Record<string, any>>(currentFilters);
+    const [filters, setFilters] = useState<FilterValues>(currentFilters);
     const [saveModalOpen, setSaveModalOpen] = useState(false);
     const [presetName, setPresetName] = useState('');
 
-    useEffect(() => {
-        loadPresets();
-    }, [entityType]);
-
-    const loadPresets = async () => {
-        const result = await getFilterPresets(entityType);
+    const loadPresets = () => getFilterPresets(entityType).then(result => {
         if (result.success && result.data) {
-            setPresets(result.data);
+            const loaded = result.data as FilterPreset[];
+            setPresets(loaded);
 
             // Apply default preset
-            const defaultPreset = result.data.find(p => p.is_default);
+            const defaultPreset = loaded.find(p => p.is_default);
             if (defaultPreset) {
                 setFilters(defaultPreset.filters);
                 onApplyFilters(defaultPreset.filters);
             }
         }
-    };
+    });
+
+    useEffect(() => {
+        loadPresets();
+    }, [entityType]);
 
     const handleApply = () => {
         onApplyFilters(filters);
@@ -60,7 +62,7 @@ export default function AdvancedFilters({
     };
 
     const handleReset = () => {
-        const emptyFilters: Record<string, any> = {};
+        const emptyFilters: FilterValues = {};
         setFilters(emptyFilters);
         onApplyFilters(emptyFilters);
     };

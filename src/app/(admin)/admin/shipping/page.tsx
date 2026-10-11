@@ -30,17 +30,21 @@ export default function ShippingPage() {
     const [rateMaxOrder, setRateMaxOrder] = useState('');
     const [rateEstDays, setRateEstDays] = useState('');
 
-    const fetchZones = async () => {
-        setLoading(true);
-        const result = await getShippingZones();
+    // `loading` starts true, so the initial load doesn't need to set it.
+    const loadZones = () => getShippingZones().then(result => {
         if (result.success && result.data) {
             setZones(result.data);
         }
         setLoading(false);
+    });
+
+    const fetchZones = () => {
+        setLoading(true);
+        return loadZones();
     };
 
     useEffect(() => {
-        fetchZones();
+        loadZones();
     }, []);
 
     const handleCreateZone = async () => {

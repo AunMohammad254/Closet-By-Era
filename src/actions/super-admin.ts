@@ -423,7 +423,7 @@ export async function recordLogin() {
         const ip = headersList.get('x-forwarded-for') || 'unknown';
         const userAgent = headersList.get('user-agent') || 'unknown';
 
-        await supabase.from('login_history' as any).insert({
+        await supabase.from('login_history').insert({
             user_id: user.id,
             ip_address: ip,
             user_agent: userAgent
@@ -445,7 +445,7 @@ export async function getLoginHistory(userId: string) {
     }
 
     const { data, error } = await supabase
-        .from('login_history' as any)
+        .from('login_history')
         .select('*')
         .eq('user_id', userId)
         .order('created_at', { ascending: false })

@@ -22,16 +22,16 @@ export default function CompareBar() {
             leaveFrom="translate-y-0"
             leaveTo="translate-y-full"
         >
-            <div className="fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-gray-200 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)] p-4">
+            <div className="fixed bottom-0 left-0 right-0 z-40 bg-white dark:bg-slate-900 border-t border-gray-200 dark:border-slate-800 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)] p-4">
                 <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4">
 
                     <div className="flex items-center gap-4 overflow-x-auto w-full sm:w-auto pb-2 sm:pb-0">
-                        <span className="text-sm font-medium text-gray-700 whitespace-nowrap">
+                        <span className="text-sm font-medium text-gray-700 dark:text-gray-300 whitespace-nowrap">
                             Compare ({items.length}/4):
                         </span>
                         <div className="flex -space-x-2">
                             {items.filter(item => typeof item.image === 'string' && item.image.trim().length > 0).map((item) => (
-                                <div key={item.id} className="relative group w-12 h-12 rounded-lg border-2 border-white shadow-sm overflow-hidden bg-gray-100 flex-shrink-0">
+                                <div key={item.id} className="relative group w-12 h-12 rounded-lg border-2 border-white dark:border-slate-700 shadow-sm overflow-hidden bg-gray-100 dark:bg-slate-800 flex-shrink-0">
                                     <Image
                                         src={item.image}
                                         alt={item.name}
@@ -54,13 +54,13 @@ export default function CompareBar() {
                     <div className="flex items-center gap-3 w-full sm:w-auto">
                         <button
                             onClick={clearCompare}
-                            className="text-sm text-gray-500 hover:text-gray-900 underline transition-colors"
+                            className="text-sm text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white underline transition-colors"
                         >
                             Clear All
                         </button>
                         <Link
                             href="/compare"
-                            className="flex-1 sm:flex-none px-6 py-2.5 bg-slate-900 text-white text-sm font-medium rounded-full hover:bg-slate-800 transition-colors text-center"
+                            className="flex-1 sm:flex-none px-6 py-2.5 bg-slate-900 text-white dark:bg-white dark:text-slate-900 text-sm font-medium rounded-full hover:bg-slate-800 dark:hover:bg-gray-100 transition-colors text-center"
                         >
                             Compare Products
                         </Link>

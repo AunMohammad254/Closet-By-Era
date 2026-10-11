@@ -1,14 +1,17 @@
 'use server';
 
 import { createClient } from '@/lib/supabase/server';
-import { revalidatePath } from 'next/cache';
+import type { SupabaseClient } from '@supabase/supabase-js';
 import { ActionResult } from '@/types/shared';
+
+// filter_presets is not in the generated Database types, so query it untyped.
+const untyped = (client: Awaited<ReturnType<typeof createClient>>) => client as unknown as SupabaseClient;
 
 export interface FilterPreset {
     id: string;
     name: string;
     entity_type: 'orders' | 'products' | 'customers';
-    filters: Record<string, any>;
+    filters: Record<string, unknown>;
     is_default: boolean;
     created_by: string;
     created_at: string;
@@ -19,12 +22,13 @@ export interface FilterPreset {
  */
 export async function getFilterPresets(entityType: 'orders' | 'products' | 'customers'): Promise<ActionResult<FilterPreset[]>> {
     const supabase = await createClient();
+    const db = untyped(supabase);
 
     try {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) return { success: false, error: 'Unauthorized' };
 
-        const { data, error } = await (supabase as any)
+        const { data, error } = await db
             .from('filter_presets')
             .select('*')
             .eq('entity_type', entityType)
@@ -48,10 +52,11 @@ export async function getFilterPresets(entityType: 'orders' | 'products' | 'cust
 export async function createFilterPreset(data: {
     name: string;
     entity_type: 'orders' | 'products' | 'customers';
-    filters: Record<string, any>;
+    filters: Record<string, unknown>;
     is_shared?: boolean;
 }): Promise<ActionResult<{ id: string }>> {
     const supabase = await createClient();
+    const db = untyped(supabase);
 
     try {
         const { data: { user } } = await supabase.auth.getUser();
@@ -68,7 +73,7 @@ export async function createFilterPreset(data: {
             return { success: false, error: 'Admin access required' };
         }
 
-        const { data: preset, error } = await (supabase as any)
+        const { data: preset, error } = await db
             .from('filter_presets')
             .insert({
                 name: data.name,
@@ -96,15 +101,16 @@ export async function createFilterPreset(data: {
  */
 export async function updateFilterPreset(
     presetId: string,
-    data: { name?: string; filters?: Record<string, any>; is_shared?: boolean }
+    data: { name?: string; filters?: Record<string, unknown>; is_shared?: boolean }
 ): Promise<ActionResult> {
     const supabase = await createClient();
+    const db = untyped(supabase);
 
     try {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) return { success: false, error: 'Unauthorized' };
 
-        const { error } = await (supabase as any)
+        const { error } = await db
             .from('filter_presets')
             .update(data)
             .eq('id', presetId)
@@ -126,12 +132,13 @@ export async function updateFilterPreset(
  */
 export async function deleteFilterPreset(presetId: string): Promise<ActionResult> {
     const supabase = await createClient();
+    const db = untyped(supabase);
 
     try {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) return { success: false, error: 'Unauthorized' };
 
-        const { error } = await (supabase as any)
+        const { error } = await db
             .from('filter_presets')
             .delete()
             .eq('id', presetId)
@@ -156,20 +163,21 @@ export async function setDefaultPreset(
     entityType: 'orders' | 'products' | 'customers'
 ): Promise<ActionResult> {
     const supabase = await createClient();
+    const db = untyped(supabase);
 
     try {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) return { success: false, error: 'Unauthorized' };
 
         // Remove default from other presets
-        await (supabase as any)
+        await db
             .from('filter_presets')
             .update({ is_default: false })
             .eq('entity_type', entityType)
             .eq('created_by', user.id);
 
         // Set this one as default
-        const { error } = await (supabase as any)
+        const { error } = await db
             .from('filter_presets')
             .update({ is_default: true })
             .eq('id', presetId);

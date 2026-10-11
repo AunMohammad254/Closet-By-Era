@@ -1,6 +1,6 @@
 'use server';
 
-import { createClient } from '@/lib/supabase/server';
+import { getAdminContext } from '@/lib/auth';
 
 // Types for notifications (table will exist after migration is applied)
 interface Notification {
@@ -22,11 +22,13 @@ export async function getAdminNotifications(options?: {
     limit?: number;
     unreadOnly?: boolean;
 }): Promise<Notification[]> {
-    const supabase = await createClient();
+    const ctx = await getAdminContext();
+    if (!ctx) return [];
+    const { supabase } = ctx;
 
     try {
         // Using any to handle table that may not exist in types yet
-        let query = (supabase as any)
+        let query = supabase
             .from('admin_notifications')
             .select('*')
             .order('created_at', { ascending: false })
@@ -54,10 +56,12 @@ export async function getAdminNotifications(options?: {
  * Get unread notification count
  */
 export async function getUnreadNotificationCount(): Promise<number> {
-    const supabase = await createClient();
+    const ctx = await getAdminContext();
+    if (!ctx) return 0;
+    const { supabase } = ctx;
 
     try {
-        const { count, error } = await (supabase as any)
+        const { count, error } = await supabase
             .from('admin_notifications')
             .select('*', { count: 'exact', head: true })
             .eq('is_read', false);
@@ -77,10 +81,12 @@ export async function getUnreadNotificationCount(): Promise<number> {
  * Mark notification as read
  */
 export async function markNotificationAsRead(notificationId: string): Promise<{ success: boolean }> {
-    const supabase = await createClient();
+    const ctx = await getAdminContext();
+    if (!ctx) return { success: false };
+    const { supabase } = ctx;
 
     try {
-        const { error } = await (supabase as any)
+        const { error } = await supabase
             .from('admin_notifications')
             .update({ is_read: true })
             .eq('id', notificationId);
@@ -100,10 +106,12 @@ export async function markNotificationAsRead(notificationId: string): Promise<{ 
  * Mark all notifications as read
  */
 export async function markAllNotificationsAsRead(): Promise<{ success: boolean }> {
-    const supabase = await createClient();
+    const ctx = await getAdminContext();
+    if (!ctx) return { success: false };
+    const { supabase } = ctx;
 
     try {
-        const { error } = await (supabase as any)
+        const { error } = await supabase
             .from('admin_notifications')
             .update({ is_read: true })
             .eq('is_read', false);
@@ -129,10 +137,12 @@ export async function createNotification(notification: {
     entity_id?: string;
     entity_type?: string;
 }): Promise<{ success: boolean }> {
-    const supabase = await createClient();
+    const ctx = await getAdminContext();
+    if (!ctx) return { success: false };
+    const { supabase } = ctx;
 
     try {
-        const { error } = await (supabase as any)
+        const { error } = await supabase
             .from('admin_notifications')
             .insert({
                 type: notification.type,

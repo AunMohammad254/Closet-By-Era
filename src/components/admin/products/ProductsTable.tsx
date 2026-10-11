@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import Image from 'next/image';
-import { Pencil, Trash2, Loader2, CheckSquare, Square, X } from 'lucide-react';
+import { Pencil, Trash2, Loader2, X } from 'lucide-react';
 import { deleteProduct, bulkDeleteProducts } from '@/actions/products';
 import { useState } from 'react';
 
@@ -27,7 +27,7 @@ export default function ProductsTable({ products }: { products: Product[] }) {
         setDeletingId(id);
         try {
             await deleteProduct(id);
-        } catch (error) {
+        } catch {
             alert('Failed to delete product');
         } finally {
             setDeletingId(null);
@@ -57,7 +57,7 @@ export default function ProductsTable({ products }: { products: Product[] }) {
         try {
             await bulkDeleteProducts(selectedIds);
             setSelectedIds([]); // Clear selection on success
-        } catch (error) {
+        } catch {
             alert('Failed to delete products');
         } finally {
             setIsBulkDeleting(false);

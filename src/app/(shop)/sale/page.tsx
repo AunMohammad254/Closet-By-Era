@@ -74,7 +74,6 @@ export default function SalePage() {
                         price: p.price,
                         originalPrice: p.original_price || undefined,
                         image: p.image_url || (p.images && p.images[0]) || '/products/placeholder.png',
-                        // @ts-ignore - Supabase join types
                         category: p.categories?.name || 'Uncategorized',
                         isNew: p.is_new || false,
                         isSale: p.is_sale || false,
@@ -125,7 +124,7 @@ export default function SalePage() {
     }, [selectedCategory, sortOption, products]);
 
     return (
-        <main className="min-h-screen bg-white">
+        <main className="min-h-screen bg-background">
             {/* Hero */}
             <section className="pt-32 pb-16 bg-linear-to-br from-rose-600 via-rose-500 to-red-600 relative overflow-hidden">
                 <div className="absolute top-0 right-0 w-96 h-96 bg-white/10 rounded-full blur-3xl" />
@@ -159,15 +158,15 @@ export default function SalePage() {
             <section className="py-16">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                     {/* Filter Bar */}
-                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-10 pb-6 border-b border-gray-200">
+                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-10 pb-6 border-b border-border">
                         <div className="flex flex-wrap gap-2">
                             {categories.map((cat) => (
                                 <button
                                     key={cat}
                                     onClick={() => setSelectedCategory(cat)}
                                     className={`px-4 py-2 text-sm font-medium rounded-full transition-all duration-200 ${selectedCategory === cat
-                                        ? 'bg-rose-600 text-white shadow-md shadow-rose-200'
-                                        : 'bg-gray-100 text-gray-700 hover:bg-rose-100 hover:text-rose-600'
+                                        ? 'bg-rose-600 text-white shadow-md shadow-rose-200 dark:shadow-none'
+                                        : 'bg-muted text-muted-foreground hover:bg-rose-100 hover:text-rose-600 dark:hover:bg-rose-900/30 dark:hover:text-rose-400'
                                         }`}
                                 >
                                     {cat}
@@ -176,7 +175,7 @@ export default function SalePage() {
                         </div>
 
                         <div className="flex items-center gap-4">
-                            <span className="text-sm text-gray-500">
+                            <span className="text-sm text-muted-foreground">
                                 {filteredAndSortedProducts.length} {filteredAndSortedProducts.length === 1 ? 'item' : 'items'} on sale
                             </span>
                             <CustomDropdown
@@ -193,9 +192,9 @@ export default function SalePage() {
                         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-x-4 gap-y-8 sm:gap-x-6 sm:gap-y-10">
                             {[...Array(8)].map((_, i) => (
                                 <div key={i} className="animate-pulse">
-                                    <div className="aspect-3/4 bg-gray-200 rounded-xl mb-4"></div>
-                                    <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
-                                    <div className="h-4 bg-gray-200 rounded w-1/2"></div>
+                                    <div className="aspect-3/4 bg-muted rounded-xl mb-4"></div>
+                                    <div className="h-4 bg-muted rounded w-3/4 mb-2"></div>
+                                    <div className="h-4 bg-muted rounded w-1/2"></div>
                                 </div>
                             ))}
                         </div>
@@ -217,13 +216,13 @@ export default function SalePage() {
                         </div>
                     ) : (
                         <div className="text-center py-16">
-                            <div className="text-gray-400 mb-4">
+                            <div className="text-muted-foreground mb-4">
                                 <svg className="w-16 h-16 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
                                 </svg>
                             </div>
-                            <h3 className="text-lg font-medium text-gray-900 mb-2">No sale items found</h3>
-                            <p className="text-gray-500 mb-6">Try selecting a different category</p>
+                            <h3 className="text-lg font-medium text-foreground mb-2">No sale items found</h3>
+                            <p className="text-muted-foreground mb-6">Try selecting a different category</p>
                             <button
                                 onClick={() => setSelectedCategory('All')}
                                 className="px-6 py-2 bg-rose-600 text-white rounded-full hover:bg-rose-700 transition-colors"

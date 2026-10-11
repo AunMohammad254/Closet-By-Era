@@ -1,7 +1,6 @@
 'use client';
 
 import { useCompare } from '@/context/CompareContext';
-import { ProductDetails } from '@/components/ProductView';
 
 interface AddToCompareProps {
     product: {

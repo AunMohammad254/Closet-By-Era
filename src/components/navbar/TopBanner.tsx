@@ -1,13 +1,9 @@
-import DOMPurify from 'isomorphic-dompurify';
-
 export default function TopBanner({ text }: { text?: string }) {
     if (!text) return null;
-
-    const sanitizedHTML = DOMPurify.sanitize(text);
-
     return (
-        <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 text-white text-center py-2 text-xs tracking-widest font-light px-4">
-            <div dangerouslySetInnerHTML={{ __html: sanitizedHTML }} />
+        <div className="bg-primary text-primary-foreground text-center py-2 text-xs tracking-widest font-light px-4">
+            {/* Plain text: this comes from store_settings and must not be able to inject markup. */}
+            <div>{text}</div>
         </div>
     );
 }

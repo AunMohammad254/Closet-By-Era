@@ -5,7 +5,6 @@ import { getProductsByIds } from '@/actions/products';
 import { useEffect, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import AddToCompareButton from '@/components/product/AddToCompareButton';
 import { useCart } from '@/context/CartContext';
 
 // Type for products returned from getProductsByIds
@@ -57,19 +56,19 @@ export default function ComparePage() {
 
     if (loading) {
         return (
-            <div className="min-h-screen pt-32 pb-16 flex justify-center">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-slate-900"></div>
+            <div className="min-h-screen pt-32 pb-16 flex justify-center bg-background">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
             </div>
         );
     }
 
     if (products.length === 0) {
         return (
-            <div className="min-h-screen pt-32 pb-16 px-4">
+            <div className="min-h-screen pt-32 pb-16 px-4 bg-background">
                 <div className="max-w-7xl mx-auto text-center">
-                    <h1 className="text-3xl font-bold text-gray-900 mb-4">Compare Products</h1>
-                    <p className="text-gray-500 mb-8">You haven't selected any products to compare.</p>
-                    <Link href="/products" className="inline-block bg-slate-900 text-white px-8 py-3 rounded-full font-medium hover:bg-slate-800 transition-colors">
+                    <h1 className="text-3xl font-bold text-foreground mb-4">Compare Products</h1>
+                    <p className="text-muted-foreground mb-8">You haven&apos;t selected any products to compare.</p>
+                    <Link href="/products" className="inline-block bg-primary text-primary-foreground px-8 py-3 rounded-full font-medium hover:bg-primary/90 transition-colors">
                         Browse Products
                     </Link>
                 </div>
@@ -91,27 +90,27 @@ export default function ComparePage() {
     };
 
     return (
-        <div className="min-h-screen pt-32 pb-16 px-4 bg-white">
+        <div className="min-h-screen pt-32 pb-16 px-4 bg-background">
             <div className="max-w-7xl mx-auto">
-                <h1 className="text-3xl font-bold text-gray-900 mb-8">Compare Products</h1>
+                <h1 className="text-3xl font-bold text-foreground mb-8">Compare Products</h1>
 
                 <div className="overflow-x-auto">
                     <table className="w-full min-w-200 border-collapse">
                         <thead>
                             <tr>
-                                <th className="p-4 text-left w-48 bg-gray-50 border border-gray-100">Feature</th>
+                                <th className="p-4 text-left w-48 bg-muted/50 border border-border text-foreground">Feature</th>
                                 {products.map(product => (
-                                    <th key={product.id} className="p-4 text-left w-64 border border-gray-100 align-top relative group">
+                                    <th key={product.id} className="p-4 text-left w-64 border border-border align-top relative group">
                                         <button
                                             onClick={() => removeFromCompare(product.id)}
-                                            className="absolute top-2 right-2 text-gray-400 hover:text-red-500 p-1"
+                                            className="absolute top-2 right-2 text-muted-foreground hover:text-destructive p-1"
                                             title="Remove"
                                         >
                                             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M6 18L18 6M6 6l12 12" />
                                             </svg>
                                         </button>
-                                        <div className="relative aspect-3/4 bg-gray-100 rounded-lg overflow-hidden mb-4">
+                                        <div className="relative aspect-3/4 bg-muted rounded-lg overflow-hidden mb-4">
                                             {(product.images?.[0] || product.image) ? (
                                                 <Image
                                                     src={product.images?.[0] || product.image || '/placeholder.png'}
@@ -120,22 +119,22 @@ export default function ComparePage() {
                                                     className="object-cover"
                                                 />
                                             ) : (
-                                                <div className="absolute inset-0 flex items-center justify-center bg-gray-100">
-                                                    <svg className="w-12 h-12 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <div className="absolute inset-0 flex items-center justify-center bg-muted">
+                                                    <svg className="w-12 h-12 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                                                     </svg>
                                                 </div>
                                             )}
                                         </div>
-                                        <Link href={`/product/${product.slug}`} className="text-lg font-bold text-gray-900 hover:text-rose-600 block mb-2">
+                                        <Link href={`/product/${product.slug}`} className="text-lg font-bold text-foreground hover:text-primary block mb-2">
                                             {product.name}
                                         </Link>
-                                        <p className="text-xl font-medium text-slate-900 mb-4">
+                                        <p className="text-xl font-medium text-foreground mb-4">
                                             PKR {product.price.toLocaleString()}
                                         </p>
                                         <button
                                             onClick={() => handleAddToCart(product)}
-                                            className="w-full py-2 bg-slate-900 text-white rounded-lg text-sm font-medium hover:bg-slate-800 transition-colors"
+                                            className="w-full py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors"
                                         >
                                             Add to Cart
                                         </button>
@@ -143,43 +142,43 @@ export default function ComparePage() {
                                 ))}
                             </tr>
                         </thead>
-                        <tbody className="divide-y divide-gray-100">
+                        <tbody className="divide-y divide-border">
                             <tr>
-                                <td className="p-4 font-medium text-gray-900 bg-gray-50 border border-gray-100">Category</td>
+                                <td className="p-4 font-medium text-foreground bg-muted/50 border border-border">Category</td>
                                 {products.map(product => (
-                                    <td key={product.id} className="p-4 text-gray-600 border border-gray-100 capitalize">
+                                    <td key={product.id} className="p-4 text-muted-foreground border border-border capitalize">
                                         {typeof product.category === 'string' ? product.category : product.category?.name}
                                     </td>
                                 ))}
                             </tr>
                             <tr>
-                                <td className="p-4 font-medium text-gray-900 bg-gray-50 border border-gray-100">Availability</td>
+                                <td className="p-4 font-medium text-foreground bg-muted/50 border border-border">Availability</td>
                                 {products.map(product => (
-                                    <td key={product.id} className="p-4 text-gray-600 border border-gray-100">
+                                    <td key={product.id} className="p-4 text-muted-foreground border border-border">
                                         {product.in_stock ? (
                                             <span className="text-emerald-600 font-medium">In Stock</span>
                                         ) : (
-                                            <span className="text-red-500 font-medium">Out of Stock</span>
+                                            <span className="text-destructive font-medium">Out of Stock</span>
                                         )}
                                     </td>
                                 ))}
                             </tr>
                             <tr>
-                                <td className="p-4 font-medium text-gray-900 bg-gray-50 border border-gray-100">Material</td>
+                                <td className="p-4 font-medium text-foreground bg-muted/50 border border-border">Material</td>
                                 {products.map(product => (
-                                    <td key={product.id} className="p-4 text-gray-600 border border-gray-100">
+                                    <td key={product.id} className="p-4 text-muted-foreground border border-border">
                                         {/* Assuming description or specific field contains material, otherwise generic text */}
                                         {product.features?.find((f: string) => f.includes('Cotton') || f.includes('Fabric') || f.includes('Material')) || 'Standard Material'}
                                     </td>
                                 ))}
                             </tr>
                             <tr>
-                                <td className="p-4 font-medium text-gray-900 bg-gray-50 border border-gray-100">Sizes</td>
+                                <td className="p-4 font-medium text-foreground bg-muted/50 border border-border">Sizes</td>
                                 {products.map(product => (
-                                    <td key={product.id} className="p-4 text-gray-600 border border-gray-100">
+                                    <td key={product.id} className="p-4 text-muted-foreground border border-border">
                                         <div className="flex flex-wrap gap-1">
                                             {product.sizes?.map((size: string) => (
-                                                <span key={size} className="px-2 py-1 bg-gray-100 rounded text-xs">
+                                                <span key={size} className="px-2 py-1 bg-muted rounded text-xs text-foreground">
                                                     {size}
                                                 </span>
                                             )) || '-'}
@@ -188,9 +187,9 @@ export default function ComparePage() {
                                 ))}
                             </tr>
                             <tr>
-                                <td className="p-4 font-medium text-gray-900 bg-gray-50 border border-gray-100">Description</td>
+                                <td className="p-4 font-medium text-foreground bg-muted/50 border border-border">Description</td>
                                 {products.map(product => (
-                                    <td key={product.id} className="p-4 text-gray-600 border border-gray-100 text-sm leading-relaxed">
+                                    <td key={product.id} className="p-4 text-muted-foreground border border-border text-sm leading-relaxed">
                                         {product.shortDescription || product.description?.substring(0, 100) + '...'}
                                     </td>
                                 ))}

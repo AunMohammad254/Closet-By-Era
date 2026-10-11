@@ -42,7 +42,7 @@ export default function CategoryForm({ category, onClose }: CategoryFormProps) {
             } else {
                 setError(result.error || 'Failed to save category');
             }
-        } catch (err) {
+        } catch {
             setError('An unexpected error occurred');
         } finally {
             setSubmitting(false);
