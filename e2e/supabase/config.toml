@@ -1,0 +1,70 @@
+# Local Supabase stack used ONLY by the end-to-end tests (see e2e/README.md).
+# Start it with `bun run e2e:db:start`; it never talks to the hosted project.
+project_id = "closet-by-era-e2e"
+
+[api]
+enabled = true
+port = 54321
+schemas = ["public", "graphql_public"]
+extra_search_path = ["public", "extensions"]
+max_rows = 1000
+
+[db]
+port = 54322
+shadow_port = 54320
+major_version = 17
+
+[db.seed]
+enabled = true
+sql_paths = ["./seed.sql"]
+
+[realtime]
+enabled = true
+
+[studio]
+enabled = false
+
+[inbucket]
+enabled = true
+port = 54324
+
+[storage]
+enabled = true
+file_size_limit = "10MiB"
+
+[auth]
+enabled = true
+site_url = "http://localhost:3123"
+additional_redirect_urls = ["http://localhost:3123/**"]
+jwt_expiry = 3600
+enable_refresh_token_rotation = true
+enable_signup = true
+enable_anonymous_sign_ins = false
+
+# Tests sign in and sign up many times from one IP.
+[auth.rate_limit]
+email_sent = 1000
+sign_in_sign_ups = 1000
+token_refresh = 1000
+token_verifications = 1000
+
+[auth.email]
+enable_signup = true
+double_confirm_changes = true
+enable_confirmations = true
+secure_password_change = false
+max_frequency = "1s"
+
+# Auth emails go through the app's own hook (src/app/api/webhooks/confirmation-email),
+# so the sign-up confirmation test covers the real email pipeline end to end.
+# The secret is a fixed TEST value shared with e2e/env.ts; it protects nothing real.
+[auth.hook.send_email]
+enabled = true
+uri = "http://host.docker.internal:3123/api/webhooks/confirmation-email"
+secrets = "v1,whsec_Y2xvc2V0LWJ5LWVyYS1lMmUtaG9vay1zZWNyZXQ="
+
+[edge_runtime]
+enabled = false
+
+[analytics]
+enabled = false

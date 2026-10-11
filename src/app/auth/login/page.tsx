@@ -87,6 +87,8 @@ function LoginForm() {
                             </div>
                             <input
                                 type="email"
+                                aria-label="Email address"
+                                autoComplete="email"
                                 value={email}
                                 onChange={(e) => setEmail(e.target.value)}
                                 required
@@ -105,6 +107,8 @@ function LoginForm() {
                             </div>
                             <input
                                 type={showPassword ? 'text' : 'password'}
+                                aria-label="Password"
+                                autoComplete="current-password"
                                 value={password}
                                 onChange={(e) => setPassword(e.target.value)}
                                 required
@@ -113,6 +117,7 @@ function LoginForm() {
                             />
                             <button
                                 type="button"
+                                aria-label={showPassword ? 'Hide password' : 'Show password'}
                                 onClick={() => setShowPassword(!showPassword)}
                                 className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
                             >

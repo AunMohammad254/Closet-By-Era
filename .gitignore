@@ -15,6 +15,7 @@
 
 # next.js
 /.next/
+/.next-e2e/
 /out/
 
 # production
@@ -70,3 +71,8 @@ scripts/
 
 playwright-report/
 test-results/
+
+# End-to-end tests
+/e2e/.auth/
+/e2e/supabase/.temp/
+/e2e/supabase/.branches/
