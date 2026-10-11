@@ -1,5 +1,7 @@
 # Closet By Era
 
+[![CI](https://github.com/AunMohammad254/Closet-By-Era/actions/workflows/ci.yml/badge.svg)](https://github.com/AunMohammad254/Closet-By-Era/actions/workflows/ci.yml)
+
 A premium fashion e-commerce website built with **Next.js 16**, **TypeScript**, **Tailwind CSS 4**, and **Supabase**.
 
 <div align="center">
@@ -115,6 +117,22 @@ closet-by-era/
 6. **Open in browser**
    
    Visit [http://localhost:3000](http://localhost:3000)
+
+## 🧪 Testing & CI
+
+```bash
+bun run check        # typecheck + lint + unit tests (Jest)
+bun run build        # production build
+```
+
+Every pull request (and every push to `master`) runs the same checks on GitHub Actions ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)):
+
+| Job | Steps |
+|---|---|
+| Typecheck, lint & unit tests | `bun install --frozen-lockfile`, `tsc --noEmit`, `eslint`, `jest --ci` |
+| Production build | `next build --webpack` (no secrets needed) |
+
+The Playwright checkout test (`bun run test:e2e`) needs a seeded local Supabase and is not part of CI yet.
 
 ## 🎨 Design System
 
