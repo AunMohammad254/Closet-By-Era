@@ -1,6 +1,7 @@
 'use server';
 
-import { createClient } from '@/lib/supabase/server';
+import { z } from 'zod';
+import { createAdminClient, createClient } from '@/lib/supabase/server';
 import { revalidatePath } from 'next/cache';
 
 // Types
@@ -268,24 +269,60 @@ export async function exportUsersCSV(): Promise<string> {
 }
 
 /**
- * Get user activity (orders and logs)
+ * Recent orders, audit log entries and logins for one customer.
+ * @param customerId customers.id (orders.customer_id); audit_logs.admin_id and
+ *   login_history.user_id hold the auth user id, which is looked up here.
  */
-export async function getUserActivity(userId: string) {
-    const supabase = await createClient();
-
+export async function getUserActivity(customerId: string) {
     if (!await verifySuperAdmin()) {
         throw new Error('Unauthorized: Super admin access required');
     }
+    if (!z.string().uuid().safeParse(customerId).success) {
+        throw new Error('Invalid user id');
+    }
 
-    // Parallel fetch
-    const [ordersResult, logsResult] = await Promise.all([
-        supabase.from('orders').select('id, total_amount, status, created_at, items').eq('customer_id', userId).order('created_at', { ascending: false }).limit(20),
-        supabase.from('audit_logs').select('*').or(`entity_id.eq.${userId},admin_id.eq.${userId}`).order('created_at', { ascending: false }).limit(20)
+    // Verified super admin: read with the service role, because login_history
+    // RLS only lets users see their own rows.
+    const admin = createAdminClient();
+    const { data: customer } = await admin
+        .from('customers')
+        .select('auth_id')
+        .eq('id', customerId)
+        .maybeSingle();
+    const authId = customer?.auth_id ?? null;
+
+    const logFilter = authId
+        ? `entity_id.eq.${customerId},admin_id.eq.${authId}`
+        : `entity_id.eq.${customerId}`;
+
+    const [ordersResult, logsResult, loginsResult] = await Promise.all([
+        admin.from('orders')
+            .select('id, order_number, total_amount, status, created_at')
+            .eq('customer_id', customerId)
+            .order('created_at', { ascending: false })
+            .limit(20),
+        admin.from('audit_logs')
+            .select('*')
+            .or(logFilter)
+            .order('created_at', { ascending: false })
+            .limit(20),
+        authId
+            ? admin.from('login_history')
+                .select('*')
+                .eq('user_id', authId)
+                .order('created_at', { ascending: false })
+                .limit(50)
+            : Promise.resolve({ data: [], error: null }),
     ]);
+
+    for (const [name, result] of [['orders', ordersResult], ['audit_logs', logsResult], ['login_history', loginsResult]] as const) {
+        if (result.error) console.error(`Error fetching user activity (${name}):`, result.error);
+    }
 
     return {
         orders: ordersResult.data || [],
-        logs: logsResult.data || []
+        logs: logsResult.data || [],
+        logins: loginsResult.data || [],
     };
 }
 
@@ -432,29 +469,4 @@ export async function recordLogin() {
         console.error('Failed to record login:', error);
         // Don't throw, just log - login should not fail because tracing failed
     }
-}
-
-/**
- * Get login history for a user
- */
-export async function getLoginHistory(userId: string) {
-    const supabase = await createClient();
-
-    if (!await verifySuperAdmin()) {
-        throw new Error('Unauthorized');
-    }
-
-    const { data, error } = await supabase
-        .from('login_history')
-        .select('*')
-        .eq('user_id', userId)
-        .order('created_at', { ascending: false })
-        .limit(50);
-
-    if (error) {
-        console.error('Error fetching login history:', error);
-        return [];
-    }
-
-    return data;
 }

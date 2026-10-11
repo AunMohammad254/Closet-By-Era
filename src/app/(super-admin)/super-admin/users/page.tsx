@@ -1,17 +1,11 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { getAllUsersWithRoles, updateUserRole, exportUsersCSV, getUserActivity, bulkUpdateUserRoles, getLoginHistory, type UserWithRole } from '@/actions/super-admin';
+import { getAllUsersWithRoles, updateUserRole, exportUsersCSV, getUserActivity, bulkUpdateUserRoles, type UserWithRole } from '@/actions/super-admin';
 import { Users, Search, Shield, ShieldCheck, User, Loader2, ChevronDown, RefreshCw, Download, Eye, X, Clock, ShoppingBag, FileText, CheckSquare, Monitor } from 'lucide-react';
 import toast from 'react-hot-toast';
-import type { Tables } from '@/types/supabase';
 
-interface ActivityData {
-    // getUserActivity selects orders.total_amount, which is not in the generated types.
-    orders: { id: string; total_amount: number | null; status: string | null; created_at: string }[];
-    logs: Tables<'audit_logs'>[];
-    logins: Tables<'login_history'>[];
-}
+type ActivityData = Awaited<ReturnType<typeof getUserActivity>>;
 
 const PAGE_SIZE = 20;
 
@@ -42,14 +36,7 @@ export default function UserManagementPage() {
         setFetchActivityLoading(true);
         setActivityData(null);
         try {
-            const [activity, loginHistory] = await Promise.all([
-                getUserActivity(userId),
-                getLoginHistory(userId)
-            ]);
-            setActivityData({
-                ...activity,
-                logins: loginHistory
-            } as unknown as ActivityData);
+            setActivityData(await getUserActivity(userId));
         } catch (error) {
             console.error('Failed to load activity:', error);
             toast.error('Failed to load activity');
@@ -442,12 +429,13 @@ export default function UserManagementPage() {
                                                 activityData?.orders?.map((order) => (
                                                     <div key={order.id} className="bg-slate-800/50 p-4 rounded-xl border border-slate-700/50 flex items-center justify-between">
                                                         <div>
-                                                            <p className="text-white font-medium">Order #{order.id.slice(0, 8)}</p>
+                                                            <p className="text-white font-medium">Order #{order.order_number || order.id.slice(0, 8)}</p>
                                                             <p className="text-slate-500 text-xs">{new Date(order.created_at).toLocaleDateString()}</p>
                                                         </div>
                                                         <div className="text-right">
                                                             <p className="text-white font-bold">Rs. {Number(order.total_amount).toLocaleString()}</p>
-                                                            <span className={`text-xs px-2 py-0.5 rounded-full ${order.status === 'completed' ? 'bg-green-500/20 text-green-400' :
+                                                            <span className={`text-xs px-2 py-0.5 rounded-full capitalize ${order.status === 'delivered' ? 'bg-green-500/20 text-green-400' :
+                                                                order.status === 'cancelled' ? 'bg-rose-500/20 text-rose-400' :
                                                                 order.status === 'pending' ? 'bg-amber-500/20 text-amber-400' :
                                                                     'bg-slate-500/20 text-slate-400'
                                                                 }`}>

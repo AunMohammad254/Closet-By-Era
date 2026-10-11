@@ -3,12 +3,13 @@
 import { useState, useEffect } from 'react';
 
 interface WhatsAppButtonProps {
-    phoneNumber?: string;
+    /** International format, digits only, e.g. 923001234567 */
+    phoneNumber: string;
     message?: string;
 }
 
 export default function WhatsAppButton({
-    phoneNumber = '923001234567', // Default Pakistan number format
+    phoneNumber,
     message = 'Hi! I have a question about Closet By Era.'
 }: WhatsAppButtonProps) {
     const [isVisible, setIsVisible] = useState(false);

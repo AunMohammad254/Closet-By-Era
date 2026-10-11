@@ -193,6 +193,7 @@ export default function ProductView({ product, relatedProducts, reviews = [] }: 
                                 <ProductActions
                                     price={product.price}
                                     quantity={quantity}
+                                    inStock={product.inStock}
                                     onAddToCart={handleAddToCart}
                                     product={{
                                         id: product.id,

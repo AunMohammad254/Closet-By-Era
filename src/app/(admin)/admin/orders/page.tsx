@@ -1,4 +1,4 @@
-import { getOrders } from '@/actions/orders';
+import { getOrders, type OrderFilters } from '@/actions/orders';
 import Link from 'next/link';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import OrdersToolbar from '@/components/admin/orders/OrdersToolbar';
@@ -26,21 +26,29 @@ interface Order {
 export default async function OrdersPage({
     searchParams,
 }: {
-    searchParams: Promise<{ page?: string; status?: string; search?: string }>;
+    searchParams: Promise<OrderFilters & { page?: string }>;
 }) {
-    const resolvedParams = await searchParams;
-    const page = Number(resolvedParams.page) || 1;
-    const status = resolvedParams.status || 'All';
+    const { page: pageParam, ...filters } = await searchParams;
+    const page = Number(pageParam) || 1;
     const pageSize = 10;
 
-    const { data: orders, count } = await getOrders(page, pageSize, status);
+    const { data: orders, count } = await getOrders(page, pageSize, filters);
     const totalPages = Math.ceil((count || 0) / pageSize);
+
+    // Keep the active filters when paging.
+    const pageHref = (target: number) => {
+        const params = new URLSearchParams(
+            Object.entries(filters).filter((entry): entry is [string, string] => typeof entry[1] === 'string' && entry[1] !== '')
+        );
+        params.set('page', String(target));
+        return `/admin/orders?${params.toString()}`;
+    };
 
     const getStatusColor = (status: string) => {
         const s = status.toLowerCase();
-        if (s === 'confirmed' || s === 'pending') return 'bg-blue-500/10 text-blue-400 border-blue-500/20';
-        if (s === 'processing') return 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20';
-        if (s === 'shipped') return 'bg-purple-500/10 text-purple-400 border-purple-500/20';
+        if (s === 'pending') return 'bg-blue-500/10 text-blue-400 border-blue-500/20';
+        if (s === 'packed') return 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20';
+        if (s === 'shipping') return 'bg-purple-500/10 text-purple-400 border-purple-500/20';
         if (s === 'delivered') return 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20';
         if (s === 'cancelled') return 'bg-rose-500/10 text-rose-400 border-rose-500/20';
         return 'bg-slate-700/50 text-slate-400 border-slate-600/50';
@@ -145,13 +153,13 @@ export default async function OrdersPage({
                         </p>
                         <div className="flex gap-2">
                             <Link
-                                href={`/admin/orders?page=${page - 1}&status=${status}`}
+                                href={pageHref(page - 1)}
                                 className={`p-2 border border-slate-700/50 rounded-lg hover:bg-slate-700/50 transition-colors text-slate-300 ${page <= 1 ? 'pointer-events-none opacity-50' : ''}`}
                             >
                                 <ChevronLeft className="w-4 h-4" />
                             </Link>
                             <Link
-                                href={`/admin/orders?page=${page + 1}&status=${status}`}
+                                href={pageHref(page + 1)}
                                 className={`p-2 border border-slate-700/50 rounded-lg hover:bg-slate-700/50 transition-colors text-slate-300 ${page >= totalPages ? 'pointer-events-none opacity-50' : ''}`}
                             >
                                 <ChevronRight className="w-4 h-4" />

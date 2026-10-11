@@ -5,6 +5,8 @@ import { revalidatePath } from 'next/cache';
 import { logger } from '@/lib/logger';
 import { ActionResult } from '@/types/shared';
 import { getAdminContext, FORBIDDEN } from '@/lib/auth';
+import { normalizePaymentSettings, type PaymentSettings } from '@/lib/payments';
+import type { Json } from '@/types/supabase';
 
 // Interface matching the store_settings table
 export interface StoreSettings {
@@ -14,10 +16,7 @@ export interface StoreSettings {
     support_phone: string;
     currency: string;
     // JSONB columns typed as objects
-    payment_methods: {
-        stripe: boolean;
-        cod: boolean;
-    };
+    payment_methods: PaymentSettings;
     content: {
         hero_title: string;
         hero_subtitle: string;
@@ -33,7 +32,7 @@ const DEFAULT_SETTINGS: StoreSettings = {
     support_email: 'support@closetbyera.com',
     support_phone: '',
     currency: 'PKR',
-    payment_methods: { stripe: true, cod: true },
+    payment_methods: normalizePaymentSettings(null),
     content: {
         hero_title: 'New Collection',
         hero_subtitle: 'Discover the latest trends',
@@ -58,7 +57,11 @@ export async function getStoreSettings(): Promise<ActionResult<StoreSettings>> {
             throw error;
         }
 
-        return { success: true, data: data as unknown as StoreSettings };
+        const settings = data as unknown as StoreSettings;
+        return {
+            success: true,
+            data: { ...settings, payment_methods: normalizePaymentSettings(data.payment_methods) },
+        };
     } catch (error) {
         logger.error('Error fetching settings', error);
         return { success: false, data: DEFAULT_SETTINGS, error: (error as { message?: string })?.message || 'Failed to fetch settings' };
@@ -84,7 +87,9 @@ export async function updateStoreSettings(data: Partial<StoreSettings>): Promise
                 support_email: data.support_email,
                 support_phone: data.support_phone,
                 currency: data.currency,
-                payment_methods: data.payment_methods,
+                payment_methods: data.payment_methods === undefined
+                    ? undefined
+                    : (normalizePaymentSettings(data.payment_methods) as Json),
                 content: data.content,
                 updated_at: new Date().toISOString(),
             })

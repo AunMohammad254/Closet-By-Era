@@ -38,13 +38,14 @@ export default function AdvancedFilters({
     const [saveModalOpen, setSaveModalOpen] = useState(false);
     const [presetName, setPresetName] = useState('');
 
-    const loadPresets = () => getFilterPresets(entityType).then(result => {
+    const loadPresets = (applyDefault: boolean) => getFilterPresets(entityType).then(result => {
         if (result.success && result.data) {
             const loaded = result.data as FilterPreset[];
             setPresets(loaded);
 
-            // Apply default preset
-            const defaultPreset = loaded.find(p => p.is_default);
+            // The default preset only applies when the list opens unfiltered,
+            // so links such as ?status=pending still work.
+            const defaultPreset = applyDefault ? loaded.find(p => p.is_default) : undefined;
             if (defaultPreset) {
                 setFilters(defaultPreset.filters);
                 onApplyFilters(defaultPreset.filters);
@@ -53,7 +54,9 @@ export default function AdvancedFilters({
     });
 
     useEffect(() => {
-        loadPresets();
+        loadPresets(!Object.values(currentFilters).some(Boolean));
+        // Load once per list; currentFilters changes on every apply.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [entityType]);
 
     const handleApply = () => {
@@ -77,14 +80,13 @@ export default function AdvancedFilters({
             name: presetName,
             entity_type: entityType,
             filters,
-            is_shared: false
         });
 
         if (result.success) {
             toast.success('Preset saved');
             setSaveModalOpen(false);
             setPresetName('');
-            loadPresets();
+            loadPresets(false);
         } else {
             toast.error(result.error || 'Failed to save preset');
         }
@@ -102,6 +104,8 @@ export default function AdvancedFilters({
         if (result.success) {
             setPresets(prev => prev.filter(p => p.id !== presetId));
             toast.success('Preset deleted');
+        } else {
+            toast.error(result.error || 'Failed to delete preset');
         }
     };
 
@@ -110,16 +114,22 @@ export default function AdvancedFilters({
         if (result.success) {
             setPresets(prev => prev.map(p => ({ ...p, is_default: p.id === presetId })));
             toast.success('Default preset updated');
+        } else {
+            toast.error(result.error || 'Failed to set default');
         }
     };
 
-    const activeFilterCount = Object.values(filters).filter(v => v !== '' && v !== undefined).length;
+    const activeFilterCount = Object.values(currentFilters).filter(v => v !== '' && v !== undefined).length;
 
     return (
         <div className="relative">
             {/* Trigger Button */}
             <button
-                onClick={() => setIsOpen(!isOpen)}
+                onClick={() => {
+                    // Start from what the list is showing now (the URL may have changed).
+                    if (!isOpen) setFilters(currentFilters);
+                    setIsOpen(!isOpen);
+                }}
                 className={`px-4 py-2.5 rounded-xl border transition-colors flex items-center gap-2 ${activeFilterCount > 0
                         ? 'bg-rose-500/10 border-rose-500/30 text-rose-400'
                         : 'bg-slate-800/50 border-slate-700/50 text-slate-400 hover:text-slate-200'

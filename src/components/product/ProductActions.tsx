@@ -6,6 +6,7 @@ import AddToCompareButton from './AddToCompareButton';
 interface ProductActionsProps {
     price: number;
     quantity: number;
+    inStock: boolean;
     onAddToCart: () => void;
     product: {
         id: string;
@@ -17,16 +18,17 @@ interface ProductActionsProps {
     };
 }
 
-export default function ProductActions({ price, quantity, onAddToCart, product }: ProductActionsProps) {
+export default function ProductActions({ price, quantity, inStock, onAddToCart, product }: ProductActionsProps) {
     const { formatPrice } = useCurrency();
 
     return (
         <div className="mt-8 flex gap-4">
             <button
                 onClick={onAddToCart}
-                className="flex-1 py-4 bg-slate-900 text-white font-medium rounded-full hover:bg-slate-800 dark:bg-white dark:text-slate-900 dark:hover:bg-gray-200 transition-colors"
+                disabled={!inStock}
+                className="flex-1 py-4 bg-slate-900 text-white font-medium rounded-full hover:bg-slate-800 dark:bg-white dark:text-slate-900 dark:hover:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-slate-900 dark:disabled:hover:bg-white"
             >
-                Add to Cart — {formatPrice(price * quantity)}
+                {inStock ? `Add to Cart — ${formatPrice(price * quantity)}` : 'Out of stock'}
             </button>
             <AddToCompareButton
                 product={product}

@@ -21,6 +21,7 @@ import nodemailer from 'nodemailer';
 import type { Order } from '@/types/database';
 import type { ShippingAddress } from '@/types/shared';
 import { logger } from '@/lib/logger';
+import { PAYMENT_METHOD_LABELS, type PaymentDetail } from '@/lib/payments';
 export type { ShippingAddress };
 
 // Extended Order type for email templates (handles both old and new schema)
@@ -65,14 +66,6 @@ function esc(value: string | number | null | undefined): string {
         .replace(/'/g, '&#39;');
 }
 
-const PAYMENT_METHOD_LABELS: Record<string, string> = {
-    cod: 'Cash on Delivery',
-    card: 'Credit/Debit Card',
-    bank_transfer: 'Bank Transfer',
-    jazzcash: 'JazzCash',
-    easypaisa: 'EasyPaisa',
-    gift_card: 'Gift Card',
-};
 
 // Types
 export interface OrderItem {
@@ -97,6 +90,8 @@ export interface OrderEmailData {
     discount?: number;
     total: number;
     paymentMethod: string;
+    /** Account details for transfer payments; empty for COD and paid orders. */
+    paymentDetails: PaymentDetail[];
     orderDate: string;
 }
 
@@ -303,7 +298,8 @@ export function formatOrderForEmail(
     customerEmail: string,
     customerName: string,
     shippingAddress: ShippingAddress,
-    paymentMethod: string
+    paymentMethod: string,
+    paymentDetails: PaymentDetail[] = []
 ): OrderEmailData {
     return {
         orderNumber: order.order_number || '',
@@ -316,6 +312,7 @@ export function formatOrderForEmail(
         discount: order.discount || 0,
         total: order.total || 0,
         paymentMethod,
+        paymentDetails,
         orderDate: new Date().toLocaleDateString('en-PK', {
             year: 'numeric',
             month: 'long',
@@ -488,6 +485,24 @@ export function generateOrderEmailHtml(data: OrderEmailData): string {
                     </tr>
                 </table>
             </div>
+
+            ${data.paymentDetails.length ? `
+            <!-- Payment Instructions -->
+            <div style="margin-top: 30px; padding: 20px; background-color: #fff7ed; border: 1px solid #fed7aa; border-radius: 8px;">
+                <h3 style="color: #1f2937; margin: 0 0 10px 0; font-size: 16px;">Complete your payment</h3>
+                <p style="color: #4b5563; margin: 0 0 15px 0;">
+                    Please send <strong>PKR ${data.total.toLocaleString()}</strong> by ${esc(PAYMENT_METHOD_LABELS[data.paymentMethod] ?? data.paymentMethod)}
+                    and use <strong>${esc(data.orderNumber)}</strong> as the payment reference. We ship once the payment is confirmed.
+                </p>
+                <table style="width: 100%; border-collapse: collapse;">
+                    ${data.paymentDetails.map(d => `
+                    <tr>
+                        <td style="padding: 4px 0; color: #6b7280;">${esc(d.label)}</td>
+                        <td style="padding: 4px 0; text-align: right; font-weight: 600; color: #1f2937;">${esc(d.value)}</td>
+                    </tr>`).join('')}
+                </table>
+            </div>
+            ` : ''}
 
             <!-- Shipping Address -->
             <div style="margin-top: 30px; padding: 20px; background-color: #f9fafb; border-radius: 8px;">

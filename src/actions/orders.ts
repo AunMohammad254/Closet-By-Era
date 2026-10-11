@@ -9,7 +9,7 @@ import { ActionResult } from '@/types/shared';
 import type { OrderStatus, PaymentStatus } from '@/types/database';
 import { logger } from '@/lib/logger';
 import { checkRateLimit, RateLimits } from '@/lib/rate-limit';
-import { UpdateOrderStatusSchema, UpdatePaymentStatusSchema, OrderStatusSchema } from '@/lib/validations';
+import { UpdateOrderStatusSchema, UpdatePaymentStatusSchema, OrderStatusSchema, PaymentStatusSchema } from '@/lib/validations';
 import { sendOrderConfirmationEmail, sendOrderStatusEmail, formatOrderForEmail } from '@/lib/nodemailer';
 import { getAdminContext, getSessionUser, FORBIDDEN } from '@/lib/auth';
 import { getClientIp } from '@/lib/request';
@@ -19,6 +19,8 @@ import {
     getCouponProblem,
     roundMoney,
 } from '@/lib/pricing';
+import { CHECKOUT_PAYMENT_METHODS, getPaymentDetails, isPaymentMethodAvailable } from '@/lib/payments';
+import { loadPaymentSettings } from '@/lib/store-settings';
 
 // ---------------------------------------------------------------------------
 // Checkout
@@ -36,7 +38,7 @@ const CheckoutSchema = z.object({
     postalCode: z.string().trim().max(20).optional().default(''),
     country: z.string().trim().min(1).max(100),
     shippingMethod: z.enum(['standard', 'express']),
-    paymentMethod: z.enum(['cod', 'bank_transfer', 'card', 'jazzcash', 'easypaisa']),
+    paymentMethod: z.enum(CHECKOUT_PAYMENT_METHODS),
     notes: z.string().trim().max(1000).optional().nullable(),
     code: z.string().trim().max(50).optional().nullable(),
     items: z.array(z.object({
@@ -56,6 +58,12 @@ export interface CreateOrderResult {
     shippingCost: number;
     discount: number;
     total: number;
+}
+
+function stockError(name: string, available: number): string {
+    return available > 0
+        ? `Only ${available} of "${name}" left in stock. Please update your cart.`
+        : `"${name}" is out of stock. Please update your cart.`;
 }
 
 function generateOrderNumber(): string {
@@ -88,12 +96,24 @@ export async function createOrder(input: CheckoutInput): Promise<ActionResult<Cr
         const productIds = [...new Set(data.items.map(i => i.productId))];
         const { data: products, error: productsError } = await admin
             .from('products')
-            .select('id, name, price, images, image_url, is_active, in_stock')
+            .select('id, name, price, stock, images, image_url, is_active, in_stock')
             .in('id', productIds);
 
         if (productsError) throw productsError;
 
         const productMap = new Map(products.map(p => [p.id, p]));
+
+        // Friendly early check; reserve_order_stock below is the atomic one.
+        const requested = new Map<string, number>();
+        for (const item of data.items) {
+            requested.set(item.productId, (requested.get(item.productId) ?? 0) + item.quantity);
+        }
+        for (const [productId, quantity] of requested) {
+            const product = productMap.get(productId);
+            if (product && product.stock < quantity) {
+                return { success: false, error: stockError(product.name, product.stock) };
+            }
+        }
         const lines: { product: (typeof products)[number]; quantity: number; size: string; color: string; unitPrice: number }[] = [];
         for (const item of data.items) {
             const product = productMap.get(item.productId);
@@ -150,6 +170,12 @@ export async function createOrder(input: CheckoutInput): Promise<ActionResult<Cr
         const discount = roundMoney(couponDiscount + giftCardAmount);
         const total = roundMoney(Math.max(0, subtotal + shippingCost - discount));
         const paymentStatus: PaymentStatus = total === 0 && giftCardAmount > 0 ? 'paid' : 'pending';
+
+        // Only methods the store has enabled and configured (Admin > Settings).
+        const { payment: paymentSettings } = await loadPaymentSettings();
+        if (paymentStatus !== 'paid' && !isPaymentMethodAvailable(paymentSettings, data.paymentMethod)) {
+            return { success: false, error: 'That payment method is not available. Please choose another.' };
+        }
 
         // 3. Resolve the customer from the session, never from the client.
         let customerId: string | null = null;
@@ -218,7 +244,19 @@ export async function createOrder(input: CheckoutInput): Promise<ActionResult<Cr
             throw itemsError;
         }
 
-        // 5. Consume the coupon / gift card.
+        // 5. Take the stock (every line or none). From here on, deleting the
+        // order puts it back (DB trigger sync_order_stock).
+        const { error: reserveError } = await admin.rpc('reserve_order_stock', { p_order_id: order.id });
+        if (reserveError) {
+            await admin.from('orders').delete().eq('id', order.id);
+            if (reserveError.hint === 'insufficient_stock') {
+                logger.warn('Stock ran out during checkout', { orderId: order.id, detail: reserveError.message });
+                return { success: false, error: 'Some items just sold out. Please review your cart and try again.' };
+            }
+            throw reserveError;
+        }
+
+        // 6. Consume the coupon / gift card.
         if (giftCard) {
             const { data: redeemed, error: redeemError } = await admin.rpc('redeem_gift_card_atomic', {
                 p_code: giftCard.code,
@@ -241,12 +279,12 @@ export async function createOrder(input: CheckoutInput): Promise<ActionResult<Cr
             }
         }
 
-        // 6. Loyalty points (1 point per PKR 100 actually paid).
+        // 7. Loyalty points (1 point per PKR 100 actually paid).
         if (session && customerId) {
             await awardLoyaltyPointsForOrder(admin, session.user.id, customerId, total, orderNumber);
         }
 
-        // 7. Confirmation email after the response is sent.
+        // 8. Confirmation email after the response is sent.
         after(async () => {
             const result = await sendOrderConfirmationEmail(formatOrderForEmail(
                 { order_number: orderNumber, subtotal, shipping_cost: shippingCost, discount, total },
@@ -262,6 +300,7 @@ export async function createOrder(input: CheckoutInput): Promise<ActionResult<Cr
                 customerName,
                 shippingAddress,
                 paymentStatus === 'paid' ? 'gift_card' : data.paymentMethod,
+                paymentStatus === 'paid' ? [] : getPaymentDetails(paymentSettings, data.paymentMethod),
             ));
             if (!result.success) logger.warn('Order confirmation email failed', { orderId: order.id });
         });
@@ -341,6 +380,13 @@ async function awardLoyaltyPointsForOrder(
 
 const ORDER_STATUSES = OrderStatusSchema.options;
 
+/** Reinstating a cancelled order re-takes its stock; the DB refuses if it is gone. */
+function stockConflictMessage(error: { hint?: string | null; message: string }): string | null {
+    return error.hint === 'insufficient_stock'
+        ? `${error.message}. Restock it before reinstating this order.`
+        : null;
+}
+
 function parseStatusFilter(status?: string): OrderStatus | null {
     if (!status || status === 'All') return null;
     const s = status.toLowerCase();
@@ -368,7 +414,57 @@ export async function getRecentOrders(limit = 5) {
     return data;
 }
 
-export async function getOrders(page = 1, pageSize = 10, status?: string) {
+/** Admin order list filters; every field arrives from the URL, so all are optional. */
+export interface OrderFilters {
+    status?: string;
+    search?: string;
+    payment_status?: string;
+    payment_method?: string;
+    /** YYYY-MM-DD, inclusive */
+    from?: string;
+    /** YYYY-MM-DD, inclusive */
+    to?: string;
+}
+
+// Date filters are calendar days in Pakistan time.
+const STORE_UTC_OFFSET = '+05:00';
+const DateFilter = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
+const lower = (v: unknown) => (typeof v === 'string' ? v.toLowerCase() : v);
+
+const OrderFiltersSchema = z.object({
+    status: z.preprocess(lower, OrderStatusSchema).optional().catch(undefined),
+    payment_status: z.preprocess(lower, PaymentStatusSchema).optional().catch(undefined),
+    payment_method: z.enum(['cod', 'bank_transfer', 'card', 'jazzcash', 'easypaisa']).optional().catch(undefined),
+    from: DateFilter.optional().catch(undefined),
+    to: DateFilter.optional().catch(undefined),
+    // Keep only characters with no meaning in PostgREST filter syntax.
+    search: z.string()
+        .transform(s => s.replace(/[^\p{L}\p{N}@._+\- ]/gu, '').trim().slice(0, 100))
+        .optional()
+        .catch(undefined),
+});
+
+function applyOrderFilters<Q extends {
+    eq(column: string, value: string): Q;
+    gte(column: string, value: string): Q;
+    lte(column: string, value: string): Q;
+    or(filters: string): Q;
+}>(query: Q, raw: OrderFilters = {}): Q {
+    const f = OrderFiltersSchema.parse(raw);
+    let q = query;
+    if (f.status) q = q.eq('status', f.status);
+    if (f.payment_status) q = q.eq('payment_status', f.payment_status);
+    if (f.payment_method) q = q.eq('payment_method', f.payment_method);
+    if (f.from) q = q.gte('created_at', `${f.from}T00:00:00${STORE_UTC_OFFSET}`);
+    if (f.to) q = q.lte('created_at', `${f.to}T23:59:59.999${STORE_UTC_OFFSET}`);
+    if (f.search) {
+        const term = `%${f.search}%`;
+        q = q.or(`order_number.ilike.${term},customer_name.ilike.${term},customer_email.ilike.${term}`);
+    }
+    return q;
+}
+
+export async function getOrders(page = 1, pageSize = 10, filters: OrderFilters = {}) {
     const ctx = await getAdminContext();
     if (!ctx) return { data: [], count: 0 };
 
@@ -376,45 +472,45 @@ export async function getOrders(page = 1, pageSize = 10, status?: string) {
     const from = (Math.max(page, 1) - 1) * size;
     const to = from + size - 1;
 
-    let query = ctx.supabase
-        .from('orders')
-        .select(`
-            *,
-            customer:customers(first_name, last_name)
-        `, { count: 'exact' });
-
-    const statusFilter = parseStatusFilter(status);
-    if (statusFilter) query = query.eq('status', statusFilter);
+    const query = applyOrderFilters(
+        ctx.supabase
+            .from('orders')
+            .select(`
+                *,
+                customer:customers(first_name, last_name)
+            `, { count: 'exact' }),
+        filters
+    );
 
     const { data, error, count } = await query
         .order('created_at', { ascending: false })
         .range(from, to);
 
     if (error) {
-        logger.error('Error fetching orders', error, { action: 'getOrders', page, status });
+        logger.error('Error fetching orders', error, { action: 'getOrders', page });
         return { data: [], count: 0 };
     }
 
     return { data, count };
 }
 
-export async function getAllOrdersForExport(status?: string) {
+export async function getAllOrdersForExport(filters: OrderFilters = {}) {
     const ctx = await getAdminContext();
     if (!ctx) return [];
 
-    let query = ctx.supabase
-        .from('orders')
-        .select(`
-            *,
-            items:order_items(
+    const query = applyOrderFilters(
+        ctx.supabase
+            .from('orders')
+            .select(`
                 *,
-                product:products(name)
-            ),
-            customer:customers(first_name, last_name, email)
-        `);
-
-    const statusFilter = parseStatusFilter(status);
-    if (statusFilter) query = query.eq('status', statusFilter);
+                items:order_items(
+                    *,
+                    product:products(name)
+                ),
+                customer:customers(first_name, last_name, email)
+            `),
+        filters
+    );
 
     // Limit to 1000 for safety, can be increased or paginated if needed
     const { data, error } = await query
@@ -477,7 +573,7 @@ export async function updateOrderStatus(id: string, newStatus: string): Promise<
 
     if (error) {
         logger.error('Error updating order status', error, { action: 'updateOrderStatus', orderId: id });
-        return { success: false, error: 'Failed to update order status' };
+        return { success: false, error: stockConflictMessage(error) ?? 'Failed to update order status' };
     }
 
     const recipient = order.customer?.email ?? order.customer_email;
@@ -558,7 +654,7 @@ export async function bulkUpdateOrderStatus(
 
     if (error) {
         logger.error('Error bulk updating orders', error, { action: 'bulkUpdateOrderStatus', count: orderIds.length });
-        return { success: false, error: 'Failed to update orders' };
+        return { success: false, error: stockConflictMessage(error) ?? 'Failed to update orders' };
     }
 
     const updated = data?.length || 0;
