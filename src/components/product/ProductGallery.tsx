@@ -39,6 +39,7 @@ export default function ProductGallery({
                         src={images[selectedImage]}
                         alt={productName}
                         fill
+                        sizes="(max-width: 1024px) 100vw, 50vw"
                         className="object-cover"
                         priority
                         unoptimized={!canOptimizeImage(images[selectedImage])}
@@ -98,6 +99,7 @@ export default function ProductGallery({
                                 src={img}
                                 alt={`${productName} view ${index + 1}`}
                                 fill
+                                sizes="(max-width: 1024px) 25vw, 120px"
                                 className="object-cover"
                                 unoptimized={!canOptimizeImage(img)}
                             />

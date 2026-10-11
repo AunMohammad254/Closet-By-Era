@@ -36,6 +36,7 @@ export default function CompareBar() {
                                         src={item.image}
                                         alt={item.name}
                                         fill
+                                        sizes="48px"
                                         className="object-cover"
                                     />
                                     <button

@@ -43,6 +43,7 @@ export function canOptimizeImage(src: string): boolean {
     try {
         const url = new URL(src);
         if (url.origin === 'https://www.closetbyera.com') return true;
+        if (url.hostname === 'images.unsplash.com') return true;
         return OPTIMIZED_ORIGINS.includes(url.origin) && url.pathname.startsWith(STORAGE_PATH);
     } catch {
         return false;

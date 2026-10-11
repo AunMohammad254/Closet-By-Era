@@ -129,6 +129,7 @@ export default function ImageUpload({ defaultValue, onUpload }: Props) {
                             src={preview}
                             alt="Product preview"
                             fill
+                            sizes="(max-width: 768px) 100vw, 600px"
                             className="object-contain p-4"
                             unoptimized
                             onError={() => setPreview(null)} // Reset if URL is invalid

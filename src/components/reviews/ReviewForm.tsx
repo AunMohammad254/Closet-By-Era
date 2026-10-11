@@ -140,7 +140,7 @@ export default function ReviewForm({ productId }: { productId: string }) {
                 <div className="flex gap-4 flex-wrap">
                     {previewUrls.map((url, index) => (
                         <div key={index} className="relative w-20 h-20 rounded-lg overflow-hidden border border-gray-200">
-                            <Image src={url} alt="Preview" fill className="object-cover" unoptimized />
+                            <Image src={url} alt="Preview" fill sizes="80px" className="object-cover" unoptimized />
                             <button
                                 type="button"
                                 onClick={() => removeImage(index)}

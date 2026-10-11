@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Inter, Outfit } from "next/font/google";
 import "./globals.css";
 import { Providers } from "./providers";
+import { getSiteUrl } from "@/lib/site-url";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -22,6 +23,7 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
+  metadataBase: new URL(getSiteUrl()),
   manifest: "/manifest.json",
   title: "Closet By Era | Premium Fashion & Style",
   description: "Discover timeless elegance with our curated collection of premium fashion. Shop the latest trends in women's and men's clothing, accessories, and more.",

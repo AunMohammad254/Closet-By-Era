@@ -146,6 +146,7 @@ export default function ProductsTable({ products }: { products: Product[] }) {
                                                         src={product.image_url}
                                                         alt={product.name}
                                                         fill
+                                                        sizes="48px"
                                                         className="object-cover"
                                                     />
                                                 ) : (

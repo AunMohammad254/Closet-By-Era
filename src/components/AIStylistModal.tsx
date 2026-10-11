@@ -120,6 +120,7 @@ export default function AIStylistModal({ isOpen, onClose }: AIStylistModalProps)
                                                         src={product.image_url}
                                                         alt={product.name}
                                                         fill
+                                                        sizes="(max-width: 640px) 50vw, 250px"
                                                         className="object-cover group-hover:scale-105 transition-transform duration-500"
                                                     />
                                                 ) : (
