@@ -34,14 +34,23 @@ export interface OrderWithItems extends Order {
 // Form Types
 // ============================================================================
 
+/** Fields left undefined are not changed on update. images[0] becomes image_url. */
 export interface ProductFormData {
     name: string;
     description: string;
     price: number;
+    original_price?: number | null;
     stock: number;
-    category: string;
+    /** Legacy free-text category; the storefront uses category_id. */
+    category?: string;
+    category_id?: string | null;
     images: string[];
     is_active: boolean;
+    is_featured?: boolean;
+    is_new?: boolean;
+    is_sale?: boolean;
+    sizes?: string[];
+    colors?: string[];
 }
 
 export interface CreateOrderData {

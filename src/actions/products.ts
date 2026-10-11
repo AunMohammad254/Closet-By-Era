@@ -73,7 +73,7 @@ export async function getProducts(
 
     let query = supabase
         .from('products')
-        .select(`id, name, slug, price, stock, images, is_active, in_stock, created_at, category:${categoryJoinValues}`, { count: 'exact' });
+        .select(`id, name, slug, price, original_price, stock, images, image_url, is_active, in_stock, is_new, is_sale, is_featured, created_at, category:${categoryJoinValues}`, { count: 'exact' });
 
     if (search) {
         query = query.ilike('name', `%${search}%`);
@@ -153,11 +153,49 @@ export async function getCategories() {
 // --- mutations ---
 
 import type { ProductFormData } from '@/types/database';
+import type { TablesUpdate } from '@/types/supabase';
+import type { ValidatedProductFormData } from '@/lib/validations';
 
 // Audit logging is now handled automatically by database trigger (log_product_changes)
 
+/** Row values for a validated form. Optional fields the caller left out stay unchanged. */
+function productColumns(d: ValidatedProductFormData): TablesUpdate<'products'> {
+    const row: TablesUpdate<'products'> = {
+        name: d.name,
+        description: d.description || null,
+        price: d.price,
+        stock: d.stock,
+        in_stock: d.stock > 0,
+        images: d.images,
+        // The storefront shows image_url first, so keep it in step with the gallery.
+        image_url: d.images[0] ?? null,
+        is_active: d.is_active,
+    };
+    if (d.original_price !== undefined) row.original_price = d.original_price;
+    if (d.category_id !== undefined) row.category_id = d.category_id;
+    if (d.category !== undefined) row.category = d.category;
+    if (d.is_featured !== undefined) row.is_featured = d.is_featured;
+    if (d.is_new !== undefined) row.is_new = d.is_new;
+    if (d.is_sale !== undefined) row.is_sale = d.is_sale;
+    if (d.sizes !== undefined) row.sizes = d.sizes;
+    if (d.colors !== undefined) row.colors = d.colors;
+    return row;
+}
 
-export async function createProduct(data: ProductFormData): Promise<{ success: boolean; error?: string }> {
+/** A URL slug from the name that no other product uses yet ("silk-dress", "silk-dress-2", ...). */
+async function uniqueSlug(supabase: Awaited<ReturnType<typeof createClient>>, name: string): Promise<string> {
+    const base = name.toLowerCase().trim().replace(/\s+/g, '-').replace(/[^\w-]+/g, '').replace(/-+/g, '-').replace(/^-|-$/g, '') || 'product';
+    const { data } = await supabase.from('products').select('slug').like('slug', `${base}%`);
+    const taken = new Set((data ?? []).map(r => r.slug));
+    if (!taken.has(base)) return base;
+    let n = 2;
+    while (taken.has(`${base}-${n}`)) n++;
+    return `${base}-${n}`;
+}
+
+const UNIQUE_VIOLATION = '23505';
+
+export async function createProduct(data: ProductFormData): Promise<{ success: boolean; error?: string; id?: string }> {
     // Validate input with Zod
     const validation = ProductFormSchema.safeParse(data);
     if (!validation.success) {
@@ -170,26 +208,20 @@ export async function createProduct(data: ProductFormData): Promise<{ success: b
     if (!ctx) return { success: false, error: FORBIDDEN };
     const { supabase } = ctx;
     const validData = validation.data;
-    const slug = validData.name.toLowerCase().replace(/ /g, '-').replace(/[^\w-]+/g, '');
+    const slug = await uniqueSlug(supabase, validData.name);
 
-    const { error } = await supabase
+    const { data: created, error } = await supabase
         .from('products')
-        .insert({
-            name: validData.name,
-            slug,
-            description: validData.description || null,
-            price: validData.price,
-            stock: validData.stock,
-            images: validData.images,
-            is_active: validData.is_active,
-            in_stock: validData.stock > 0,
-        })
-        .select()
+        .insert({ ...productColumns(validData), name: validData.name, price: validData.price, slug })
+        .select('id')
         .single();
 
     if (error) {
         logger.error('Error creating product', error, { action: 'createProduct' });
-        return { success: false, error: 'Failed to create product' };
+        return {
+            success: false,
+            error: error.code === UNIQUE_VIOLATION ? 'Another product was just saved with this name. Please try again.' : 'Failed to create product',
+        };
     }
 
     revalidatePath('/admin/products');
@@ -197,7 +229,7 @@ export async function createProduct(data: ProductFormData): Promise<{ success: b
     revalidateTag('products', 'max'); // Invalidate all product caches
     revalidateTag('featured-products', 'max');
     revalidateTag('new-arrivals', 'max');
-    return { success: true };
+    return { success: true, id: created.id };
 }
 
 export async function updateProduct(id: string, data: ProductFormData): Promise<{ success: boolean; error?: string }> {
@@ -215,15 +247,7 @@ export async function updateProduct(id: string, data: ProductFormData): Promise<
     const validData = validation.data;
     const { error } = await supabase
         .from('products')
-        .update({
-            name: validData.name,
-            description: validData.description || null,
-            price: validData.price,
-            stock: validData.stock,
-            images: validData.images,
-            is_active: validData.is_active,
-            in_stock: validData.stock > 0,
-        })
+        .update(productColumns(validData))
         .eq('id', id);
 
     if (error) {

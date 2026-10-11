@@ -2,6 +2,7 @@ import AdminSidebar from '@/components/admin/AdminSidebar';
 import AdminHeader from '@/components/admin/AdminHeader';
 import AdminAuthGuard from '@/components/admin/AdminAuthGuard';
 import CommandPalette from '@/components/admin/CommandPalette';
+import { Toaster } from 'react-hot-toast';
 
 export default function AdminLayout({
   children,
@@ -19,6 +20,8 @@ export default function AdminLayout({
           </main>
         </div>
         <CommandPalette />
+        {/* Admin pages report results with react-hot-toast. */}
+        <Toaster position="top-right" />
       </div>
     </AdminAuthGuard>
   );

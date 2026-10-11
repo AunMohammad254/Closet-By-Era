@@ -20,3 +20,29 @@ const toBase64 = (str: string) =>
 
 export const shimmerPlaceholder = (w: number, h: number) =>
     `data:image/svg+xml;base64,${toBase64(shimmer(w, h))}`
+
+/** True for sources an <Image> can show: site paths and http(s) URLs. */
+export function isDisplayableImage(src: string | null | undefined): src is string {
+    if (!src) return false;
+    return (src.startsWith('/') && !src.startsWith('//')) || /^https?:\/\//i.test(src);
+}
+
+const STORAGE_PATH = '/storage/v1/object/public/';
+const OPTIMIZED_ORIGINS = [process.env.NEXT_PUBLIC_SUPABASE_URL, 'https://hdheoblrrnaejqalsmcg.supabase.co']
+    .filter((u): u is string => Boolean(u))
+    .map(u => new URL(u).origin);
+
+/**
+ * True when next/image may optimize the source: site paths and the hosts in
+ * next.config.ts remotePatterns. Anything else must be rendered `unoptimized`.
+ */
+export function canOptimizeImage(src: string): boolean {
+    if (src.startsWith('/') && !src.startsWith('//')) return true;
+    try {
+        const url = new URL(src);
+        if (url.origin === 'https://www.closetbyera.com') return true;
+        return OPTIMIZED_ORIGINS.includes(url.origin) && url.pathname.startsWith(STORAGE_PATH);
+    } catch {
+        return false;
+    }
+}

@@ -9,12 +9,13 @@ interface OrderTrackingProps {
     createdAt: string;
 }
 
-type OrderStatus = 'pending' | 'processing' | 'shipped' | 'delivered' | 'cancelled';
+// The order_status enum in the database.
+type OrderStatus = 'pending' | 'packed' | 'shipping' | 'delivered' | 'cancelled';
 
 const STEPS: { status: OrderStatus; label: string; icon: string }[] = [
     { status: 'pending', label: 'Order Placed', icon: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2' },
-    { status: 'processing', label: 'Processing', icon: 'M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10' },
-    { status: 'shipped', label: 'Shipped', icon: 'M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4' },
+    { status: 'packed', label: 'Packed', icon: 'M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10' },
+    { status: 'shipping', label: 'On the way', icon: 'M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4' },
     { status: 'delivered', label: 'Delivered', icon: 'M5 13l4 4L19 7' },
 ];
 
@@ -80,7 +81,8 @@ export default function OrderTracking({ orderId, currentStatus: initialStatus, c
 
     return (
         <div className="w-full py-6">
-            <div className="relative">
+            <p className="sr-only" role="status">Order status: {STEPS[currentStepIndex].label}</p>
+            <div className="relative" aria-hidden="true">
                 {/* Progress Bar Background */}
                 <div className="absolute top-1/2 left-0 w-full h-1 bg-gray-100 dark:bg-slate-700 -translate-y-1/2 rounded-full" />
 

@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { useWishlist } from '@/context/WishlistContext';
 import { useCart } from '@/context/CartContext';
 import { useState, memo } from 'react';
-import { shimmerPlaceholder } from '@/lib/imageUtils';
+import { canOptimizeImage, isDisplayableImage, shimmerPlaceholder } from '@/lib/imageUtils';
 
 interface ProductCardProps {
     id: string;
@@ -76,7 +76,7 @@ function ProductCard({
             {/* Image Container */}
             <Link href={productLink} className="block relative aspect-3/4 overflow-hidden rounded-xl bg-secondary">
                 {/* Product Image */}
-                {image && image.startsWith('/products/') ? (
+                {isDisplayableImage(image) ? (
                     <Image
                         src={image}
                         alt={name}
@@ -85,6 +85,7 @@ function ProductCard({
                         sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
                         placeholder="blur"
                         blurDataURL={shimmerPlaceholder(500, 600)}
+                        unoptimized={!canOptimizeImage(image)}
                     />
                 ) : (
                     <div className="absolute inset-0 bg-linear-to-br from-secondary via-muted to-secondary flex items-center justify-center">

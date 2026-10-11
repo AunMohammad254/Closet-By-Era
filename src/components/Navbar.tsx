@@ -80,7 +80,7 @@ export default function Navbar({ announcement }: NavbarProps) {
                         />
                     </div>
 
-                    <SearchBar isOpen={isSearchOpen} />
+                    <SearchBar isOpen={isSearchOpen} onSearch={() => setIsSearchOpen(false)} />
                 </nav>
 
                 <MobileMenu

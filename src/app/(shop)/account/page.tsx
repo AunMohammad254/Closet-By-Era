@@ -425,10 +425,11 @@ function AccountPageContent() {
 
                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                                         <div>
-                                            <label className="block text-sm font-medium text-muted-foreground mb-1">First Name</label>
+                                            <label htmlFor="profile-first-name" className="block text-sm font-medium text-muted-foreground mb-1">First Name</label>
                                             {isEditing ? (
                                                 <input
                                                     type="text"
+                                                    id="profile-first-name"
                                                     value={profile.firstName}
                                                     onChange={(e) => setProfile({ ...profile, firstName: e.target.value })}
                                                     className="w-full px-4 py-3 bg-background border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-foreground"
@@ -438,10 +439,11 @@ function AccountPageContent() {
                                             )}
                                         </div>
                                         <div>
-                                            <label className="block text-sm font-medium text-muted-foreground mb-1">Last Name</label>
+                                            <label htmlFor="profile-last-name" className="block text-sm font-medium text-muted-foreground mb-1">Last Name</label>
                                             {isEditing ? (
                                                 <input
                                                     type="text"
+                                                    id="profile-last-name"
                                                     value={profile.lastName}
                                                     onChange={(e) => setProfile({ ...profile, lastName: e.target.value })}
                                                     className="w-full px-4 py-3 bg-background border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-foreground"
@@ -455,10 +457,11 @@ function AccountPageContent() {
                                             <p className="text-foreground">{profile.email}</p>
                                         </div>
                                         <div>
-                                            <label className="block text-sm font-medium text-muted-foreground mb-1">Phone</label>
+                                            <label htmlFor="profile-phone" className="block text-sm font-medium text-muted-foreground mb-1">Phone</label>
                                             {isEditing ? (
                                                 <input
                                                     type="tel"
+                                                    id="profile-phone"
                                                     value={profile.phone}
                                                     onChange={(e) => setProfile({ ...profile, phone: e.target.value })}
                                                     className="w-full px-4 py-3 bg-background border border-input rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-foreground"
@@ -543,9 +546,6 @@ function AccountPageContent() {
 
                                                 <div className="flex items-center justify-between pt-4 border-t border-border">
                                                     <span className="font-semibold text-foreground">Total: PKR {(order.total ?? order.total_amount ?? 0).toLocaleString()}</span>
-                                                    <button className="text-sm text-primary font-medium hover:text-primary/80 transition-colors">
-                                                        View Details
-                                                    </button>
                                                 </div>
                                             </div>
                                         ))
@@ -558,9 +558,7 @@ function AccountPageContent() {
                                 <div className="bg-card rounded-2xl p-6 sm:p-8 shadow-sm border border-border">
                                     <div className="flex items-center justify-between mb-6">
                                         <h2 className="text-xl font-bold text-foreground">Saved Addresses</h2>
-                                        <button className="text-sm text-primary font-medium hover:text-primary/80 transition-colors">
-                                            + Add New
-                                        </button>
+                                        <span className="text-sm text-muted-foreground">From your orders</span>
                                     </div>
 
                                     {addresses.length === 0 ? (
@@ -585,10 +583,6 @@ function AccountPageContent() {
                                                         {address.city}{address.state && `, ${address.state}`} {address.postalCode}<br />
                                                         {address.phone}
                                                     </p>
-                                                    <div className="mt-4 flex gap-4">
-                                                        <button className="text-sm text-muted-foreground hover:text-foreground">Edit</button>
-                                                        <button className="text-sm text-destructive hover:text-destructive/80">Delete</button>
-                                                    </div>
                                                 </div>
                                             ))}
                                         </div>

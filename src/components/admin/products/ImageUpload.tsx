@@ -130,12 +130,14 @@ export default function ImageUpload({ defaultValue, onUpload }: Props) {
                             alt="Product preview"
                             fill
                             className="object-contain p-4"
+                            unoptimized
                             onError={() => setPreview(null)} // Reset if URL is invalid
                         />
                     </div>
                     <button
                         type="button"
                         onClick={handleRemove}
+                        aria-label="Remove image"
                         className="absolute top-4 right-4 p-2 bg-white text-rose-600 rounded-full shadow-lg hover:bg-rose-50 hover:scale-110 transition-all z-20"
                     >
                         <X className="w-5 h-5" />
@@ -149,6 +151,7 @@ export default function ImageUpload({ defaultValue, onUpload }: Props) {
                                 type="file"
                                 ref={fileInputRef}
                                 onChange={handleFileSelect}
+                                aria-label="Upload product image"
                                 accept="image/jpeg,image/png,image/webp,image/avif,image/gif"
                                 className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
                                 disabled={uploading}
@@ -167,18 +170,19 @@ export default function ImageUpload({ defaultValue, onUpload }: Props) {
                                         Click to upload image
                                     </p>
                                     <p className="text-sm text-gray-500">
-                                        SVG, PNG, JPG or GIF (max 5MB)
+                                        PNG, JPG, WebP, AVIF or GIF (max 5MB)
                                     </p>
                                 </div>
                             )}
                         </div>
                     ) : (
                         <div className="bg-gray-50/50 border border-gray-200 rounded-2xl p-8">
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                            <label htmlFor="image-url-input" className="block text-sm font-medium text-gray-700 mb-2">
                                 Paste Image Link
                             </label>
                             <div className="flex gap-2">
                                 <input
+                                    id="image-url-input"
                                     type="url"
                                     value={urlInput}
                                     onChange={(e) => setUrlInput(e.target.value)}

@@ -16,13 +16,33 @@ export const ProductFormSchema = z.object({
     price: z.number()
         .positive('Price must be a positive number')
         .max(10000000, 'Price seems too high'),
+    /** "Was" price shown struck through; null clears it. */
+    original_price: z.number()
+        .positive('Original price must be a positive number')
+        .max(10000000, 'Original price seems too high')
+        .nullable()
+        .optional(),
     stock: z.number()
         .int('Stock must be a whole number')
         .min(0, 'Stock cannot be negative'),
-    images: z.array(z.string().url('Each image must be a valid URL'))
-        .default([]),
+    /** Site paths (/products/x.png) or absolute http(s) URLs. */
+    images: z.array(z.string().refine(
+        v => (v.startsWith('/') && !v.startsWith('//')) || /^https?:\/\/\S+$/i.test(v),
+        'Each image must be a valid URL'
+    )).default([]),
     is_active: z.boolean().default(true),
-});
+    // Optional so callers that do not send a field leave it unchanged on update.
+    category_id: z.uuid('Choose a valid category').nullable().optional(),
+    category: z.string().max(100).optional(),
+    is_featured: z.boolean().optional(),
+    is_new: z.boolean().optional(),
+    is_sale: z.boolean().optional(),
+    sizes: z.array(z.string().trim().min(1).max(20)).max(20, 'Too many sizes').optional(),
+    colors: z.array(z.string().trim().min(1).max(30)).max(30, 'Too many colors').optional(),
+}).refine(
+    d => d.original_price == null || d.original_price > d.price,
+    { message: 'Original price must be higher than the price', path: ['original_price'] }
+);
 
 export type ValidatedProductFormData = z.infer<typeof ProductFormSchema>;
 

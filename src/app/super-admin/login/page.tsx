@@ -1,13 +1,17 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { recordLogin } from '@/actions/super-admin';
 import { Shield, Eye, EyeOff, Loader2 } from 'lucide-react';
 
+/** Where to go after signing in: the panel page that sent us here, if any. */
+function nextPath(): string {
+    const from = new URLSearchParams(window.location.search).get('redirectedFrom');
+    return from && /^\/super-admin(\/|$)/.test(from) && !from.startsWith('/super-admin/login') ? from : '/super-admin';
+}
+
 export default function SuperAdminLoginPage() {
-    const router = useRouter();
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
@@ -51,8 +55,9 @@ export default function SuperAdminLoginPage() {
                 // Record login history
                 await recordLogin();
 
-                router.push('/super-admin');
-                router.refresh();
+                // A full page load, not router.push: the client router may hold
+                // prefetched redirects to this login page from before sign-in.
+                window.location.assign(nextPath());
             }
         } catch {
             setError('An unexpected error occurred');
@@ -76,16 +81,18 @@ export default function SuperAdminLoginPage() {
                 <div className="bg-slate-800/50 backdrop-blur-xl border border-slate-700/50 rounded-2xl p-8 shadow-2xl">
                     <form onSubmit={handleSubmit} className="space-y-6">
                         {error && (
-                            <div className="bg-red-500/10 border border-red-500/50 text-red-400 px-4 py-3 rounded-xl text-sm">
+                            <div role="alert" className="bg-red-500/10 border border-red-500/50 text-red-400 px-4 py-3 rounded-xl text-sm">
                                 {error}
                             </div>
                         )}
 
                         <div>
-                            <label className="block text-sm font-medium text-slate-300 mb-2">
+                            <label htmlFor="super-admin-email" className="block text-sm font-medium text-slate-300 mb-2">
                                 Email
                             </label>
                             <input
+                                id="super-admin-email"
+                                autoComplete="email"
                                 suppressHydrationWarning
                                 type="email"
                                 value={email}
@@ -97,11 +104,13 @@ export default function SuperAdminLoginPage() {
                         </div>
 
                         <div>
-                            <label className="block text-sm font-medium text-slate-300 mb-2">
+                            <label htmlFor="super-admin-password" className="block text-sm font-medium text-slate-300 mb-2">
                                 Password
                             </label>
                             <div className="relative">
                                 <input
+                                    id="super-admin-password"
+                                    autoComplete="current-password"
                                     type={showPassword ? 'text' : 'password'}
                                     value={password}
                                     onChange={(e) => setPassword(e.target.value)}
@@ -112,6 +121,7 @@ export default function SuperAdminLoginPage() {
                                 <button
                                     type="button"
                                     onClick={() => setShowPassword(!showPassword)}
+                                    aria-label={showPassword ? 'Hide password' : 'Show password'}
                                     className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white transition-colors"
                                 >
                                     {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}

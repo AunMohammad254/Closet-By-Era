@@ -57,9 +57,10 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
     const maxPrice = typeof params.maxPrice === 'string' ? parseInt(params.maxPrice) : undefined;
     const sort = typeof params.sort === 'string' ? params.sort : 'newest';
     const page = typeof params.page === 'string' ? parseInt(params.page) : 1;
+    const search = typeof params.search === 'string' ? params.search.trim().slice(0, 100) : '';
 
     // 3. Fetch Products with Filters via Action
-    const { data: productsData } = await getProducts(page, 100, '', { // Fetching 100 for now to keep simple pagination
+    const { data: productsData } = await getProducts(page, 100, search, { // Fetching 100 for now to keep simple pagination
         categories: selectedCategories,
         minPrice,
         maxPrice,
@@ -100,7 +101,9 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
             {/* Hero Banner */}
             <section className="pt-32 pb-12 bg-linear-to-br from-muted/50 to-muted">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                    <h1 className="text-4xl sm:text-5xl font-bold text-foreground mb-4">All Products</h1>
+                    <h1 className="text-4xl sm:text-5xl font-bold text-foreground mb-4">
+                        {search ? `Results for “${search}”` : 'All Products'}
+                    </h1>
                     <p className="text-lg text-muted-foreground max-w-2xl">
                         Explore our complete collection of premium fashion essentials
                     </p>
