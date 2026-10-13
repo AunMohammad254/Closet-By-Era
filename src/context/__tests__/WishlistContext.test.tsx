@@ -31,14 +31,15 @@ jest.mock('@/lib/supabase/client', () => {
                     return { data: mockRows, error: null };
                 },
             }),
-            upsert: async (rows: Omit<Row, 'id'>[]) => {
-                mockCalls.push(`upsert ${rows.length}`);
-                for (const r of rows) {
-                    if (!mockRows.some(existing => existing.product_id === r.product_id)) {
-                        mockRows.push({ id: `row-${r.product_id}`, ...r });
-                    }
-                }
+            insert: async (rows: Omit<Row, 'id'>[]) => {
+                mockCalls.push(`insert ${rows.length}`);
+                for (const r of rows) mockRows.push({ id: `row-${r.product_id}`, ...r });
                 return { error: null };
+            },
+            // Like the real table: no unique (user_id, product_id) constraint to upsert on.
+            upsert: async () => {
+                mockCalls.push('upsert');
+                return { error: { code: '42P10', message: 'there is no unique or exclusion constraint matching the ON CONFLICT specification' } };
             },
             delete: () => ({
                 eq: async () => {
@@ -112,7 +113,8 @@ describe('WishlistProvider for a signed-in shopper', () => {
         await settle();
 
         expect(current.items.map(i => i.id)).toEqual(['a', 'b', 'c']);
-        expect(mockCalls).toEqual(['select', 'select', 'upsert 3']);
+        expect(mockCalls).toEqual(['select', 'select', 'insert 1']);
+        expect(mockRows.map(r => r.product_id).sort()).toEqual(['a', 'b', 'c']);
 
         await settle();
         expect(mockCalls).toHaveLength(3);
@@ -146,6 +148,7 @@ describe('WishlistProvider for a signed-in shopper', () => {
         act(() => current.addItem(item('b')));
         await settle();
 
-        expect(mockCalls).toEqual(['select', 'delete all', 'select', 'upsert 1']);
+        expect(mockCalls).toEqual(['select', 'delete all', 'select', 'insert 1']);
+        expect(mockRows.map(r => r.product_id)).toEqual(['b']);
     });
 });

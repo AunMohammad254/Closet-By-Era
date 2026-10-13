@@ -69,7 +69,7 @@ export function WishlistProvider({ children }: { children: ReactNode }) {
     // Key of the list the database is known to hold.
     const syncedKeyRef = useRef<string | null>(null);
 
-    // Sync wishlist to database - upsert the list, then drop rows no longer in it
+    // Sync wishlist to database - add new products, then drop rows no longer in the list
     const syncWishlistToDB = useCallback(async (wishlistItems: WishlistItem[]) => {
         if (!userId) return;
         const key = wishlistKey(wishlistItems);
@@ -93,23 +93,24 @@ export function WishlistProvider({ children }: { children: ReactNode }) {
                 .eq('user_id', userId);
             if (selectError) throw selectError;
 
-            const dbItems = wishlistItems.map(item => ({
-                user_id: userId,
-                product_id: item.id,
-                product_name: item.name,
-                product_price: item.price,
-                product_image: item.image,
-                category: item.category,
-            }));
+            // wishlist_items has no unique (user_id, product_id) constraint to upsert
+            // against: insert the products not saved yet, then drop the removed ones.
+            const savedProductIds = new Set((existingItems ?? []).map(item => item.product_id));
+            const newRows = wishlistItems
+                .filter(item => !savedProductIds.has(item.id))
+                .map(item => ({
+                    user_id: userId,
+                    product_id: item.id,
+                    product_name: item.name,
+                    product_price: item.price,
+                    product_image: item.image,
+                    category: item.category,
+                }));
 
-            // Upsert all items (insert or update on conflict)
-            const { error: upsertError } = await supabase
-                .from('wishlist_items')
-                .upsert(dbItems, {
-                    onConflict: 'user_id,product_id',
-                    ignoreDuplicates: false
-                });
-            if (upsertError) throw upsertError;
+            if (newRows.length > 0) {
+                const { error: insertError } = await supabase.from('wishlist_items').insert(newRows);
+                if (insertError) throw insertError;
+            }
 
             // Remove items that are no longer in wishlist
             const currentProductIds = new Set(wishlistItems.map(item => item.id));

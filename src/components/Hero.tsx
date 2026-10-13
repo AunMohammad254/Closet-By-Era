@@ -66,6 +66,8 @@ export default function Hero({ title, subtitle }: { title?: string, subtitle?: s
                         {/* Title */}
                         <h1 className="text-5xl sm:text-6xl lg:text-7xl font-bold text-white leading-tight mb-6">
                             <span className="block font-light text-white/90">{displayTitle.split(' ')[0]}</span>
+                            {/* Keeps the words apart in the heading's text (the spans are blocks). */}
+                            {' '}
                             <span className="block bg-linear-to-r from-primary via-rose-500 to-amber-400 bg-clip-text text-transparent">
                                 {displayTitle.split(' ').slice(1).join(' ')}
                             </span>
