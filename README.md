@@ -76,7 +76,7 @@ closet-by-era/
 ### Prerequisites
 
 - [Bun](https://bun.sh) 1.4+ (package manager and script runner; `bun.lock` is the only lockfile)
-- Node.js 20.9+ (Next.js runs on Node)
+- Node.js 24 (Next.js runs on Node; pinned to `24.x` in `package.json`, as on Vercel and in CI)
 - Supabase account
 
 ### Installation
