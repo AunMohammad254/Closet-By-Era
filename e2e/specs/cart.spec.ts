@@ -17,7 +17,7 @@ test.describe('as a guest', () => {
         await expect(item).toContainText(PRODUCTS.shirt.name);
         await expect(item).toContainText('Size: L');
         await expect(item).toContainText('Color: Blue');
-        await expect(page.getByLabel(`Quantity of ${PRODUCTS.shirt.name}`)).toHaveText('2');
+        await expect(page.getByLabel(`Quantity of ${PRODUCTS.shirt.name}`, { exact: true })).toHaveText('2');
         await expect(page.getByTestId('cart-subtotal')).toHaveText(pkr(PRODUCTS.shirt.price * 2));
         await expect(page.getByTestId('cart-shipping')).toHaveText('Free'); // 7,000 is over the free-shipping line
         await expect(page.getByTestId('cart-total')).toHaveText(pkr(PRODUCTS.shirt.price * 2));
@@ -25,11 +25,11 @@ test.describe('as a guest', () => {
 
     test('asks for a size before adding', async ({ page }) => {
         await page.goto(productPath('shirt'));
-        const dialog = page.waitForEvent('dialog');
+        // Dismiss inside the handler: an open alert() blocks the click until it closes.
+        const dialogs: string[] = [];
+        page.once('dialog', d => { dialogs.push(d.message()); void d.dismiss(); });
         await page.getByRole('button', { name: /^Add to Cart/ }).click();
-        const d = await dialog;
-        expect(d.message()).toBe('Please select a size');
-        await d.dismiss();
+        await expect.poll(() => dialogs).toEqual(['Please select a size']);
         await expect(cartLink(page)).toHaveAccessibleName('Cart');
     });
 
@@ -41,12 +41,12 @@ test.describe('as a guest', () => {
         await expect(page.getByTestId('cart-total')).toHaveText(pkr(PRODUCTS.belt.price + SHIPPING.standard));
 
         await page.getByRole('button', { name: `Increase quantity of ${PRODUCTS.belt.name}` }).click();
-        await expect(page.getByLabel(`Quantity of ${PRODUCTS.belt.name}`)).toHaveText('2');
+        await expect(page.getByLabel(`Quantity of ${PRODUCTS.belt.name}`, { exact: true })).toHaveText('2');
         await expect(page.getByTestId('cart-subtotal')).toHaveText(pkr(PRODUCTS.belt.price * 2));
         await expect(page.getByTestId('cart-shipping')).toHaveText('Free');
 
         await page.getByRole('button', { name: `Decrease quantity of ${PRODUCTS.belt.name}` }).click();
-        await expect(page.getByLabel(`Quantity of ${PRODUCTS.belt.name}`)).toHaveText('1');
+        await expect(page.getByLabel(`Quantity of ${PRODUCTS.belt.name}`, { exact: true })).toHaveText('1');
         await expect(page.getByTestId('cart-shipping')).toHaveText(pkr(SHIPPING.standard));
     });
 

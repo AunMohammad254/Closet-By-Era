@@ -8,7 +8,7 @@ import { test, expect } from '../fixtures';
 import { PASSWORD, USERS } from '../env';
 import { createUser, generateEmailToken, one } from '../helpers/db';
 import { linkIn, waitForEmail } from '../helpers/mail';
-import { loginAsShopper } from '../helpers/auth';
+import { formAlert, loginAsShopper } from '../helpers/auth';
 
 const newEmail = () => `signup-${randomUUID().slice(0, 8)}@closetbyera.test`;
 
@@ -27,7 +27,7 @@ test.describe('sign up', () => {
         await page.getByLabel('Email address').fill(email);
         await page.getByLabel('Password', { exact: true }).fill(PASSWORD);
         await page.getByRole('button', { name: 'Log In' }).click();
-        await expect(page.getByRole('alert')).toContainText(/not confirmed/i);
+        await expect(formAlert(page)).toContainText(/not confirmed/i);
 
         const mail = await waitForEmail(email, 'Confirm your email address');
         expect(mail.html).toContain('Closet By Era');
@@ -50,7 +50,7 @@ test.describe('sign up', () => {
         await page.getByLabel('Email address').fill(newEmail());
         await page.getByLabel('Password', { exact: true }).fill('short');
         await page.getByRole('button', { name: 'Sign Up' }).click();
-        await expect(page.getByRole('alert')).toHaveText('Password must be at least 8 characters');
+        await expect(formAlert(page)).toHaveText('Password must be at least 8 characters');
     });
 
     test('a used confirmation link is rejected', async ({ page }) => {
@@ -67,7 +67,7 @@ test.describe('sign up', () => {
         await page.context().clearCookies();
         await page.goto(link);
         await expect(page).toHaveURL(/\/auth\/login\?error=link_expired/);
-        await expect(page.getByRole('alert')).toHaveText('That email link is invalid or has expired. Please sign in or request a new link.');
+        await expect(formAlert(page)).toHaveText('That email link is invalid or has expired. Please sign in or request a new link.');
     });
 });
 
@@ -77,7 +77,7 @@ test.describe('sign in and out', () => {
         await page.getByLabel('Email address').fill(USERS.customer.email);
         await page.getByLabel('Password', { exact: true }).fill('not-the-password');
         await page.getByRole('button', { name: 'Log In' }).click();
-        await expect(page.getByRole('alert')).toHaveText('Invalid login credentials');
+        await expect(formAlert(page)).toHaveText('Invalid login credentials');
         await expect(page).toHaveURL(/\/auth\/login/);
     });
 
@@ -182,7 +182,7 @@ test.describe('staff areas', () => {
         await page.locator('input[name="email"]').fill(USERS.customer.email);
         await page.locator('input[name="password"]').fill(PASSWORD);
         await page.getByRole('button', { name: 'Secure Login' }).click();
-        await expect(page.getByRole('alert')).toHaveText('Invalid credentials');
+        await expect(formAlert(page)).toHaveText('Invalid credentials');
         await expect(page).toHaveURL(/\/admin\/login/);
     });
 
@@ -194,7 +194,7 @@ test.describe('staff areas', () => {
         await page.getByPlaceholder('Enter your email').fill(staff.email);
         await page.getByPlaceholder('Enter your password').fill(PASSWORD);
         await page.getByRole('button', { name: 'Access Super Admin' }).click();
-        await expect(page.getByRole('alert')).toHaveText('Access denied. Super admin privileges required.');
+        await expect(formAlert(page)).toHaveText('Access denied. Super admin privileges required.');
     });
 
     test('the owner login returns to the requested panel page', async ({ page }) => {
@@ -225,7 +225,7 @@ test.describe('password reset', () => {
         await page.getByLabel('New password', { exact: true }).fill(newPassword);
         await page.getByLabel('Confirm new password').fill('different-1234');
         await page.getByRole('button', { name: /update password/i }).click();
-        await expect(page.getByRole('alert')).toHaveText('Passwords do not match');
+        await expect(formAlert(page)).toHaveText('Passwords do not match');
 
         await page.getByLabel('Confirm new password').fill(newPassword);
         await page.getByRole('button', { name: /update password/i }).click();
@@ -236,7 +236,7 @@ test.describe('password reset', () => {
         await page.getByLabel('Email address').fill(user.email);
         await page.getByLabel('Password', { exact: true }).fill(PASSWORD);
         await page.getByRole('button', { name: 'Log In' }).click();
-        await expect(page.getByRole('alert')).toHaveText('Invalid login credentials');
+        await expect(formAlert(page)).toHaveText('Invalid login credentials');
         await loginAsShopper(page, user.email, newPassword);
     });
 

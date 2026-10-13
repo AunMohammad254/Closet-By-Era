@@ -1,6 +1,6 @@
 /** Wishlist, product comparison, display currency and theme. */
 import { test, expect } from '../fixtures';
-import { PRODUCTS, productPath } from '../data';
+import { PRODUCTS, SHIPPING, productPath } from '../data';
 import { addToCart, cartLink, money, pkr, productCard } from '../helpers/shop';
 import { sql } from '../helpers/db';
 
@@ -83,11 +83,11 @@ test.describe('compare', () => {
             await page.getByRole('button', { name: 'Add to compare' }).click();
         }
         await page.goto(productPath('chinos'));
-        const dialog = page.waitForEvent('dialog');
+        // Dismiss inside the handler: an open alert() blocks the click until it closes.
+        const dialogs: string[] = [];
+        page.once('dialog', d => { dialogs.push(d.message()); void d.dismiss(); });
         await page.getByRole('button', { name: 'Add to compare' }).click();
-        const d = await dialog;
-        expect(d.message()).toBe('You can only compare up to 4 products at a time.');
-        await d.dismiss();
+        await expect.poll(() => dialogs).toEqual(['You can only compare up to 4 products at a time.']);
         await expect(page.getByText('Compare (4/4):')).toBeVisible();
     });
 
@@ -115,8 +115,10 @@ test.describe('display currency', () => {
         await page.goto('/cart');
         await page.getByRole('button', { name: 'Currency: PKR' }).click();
         await page.getByRole('menuitem', { name: 'EUR (€)' }).click();
-        await expect(page.getByTestId('cart-total')).toHaveText(money('EUR', PRODUCTS.shirt.price, 0.0033));
-        await expect(page.getByText(`Approximate. Orders are charged in PKR (${pkr(PRODUCTS.shirt.price)}).`)).toBeVisible();
+        // One shirt is under the free-shipping line, so the total includes shipping.
+        const total = PRODUCTS.shirt.price + SHIPPING.standard;
+        await expect(page.getByTestId('cart-total')).toHaveText(money('EUR', total, 0.0033));
+        await expect(page.getByText(`Approximate. Orders are charged in PKR (${pkr(total)}).`)).toBeVisible();
     });
 });
 
