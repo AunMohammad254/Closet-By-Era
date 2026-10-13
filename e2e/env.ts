@@ -7,6 +7,7 @@
  * overridden below.
  */
 import { execFileSync } from 'node:child_process';
+import { readFileSync } from 'node:fs';
 import path from 'node:path';
 
 export const ROOT = path.resolve(__dirname, '..');
@@ -45,6 +46,19 @@ interface SupabaseStatus {
 let cachedStatus: SupabaseStatus | null = null;
 
 /**
+ * The Supabase CLI installed in node_modules, run through the package's own bin
+ * entry: newer releases ship a JS launcher (dist/supabase.js) that starts the
+ * binary from @supabase/cli-<platform>; older ones put the binary in bin/.
+ */
+function supabaseCli(): { command: string; args: string[] } {
+    const pkgDir = path.join(ROOT, 'node_modules', 'supabase');
+    const { bin } = JSON.parse(readFileSync(path.join(pkgDir, 'package.json'), 'utf8')) as { bin: string | Record<string, string> };
+    const entry = path.join(pkgDir, typeof bin === 'string' ? bin : bin.supabase);
+    if (entry.endsWith('.js')) return { command: process.execPath, args: [entry] };
+    return { command: process.platform === 'win32' && !entry.endsWith('.exe') ? `${entry}.exe` : entry, args: [] };
+}
+
+/**
  * Connection details of the local stack: from E2E_SUPABASE_* (set by CI), or
  * from `supabase status` when running locally.
  */
@@ -61,9 +75,9 @@ export function supabaseStatus(): SupabaseStatus {
         return cachedStatus;
     }
 
-    const bin = path.join(ROOT, 'node_modules', 'supabase', 'bin', process.platform === 'win32' ? 'supabase.exe' : 'supabase');
+    const cli = supabaseCli();
     try {
-        const out = execFileSync(bin, ['status', '-o', 'json', '--workdir', 'e2e'], { cwd: ROOT, encoding: 'utf8', timeout: 60_000 });
+        const out = execFileSync(cli.command, [...cli.args, 'status', '-o', 'json', '--workdir', 'e2e'], { cwd: ROOT, encoding: 'utf8', timeout: 60_000 });
         const json = JSON.parse(out.slice(out.indexOf('{')));
         cachedStatus = { API_URL: json.API_URL, DB_URL: json.DB_URL, ANON_KEY: json.ANON_KEY, SERVICE_ROLE_KEY: json.SERVICE_ROLE_KEY };
         return cachedStatus;

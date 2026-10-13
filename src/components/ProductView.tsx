@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { useCart } from '@/context/CartContext';
+import { useCartActions } from '@/context/CartContext';
 import { useWishlist } from '@/context/WishlistContext';
 import { useCurrency } from '@/context/CurrencyContext';
 import { Review } from '@/actions/reviews';
@@ -14,7 +14,7 @@ import AddToCartToast from './product/AddToCartToast';
 import RelatedProducts, { RelatedProduct } from './product/RelatedProducts';
 import ReviewList from './reviews/ReviewList';
 import ReviewForm from './reviews/ReviewForm';
-import SizeGuideModal from './product/SizeGuideModal';
+import LazySizeGuideModal from './product/LazySizeGuideModal';
 import RecentlyViewed from './product/RecentlyViewed';
 import ColorSelector, { ProductColor } from './product/ColorSelector';
 import SizeSelector from './product/SizeSelector';
@@ -58,7 +58,7 @@ interface ProductViewProps {
 }
 
 export default function ProductView({ product, relatedProducts, reviews = [] }: ProductViewProps) {
-    const { addItem } = useCart();
+    const { addItem } = useCartActions();
     const { addItem: addToWishlist, removeItem: removeFromWishlist, isInWishlist } = useWishlist();
     const { formatPrice } = useCurrency();
 
@@ -272,7 +272,7 @@ export default function ProductView({ product, relatedProducts, reviews = [] }: 
             {/* Added to Cart Toast */}
             <AddToCartToast isVisible={showAddedToast} />
 
-            <SizeGuideModal
+            <LazySizeGuideModal
                 isOpen={isSizeGuideOpen}
                 onClose={() => setIsSizeGuideOpen(false)}
                 defaultCategory={

@@ -4,7 +4,7 @@ import { useCurrency } from '@/context/CurrencyContext';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useWishlist } from '@/context/WishlistContext';
-import { useCart } from '@/context/CartContext';
+import { useCartActions } from '@/context/CartContext';
 import { useState, memo } from 'react';
 import { canOptimizeImage, isDisplayableImage, shimmerPlaceholder } from '@/lib/imageUtils';
 
@@ -32,7 +32,7 @@ function ProductCard({
     isSale = false,
 }: ProductCardProps) {
     const { addItem: addToWishlist, removeItem: removeFromWishlist, isInWishlist } = useWishlist();
-    const { addItem: addToCart } = useCart();
+    const { addItem: addToCart } = useCartActions();
     const { formatPrice } = useCurrency();
     const [showToast, setShowToast] = useState(false);
 

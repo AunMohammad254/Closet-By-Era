@@ -2,6 +2,7 @@
 
 import { z } from 'zod';
 import { createAdminClient, createClient } from '@/lib/supabase/server';
+import { getSuperAdminEmail, normalizeEmail } from '@/lib/staff-emails';
 import { revalidatePath } from 'next/cache';
 
 // Types
@@ -44,8 +45,8 @@ async function verifySuperAdmin(): Promise<boolean> {
 
     if (!user) return false;
 
-    const superAdminEmail = process.env.SUPER_ADMIN_EMAIL || process.env['Super-Admin-Email'];
-    if (user.email !== superAdminEmail) return false;
+    const superAdminEmail = getSuperAdminEmail();
+    if (!superAdminEmail || normalizeEmail(user.email) !== superAdminEmail) return false;
 
     const { data: customer } = await supabase
         .from('customers')
@@ -125,8 +126,8 @@ export async function updateUserRole(
     }
 
     // Prevent changing super_admin's own role
-    const superAdminEmail = process.env.SUPER_ADMIN_EMAIL || process.env['Super-Admin-Email'];
-    if (targetCustomer.email === superAdminEmail && newRole !== 'super_admin') {
+    const superAdminEmail = getSuperAdminEmail();
+    if (superAdminEmail && normalizeEmail(targetCustomer.email) === superAdminEmail && newRole !== 'super_admin') {
         return { success: false, error: 'Cannot change super admin role' };
     }
 
@@ -408,10 +409,10 @@ export async function bulkUpdateUserRoles(
     const { data: { user } } = await supabase.auth.getUser();
 
     // Prevent changing super_admin's own role
-    const superAdminEmail = process.env.SUPER_ADMIN_EMAIL || process.env['Super-Admin-Email'];
+    const superAdminEmail = getSuperAdminEmail();
     const { data: targets } = await supabase.from('customers').select('id, email, role').in('id', userIds);
 
-    const safeUserIds = targets?.filter(t => t.email !== superAdminEmail).map(t => t.id) || [];
+    const safeUserIds = targets?.filter(t => !superAdminEmail || normalizeEmail(t.email) !== superAdminEmail).map(t => t.id) || [];
 
     if (safeUserIds.length === 0) {
         return { success: false, error: 'No valid users to update' };

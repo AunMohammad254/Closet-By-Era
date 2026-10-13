@@ -2,6 +2,11 @@
 import { expect, type Page } from '@playwright/test';
 import { PASSWORD } from '../env';
 
+/** The page's own error message. Next.js' route announcer also has role="alert", so leave it out. */
+export function formAlert(page: Page) {
+    return page.getByRole('alert').and(page.locator(':not(#__next-route-announcer__)'));
+}
+
 /** Shopper login (/auth/login). Lands on /account unless `redirectTo` is given. */
 export async function loginAsShopper(page: Page, email: string, password = PASSWORD, redirectTo?: string): Promise<void> {
     await page.goto(redirectTo ? `/auth/login?redirectedFrom=${encodeURIComponent(redirectTo)}` : '/auth/login');

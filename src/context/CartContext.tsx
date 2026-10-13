@@ -14,12 +14,15 @@ export interface CartItem {
     quantity: number;
 }
 
-interface CartContextType {
-    items: CartItem[];
+interface CartActionsType {
     addItem: (item: Omit<CartItem, 'id'>) => void;
     removeItem: (id: string) => void;
     updateQuantity: (id: string, quantity: number) => void;
     clearCart: () => void;
+}
+
+interface CartContextType extends CartActionsType {
+    items: CartItem[];
     itemCount: number;
     subtotal: number;
     isLoading: boolean;
@@ -31,6 +34,14 @@ const MAX_CART_ITEMS = 100;
 
 /** Normalize size/color to never be null/undefined — always a string */
 const norm = (val: string | null | undefined): string => val ?? '';
+
+/** Identifies the rows a cart is stored as (order-independent): equal keys need no write. */
+function cartKey(cartItems: CartItem[]): string {
+    return cartItems
+        .map(i => JSON.stringify([i.productId, norm(i.size), norm(i.color), i.quantity, i.price, i.name, i.image]))
+        .sort()
+        .join('\n');
+}
 
 /** Validate that a parsed object looks like a CartItem array */
 function isValidCartArray(data: unknown): data is CartItem[] {
@@ -48,6 +59,7 @@ function isValidCartArray(data: unknown): data is CartItem[] {
 }
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
+const CartActionsContext = createContext<CartActionsType | undefined>(undefined);
 
 export function CartProvider({ children }: { children: ReactNode }) {
     const supabase = createClient();
@@ -62,40 +74,54 @@ export function CartProvider({ children }: { children: ReactNode }) {
     // Guards to prevent sync feedback loops
     const isSyncingRef = useRef(false);
     const hasMergedRef = useRef(false);
+    // Key of the cart the database is known to hold: an equal cart needs no write.
+    const syncedKeyRef = useRef<string | null>(null);
+    // Writes run one at a time, so two delete-then-insert rounds never interleave.
+    const syncQueueRef = useRef<Promise<void>>(Promise.resolve());
 
     // ---------- DB sync helpers ----------
 
     /** Write the full cart state to Supabase (replace strategy) */
-    const syncCartToDB = useCallback(async (cartItems: CartItem[]) => {
-        if (!userId) return;
+    const syncCartToDB = useCallback((cartItems: CartItem[]): Promise<void> => {
+        if (!userId) return Promise.resolve();
 
-        try {
-            // Always delete first, then insert — simple and no NULL/upsert issues
-            const { error: deleteError } = await supabase
-                .from('cart_items')
-                .delete()
-                .eq('user_id', userId);
+        const write = async () => {
+            const key = cartKey(cartItems);
+            if (key === syncedKeyRef.current) return;
 
-            // Never insert on top of rows we failed to clear (would duplicate the cart).
-            if (deleteError) throw deleteError;
-            if (cartItems.length === 0) return;
+            try {
+                // Always delete first, then insert — simple and no NULL/upsert issues
+                const { error: deleteError } = await supabase
+                    .from('cart_items')
+                    .delete()
+                    .eq('user_id', userId);
 
-            const dbItems = cartItems.map(item => ({
-                user_id: userId,
-                product_id: item.productId,
-                product_name: item.name,
-                product_price: item.price,
-                product_image: item.image,
-                size: norm(item.size),
-                color: norm(item.color),
-                quantity: item.quantity,
-            }));
+                // Never insert on top of rows we failed to clear (would duplicate the cart).
+                if (deleteError) throw deleteError;
 
-            const { error: insertError } = await supabase.from('cart_items').insert(dbItems);
-            if (insertError) throw insertError;
-        } catch (error) {
-            console.error('Error syncing cart to database:', error);
-        }
+                if (cartItems.length > 0) {
+                    const dbItems = cartItems.map(item => ({
+                        user_id: userId,
+                        product_id: item.productId,
+                        product_name: item.name,
+                        product_price: item.price,
+                        product_image: item.image,
+                        size: norm(item.size),
+                        color: norm(item.color),
+                        quantity: item.quantity,
+                    }));
+
+                    const { error: insertError } = await supabase.from('cart_items').insert(dbItems);
+                    if (insertError) throw insertError;
+                }
+                syncedKeyRef.current = key;
+            } catch (error) {
+                console.error('Error syncing cart to database:', error);
+            }
+        };
+
+        syncQueueRef.current = syncQueueRef.current.then(write);
+        return syncQueueRef.current;
     }, [userId, supabase]);
 
     /** Fetch cart from database (DB is source of truth for logged-in users) */
@@ -127,6 +153,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
             // Update state without triggering a sync-back
             isSyncingRef.current = true;
+            syncedKeyRef.current = cartKey(cartItems);
             setItems(cartItems);
             localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(cartItems));
             // Reset flag after React processes the state update
@@ -177,44 +204,46 @@ export function CartProvider({ children }: { children: ReactNode }) {
             setIsLoading(true);
             isSyncingRef.current = true;
             try {
-                const { data: dbCartData } = await supabase
+                const { data: dbCartData, error: dbCartError } = await supabase
                     .from('cart_items')
                     .select('id, product_id, product_name, product_price, product_image, size, color, quantity')
                     .eq('user_id', userId);
+                // Without the saved cart, writing the local one would replace it.
+                if (dbCartError) throw dbCartError;
+
+                const dbCart: CartItem[] = (dbCartData ?? []).map((dbItem) => ({
+                    id: dbItem.id,
+                    productId: dbItem.product_id,
+                    name: dbItem.product_name,
+                    price: dbItem.product_price,
+                    image: dbItem.product_image || '',
+                    size: norm(dbItem.size),
+                    color: norm(dbItem.color),
+                    quantity: dbItem.quantity,
+                }));
+                syncedKeyRef.current = cartKey(dbCart);
 
                 const localCart = items;
                 const mergedCart: CartItem[] = [...localCart];
 
-                if (dbCartData && dbCartData.length > 0) {
-                    dbCartData.forEach((dbItem) => {
-                        const dbSize = norm(dbItem.size);
-                        const dbColor = norm(dbItem.color);
+                dbCart.forEach((dbItem) => {
+                    const exists = mergedCart.some(
+                        item => item.productId === dbItem.productId &&
+                            norm(item.size) === dbItem.size &&
+                            norm(item.color) === dbItem.color
+                    );
 
-                        const exists = mergedCart.some(
-                            item => item.productId === dbItem.product_id &&
-                                norm(item.size) === dbSize &&
-                                norm(item.color) === dbColor
-                        );
-
-                        if (!exists) {
-                            mergedCart.push({
-                                id: dbItem.id,
-                                productId: dbItem.product_id,
-                                name: dbItem.product_name,
-                                price: dbItem.product_price,
-                                image: dbItem.product_image || '',
-                                size: dbSize,
-                                color: dbColor,
-                                quantity: dbItem.quantity,
-                            });
-                        }
-                    });
-                }
+                    if (!exists) {
+                        mergedCart.push(dbItem);
+                    }
+                });
 
                 // Cap the cart to prevent runaway
                 const capped = mergedCart.slice(0, MAX_CART_ITEMS);
 
                 setItems(capped);
+                // Usually the local cart already mirrors the account's, and this is a
+                // no-op; it writes only when merging changed it (e.g. a guest cart was added).
                 await syncCartToDB(capped);
                 localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(capped));
             } catch (error) {
@@ -233,6 +262,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
     useEffect(() => {
         if (!userId) {
             hasMergedRef.current = false;
+            syncedKeyRef.current = null;
         }
     }, [userId]);
 
@@ -244,7 +274,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
         localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(items));
 
-        if (!userId) return;
+        if (!userId || cartKey(items) === syncedKeyRef.current) return;
         const timeoutId = setTimeout(() => {
             syncCartToDB(items);
         }, 500);
@@ -306,40 +336,39 @@ export function CartProvider({ children }: { children: ReactNode }) {
     const clearCart = useCallback(async () => {
         setItems([]);
         localStorage.removeItem(CART_STORAGE_KEY);
-
-        if (userId) {
-            try {
-                await supabase
-                    .from('cart_items')
-                    .delete()
-                    .eq('user_id', userId);
-            } catch (error) {
-                console.error('Error clearing cart from database:', error);
-            }
-        }
-    }, [userId, supabase]);
+        // Always delete the saved cart (after any write still in flight), even if this
+        // tab thinks it is empty: another tab may have saved one. No-op when signed out.
+        syncedKeyRef.current = null;
+        await syncCartToDB([]);
+    }, [syncCartToDB]);
 
     // ---------- Computed values ----------
 
     const itemCount = items.reduce((sum, item) => sum + item.quantity, 0);
     const subtotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
 
-    const contextValue = useMemo(() => ({
-        items,
+    const actions = useMemo(() => ({
         addItem,
         removeItem,
         updateQuantity,
         clearCart,
+    }), [addItem, removeItem, updateQuantity, clearCart]);
+
+    const contextValue = useMemo(() => ({
+        ...actions,
+        items,
         itemCount,
         subtotal,
         isLoading,
         syncCartFromDB,
-    }), [items, addItem, removeItem, updateQuantity, clearCart, itemCount, subtotal, isLoading, syncCartFromDB]);
+    }), [actions, items, itemCount, subtotal, isLoading, syncCartFromDB]);
 
     return (
-        <CartContext.Provider value={contextValue}>
-            {children}
-        </CartContext.Provider>
+        <CartActionsContext.Provider value={actions}>
+            <CartContext.Provider value={contextValue}>
+                {children}
+            </CartContext.Provider>
+        </CartActionsContext.Provider>
     );
 }
 
@@ -347,6 +376,19 @@ export function useCart() {
     const context = useContext(CartContext);
     if (!context) {
         throw new Error('useCart must be used within a CartProvider');
+    }
+    return context;
+}
+
+/**
+ * Just the cart actions. Their identities only change on sign-in/out, so a
+ * component that adds to the cart without showing it (e.g. every ProductCard
+ * in a grid) is not re-rendered each time the cart changes.
+ */
+export function useCartActions() {
+    const context = useContext(CartActionsContext);
+    if (!context) {
+        throw new Error('useCartActions must be used within a CartProvider');
     }
     return context;
 }

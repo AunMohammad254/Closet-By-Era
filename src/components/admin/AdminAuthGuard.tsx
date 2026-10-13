@@ -9,10 +9,6 @@ interface AdminAuthGuardProps {
     children: React.ReactNode;
 }
 
-interface CustomerData {
-    role: string;
-}
-
 /**
  * Client-side auth guard for admin pages
  * Provides double-check after middleware and syncs customer data
@@ -24,79 +20,99 @@ export default function AdminAuthGuard({ children }: AdminAuthGuardProps) {
     const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
-        const checkAuth = async () => {
-            try {
-                const supabase = createClient();
+        let isMounted = true;
+        let verifiedUserId: string | null = null;
+        const supabase = createClient();
 
-                // Get current session
-                const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-
-                if (sessionError) {
-                    console.error('Session error:', sessionError);
-                    throw new Error('Failed to get session');
-                }
-
-                if (!session) {
-                    // Not logged in, redirect to login
+        const verifyUser = async (sessionUser: { id: string; email?: string } | null) => {
+            if (!sessionUser) {
+                if (isMounted) {
+                    setIsLoading(false);
                     router.replace('/admin/login');
-                    return;
                 }
+                return;
+            }
 
-                // Check if user has admin role in customers table
+            // The initial check, INITIAL_SESSION and every token refresh report the
+            // same user: look the role up once per signed-in user, not per event.
+            if (verifiedUserId === sessionUser.id) return;
+            verifiedUserId = sessionUser.id;
+
+            try {
+                // Check if user has admin or super_admin role in customers table
                 const { data: customer, error: customerError } = await supabase
                     .from('customers')
                     .select('role')
-                    .eq('auth_id', session.user.id)
+                    .eq('auth_id', sessionUser.id)
                     .maybeSingle();
-
 
                 if (customerError) {
                     console.error('Customer fetch error:', customerError);
                     throw new Error('Failed to verify admin status');
                 }
 
-                if (!customer) {
-                    // No customer record - create one
-                    const { error: insertError } = await supabase
-                        .from('customers')
-                        .insert({
-                            auth_id: session.user.id,
-                            email: session.user.email || '',
-                            first_name: session.user.user_metadata?.first_name || null,
-                            last_name: session.user.user_metadata?.last_name || null,
-                            role: 'customer' // Default to customer, admin must be set manually
-                        });
+                const role = customer?.role;
+                const isStaff = role === 'admin' || role === 'super_admin';
 
-                    if (insertError) {
-                        console.error('Failed to create customer:', insertError);
+                if (!isStaff) {
+                    if (isMounted) {
+                        setError('You do not have admin privileges.');
+                        setIsLoading(false);
+                        setTimeout(() => router.replace('/'), 2000);
                     }
-
-                    // Not an admin
-                    setError('You do not have admin privileges.');
-                    setTimeout(() => router.replace('/'), 2000);
                     return;
                 }
 
-                const typedCustomer = customer as CustomerData;
-
-                if (typedCustomer?.role !== 'admin') {
-                    setError('You do not have admin privileges.');
-                    setTimeout(() => router.replace('/'), 2000);
-                    return;
+                if (isMounted) {
+                    setIsAuthorized(true);
+                    setIsLoading(false);
                 }
-
-                // User is authorized admin
-                setIsAuthorized(true);
             } catch (err) {
                 console.error('Auth check failed:', err);
-                setError('Authentication error. Please try logging in again.');
-                setTimeout(() => router.replace('/admin/login'), 2000);
-            } finally {
-                setIsLoading(false);
+                if (isMounted) {
+                    setError('Authentication error. Please try logging in again.');
+                    setIsLoading(false);
+                    setTimeout(() => router.replace('/admin/login'), 2000);
+                }
+            }
+        };
+
+        const checkAuth = async () => {
+            try {
+                const { data: { session } } = await supabase.auth.getSession();
+                if (session?.user) {
+                    await verifyUser(session.user);
+                } else {
+                    // Try getUser in case session cookie was just set via server action
+                    const { data: { user } } = await supabase.auth.getUser();
+                    if (user) {
+                        await verifyUser(user);
+                    } else if (isMounted) {
+                        setIsLoading(false);
+                        router.replace('/admin/login');
+                    }
+                }
+            } catch (err) {
+                console.error('Session check failed:', err);
+                if (isMounted) {
+                    setIsLoading(false);
+                    router.replace('/admin/login');
+                }
             }
         };
 
         checkAuth();
+
+        const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+            if (session?.user) {
+                verifyUser(session.user);
+            }
+        });
+
+        return () => {
+            isMounted = false;
+            subscription.unsubscribe();
+        };
     }, [router]);
 
     // Loading state

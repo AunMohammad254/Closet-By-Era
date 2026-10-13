@@ -1,5 +1,6 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
+import { getAdminEmail, getSuperAdminEmail, normalizeEmail } from '@/lib/staff-emails'
 
 // Security headers to apply to all responses
 const securityHeaders: Record<string, string> = {
@@ -117,11 +118,12 @@ export async function proxy(request: NextRequest) {
         .maybeSingle()
 
     const role = customer?.role
-    const superAdminEmail = process.env.SUPER_ADMIN_EMAIL || process.env['Super-Admin-Email']
-    const adminEmail = process.env.ADMIN_EMAIL
+    const normalizedEmail = normalizeEmail(email)
+    const superAdminEmail = getSuperAdminEmail()
+    const adminEmail = getAdminEmail()
 
     if (isSuperAdminRoute) {
-        if (role !== 'super_admin' || !superAdminEmail || email !== superAdminEmail) {
+        if (role !== 'super_admin' || !superAdminEmail || normalizedEmail !== superAdminEmail) {
             return redirectTo(request, '/', { error: 'unauthorized' })
         }
         return response
@@ -129,7 +131,8 @@ export async function proxy(request: NextRequest) {
 
     let isAdmin = role === 'admin' || role === 'super_admin'
     // STRICT: when ADMIN_EMAIL is set, only that account (or the super-admin) may enter.
-    if (isAdmin && adminEmail && email !== adminEmail && email !== superAdminEmail) {
+    // (An unset SUPER_ADMIN_EMAIL must not match a session without an email.)
+    if (isAdmin && adminEmail && normalizedEmail !== adminEmail && (!superAdminEmail || normalizedEmail !== superAdminEmail)) {
         isAdmin = false
     }
 

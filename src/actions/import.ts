@@ -1,7 +1,7 @@
 'use server';
 
 import { getAdminContext, FORBIDDEN } from '@/lib/auth';
-import { revalidatePath } from 'next/cache';
+import { revalidatePath, revalidateTag } from 'next/cache';
 
 export async function importProductsFromCSV(formData: FormData): Promise<{ success: boolean; count?: number; errors?: string[] }> {
     const file = formData.get('file') as File;
@@ -117,6 +117,7 @@ export async function importProductsFromCSV(formData: FormData): Promise<{ succe
         }
 
         revalidatePath('/dashboard/products');
+        revalidateTag('products', 'max'); // cached storefront listings
         return { success: true, count: productsToInsert.length, errors: errors.length > 0 ? errors : undefined };
 
     } catch (e) {

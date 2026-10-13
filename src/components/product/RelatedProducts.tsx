@@ -4,6 +4,7 @@ import ProductCard from '@/components/ProductCard';
 
 export interface RelatedProduct {
     id: string;
+    slug?: string;
     name: string;
     price: number;
     originalPrice?: number;
@@ -29,6 +30,7 @@ export default function RelatedProducts({ products }: RelatedProductsProps) {
                         <ProductCard
                             key={product.id}
                             id={product.id}
+                            slug={product.slug}
                             name={product.name}
                             price={product.price}
                             originalPrice={product.originalPrice}

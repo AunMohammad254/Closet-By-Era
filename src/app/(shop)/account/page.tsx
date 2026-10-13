@@ -8,7 +8,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import type { Order, OrderItem, Customer } from '@/types/database';
 import { getCurrentCustomer } from '@/actions/customer';
-import { getLoyaltyBalance, getLoyaltyHistory, LoyaltyHistory } from '@/actions/loyalty';
+import { getLoyaltySummary, LoyaltyHistory } from '@/actions/loyalty';
 import { useWishlist } from '@/context/WishlistContext';
 import { useCurrency } from '@/context/CurrencyContext';
 
@@ -142,10 +142,8 @@ function AccountPageContent() {
         const fetchLoyalty = async () => {
             setLoyaltyLoading(true);
             try {
-                const points = await getLoyaltyBalance();
+                const { points, history } = await getLoyaltySummary();
                 setLoyaltyPoints(points);
-
-                const history = await getLoyaltyHistory();
                 setLoyaltyHistory(history);
             } catch (err) {
                 console.error('Error fetching loyalty:', err);

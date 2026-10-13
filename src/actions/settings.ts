@@ -1,5 +1,6 @@
 'use server';
 
+import { cache } from 'react';
 import { createClient } from '@/lib/supabase/server';
 import { revalidatePath } from 'next/cache';
 import { logger } from '@/lib/logger';
@@ -44,6 +45,11 @@ const DEFAULT_SETTINGS: StoreSettings = {
 };
 
 export async function getStoreSettings(): Promise<ActionResult<StoreSettings>> {
+    return readStoreSettings();
+}
+
+// The shop layout and the home page both need the settings: one query per request.
+const readStoreSettings = cache(async (): Promise<ActionResult<StoreSettings>> => {
     const supabase = await createClient();
     try {
         const { data, error } = await supabase
@@ -68,7 +74,7 @@ export async function getStoreSettings(): Promise<ActionResult<StoreSettings>> {
         logger.error('Error fetching settings', error);
         return { success: false, data: DEFAULT_SETTINGS, error: (error as { message?: string })?.message || 'Failed to fetch settings' };
     }
-}
+});
 
 export async function updateStoreSettings(data: Partial<StoreSettings>): Promise<ActionResult> {
     const ctx = await getAdminContext();
