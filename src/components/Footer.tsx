@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import SizeGuideButton from '@/components/product/SizeGuideButton';
 
 const footerLinks = {
     shop: [
@@ -11,7 +12,8 @@ const footerLinks = {
     support: [
         { name: 'Contact Us', href: '/contact' },
         { name: 'FAQs', href: '/faq' },
-        { name: 'Size Guide', href: '/size-guide' },
+        // Opens the size guide dialog rather than a page.
+        { name: 'Size Guide', opensSizeGuide: true },
         { name: 'Shipping', href: '/shipping' },
         { name: 'Returns', href: '/returns' },
     ],
@@ -133,9 +135,15 @@ export default function Footer() {
                         <ul className="space-y-3">
                             {footerLinks.support.map((link) => (
                                 <li key={link.name}>
-                                    <Link href={link.href} className="text-muted-foreground hover:text-primary transition-colors text-sm">
-                                        {link.name}
-                                    </Link>
+                                    {link.href ? (
+                                        <Link href={link.href} className="text-muted-foreground hover:text-primary transition-colors text-sm">
+                                            {link.name}
+                                        </Link>
+                                    ) : (
+                                        <SizeGuideButton className="text-muted-foreground hover:text-primary transition-colors text-sm cursor-pointer">
+                                            {link.name}
+                                        </SizeGuideButton>
+                                    )}
                                 </li>
                             ))}
                         </ul>
