@@ -198,6 +198,8 @@ bun run build
 
 Vercel detects `bun.lock` and installs with Bun automatically.
 
+Server-rendered pages run in Vercel's `bom1` (Mumbai) region, set in [`vercel.json`](vercel.json), next to the Supabase project (`ap-south-1`). If the database moves, move the function region with it: every page makes several database round trips, so a region far from the database adds roughly 200 ms to each one.
+
 ## 📝 Environment Variables
 
 | Variable | Description |
