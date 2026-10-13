@@ -5,6 +5,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { deleteProduct, toggleProductStatus } from '@/actions/products';
 import type { Product } from '@/types/database';
+import { formatPKR } from '@/context/CurrencyContext';
 
 interface ProductTableClientProps {
   initialProducts: Product[];
@@ -41,13 +42,6 @@ export default function ProductTableClient({ initialProducts }: ProductTableClie
         alert(result.error);
       }
     });
-  };
-
-  const formatPrice = (price: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-    }).format(price);
   };
 
   return (
@@ -96,7 +90,7 @@ export default function ProductTableClient({ initialProducts }: ProductTableClie
                       : product.category}
                   </span>
                 </td>
-                <td className="price">{formatPrice(product.price)}</td>
+                <td className="price">{formatPKR(product.price)}</td>
                 <td>
                   <span className={`stock-badge ${product.stock === 0 ? 'out-of-stock' : product.stock <= 5 ? 'low-stock' : ''}`}>
                     {product.stock}

@@ -4,6 +4,7 @@ import { useState, useTransition } from 'react';
 import { updateOrderStatus, updatePaymentStatus } from '@/actions/orders';
 import type { Order, OrderStatus, PaymentStatus } from '@/types/database';
 import { ORDER_STATUS_COLORS, PAYMENT_STATUS_COLORS, PAYMENT_METHOD_LABELS } from '@/types/database';
+import { formatPKR } from '@/context/CurrencyContext';
 
 interface OrdersTableClientProps {
   initialOrders: Order[];
@@ -45,13 +46,6 @@ export default function OrdersTableClient({ initialOrders }: OrdersTableClientPr
       }
       setUpdatingId(null);
     });
-  };
-
-  const formatPrice = (price: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-    }).format(price);
   };
 
   const formatDate = (dateString: string) => {
@@ -98,7 +92,7 @@ export default function OrdersTableClient({ initialOrders }: OrdersTableClientPr
                       <span className="customer-email">{order.customer_email}</span>
                     </div>
                   </td>
-                  <td className="total">{formatPrice(order.total ?? order.total_amount ?? 0)}</td>
+                  <td className="total">{formatPKR(order.total ?? order.total_amount ?? 0)}</td>
                   <td>
                     <div className="status-dropdown-wrapper">
                       <select
