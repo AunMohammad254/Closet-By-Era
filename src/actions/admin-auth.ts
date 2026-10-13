@@ -2,6 +2,7 @@
 
 import { createClient } from '@/lib/supabase/server';
 import { logger } from '@/lib/logger';
+import { getAdminEmail, getSuperAdminEmail } from '@/lib/staff-emails';
 import { redirect } from 'next/navigation';
 
 export interface AdminLoginState {
@@ -16,36 +17,50 @@ export interface AdminLoginState {
  * Handle initial admin login (credentials check)
  */
 export async function adminLogin(prevState: AdminLoginState, formData: FormData): Promise<AdminLoginState> {
-    const email = formData.get('email') as string;
+    const rawEmail = formData.get('email') as string;
     const password = formData.get('password') as string;
 
-    if (!email || !password) {
+    if (!rawEmail || !password) {
         return { error: 'Email and password are required', step: 'credentials' };
     }
 
-    // STRICT: Check against .env credentials
-    const envAdminEmail = process.env.ADMIN_EMAIL;
-    const envAdminPassword = process.env.ADMIN_PASSWORD;
+    const email = rawEmail.trim().toLowerCase();
+    const envAdminEmail = getAdminEmail();
+    const envSuperAdminEmail = getSuperAdminEmail();
 
-    if (email !== envAdminEmail || password !== envAdminPassword) {
-        logger.warn('Admin login attempt with invalid env credentials', { email });
+    // If ADMIN_EMAIL is set, pin access to that account or the super-admin
+    if (envAdminEmail && email !== envAdminEmail && email !== envSuperAdminEmail) {
+        logger.warn('Admin login attempt with unpinned email', { email });
         return { error: 'Invalid credentials', step: 'credentials' };
     }
 
     const supabase = await createClient();
 
-    // 1. Sign in with password
-    const { error: signInError } = await supabase.auth.signInWithPassword({
+    // 1. Sign in with password via Supabase Auth
+    const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
         email,
         password,
     });
 
-    if (signInError) {
-        logger.error('Admin Supabase sign-in failed', signInError);
-        return { error: 'Authentication failed', step: 'credentials' };
+    if (signInError || !signInData.user) {
+        logger.warn('Admin Supabase sign-in failed', { email, error: signInError?.message });
+        return { error: 'Invalid credentials', step: 'credentials' };
     }
 
-    // 2. Check for MFA
+    // 2. Verify user has staff role (admin or super_admin) in customers table
+    const { data: customer, error: customerError } = await supabase
+        .from('customers')
+        .select('role')
+        .eq('auth_id', signInData.user.id)
+        .maybeSingle();
+
+    if (customerError || !customer || (customer.role !== 'admin' && customer.role !== 'super_admin')) {
+        logger.warn('Admin login attempt by non-staff user', { email, role: customer?.role });
+        await supabase.auth.signOut();
+        return { error: 'Invalid credentials', step: 'credentials' };
+    }
+
+    // 3. Check for MFA
     const { data: mfaData, error: mfaError } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
 
     if (mfaError) {

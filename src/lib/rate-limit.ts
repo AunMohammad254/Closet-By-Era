@@ -2,9 +2,9 @@
  * Production-ready rate limiter with Redis support via Upstash
  * Falls back to in-memory for development when Redis is not configured
  * 
- * To enable Redis rate limiting:
- * 1. Create an Upstash Redis database at https://upstash.com
- * 2. Add UPSTASH_REDIS_REST_URL and UPSTASH_REDIS_REST_TOKEN to env
+ * To enable Redis rate limiting, either:
+ * - Vercel > Storage > Upstash for Redis, connected to the project (sets KV_REST_API_URL / KV_REST_API_TOKEN), or
+ * - an Upstash database from https://console.upstash.com with UPSTASH_REDIS_REST_URL / UPSTASH_REDIS_REST_TOKEN set.
  */
 
 // ============================================================================
@@ -81,54 +81,70 @@ function checkMemoryRateLimit(
 // Redis Store (Production)
 // ============================================================================
 
-interface UpstashResponse {
-    result: number | null;
+interface UpstashReply {
+    result?: number | string | null;
+    error?: string;
+}
+
+/** Give up on Redis after this long and count in memory instead. */
+const REDIS_TIMEOUT_MS = 1500;
+
+/**
+ * Upstash REST credentials: added by hand (UPSTASH_REDIS_REST_*) or by the
+ * Vercel Marketplace integration (KV_REST_API_*).
+ */
+export function getRedisConfig(): { url: string; token: string } | null {
+    const url = process.env.UPSTASH_REDIS_REST_URL || process.env.KV_REST_API_URL;
+    const token = process.env.UPSTASH_REDIS_REST_TOKEN || process.env.KV_REST_API_TOKEN;
+    return url && token ? { url: url.replace(/\/+$/, ''), token } : null;
+}
+
+async function upstash(redis: { url: string; token: string }, commands: (string | number)[][]): Promise<UpstashReply[]> {
+    const res = await fetch(`${redis.url}/pipeline`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${redis.token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify(commands),
+        signal: AbortSignal.timeout(REDIS_TIMEOUT_MS),
+        cache: 'no-store',
+    });
+    if (!res.ok) throw new Error(`Upstash responded ${res.status}`);
+    return res.json();
 }
 
 async function checkRedisRateLimit(
     key: string,
-    config: RateLimitConfig
+    config: RateLimitConfig,
+    redis: { url: string; token: string }
 ): Promise<RateLimitResult> {
-    const REDIS_URL = process.env.UPSTASH_REDIS_REST_URL;
-    const REDIS_TOKEN = process.env.UPSTASH_REDIS_REST_TOKEN;
-
-    if (!REDIS_URL || !REDIS_TOKEN) {
-        // Fallback to memory if Redis not configured
-        return checkMemoryRateLimit(key, config);
-    }
+    const redisKey = `ratelimit:${key}`;
+    const window = String(config.windowSeconds);
 
     try {
-        // Use Upstash Redis REST API with INCR + EXPIRE pattern
-        const redisKey = `ratelimit:${key}`;
-
-        // INCR the counter
-        const incrResponse = await fetch(`${REDIS_URL}/incr/${redisKey}`, {
-            headers: { Authorization: `Bearer ${REDIS_TOKEN}` },
-        });
-        const incrData: UpstashResponse = await incrResponse.json();
-        const count = incrData.result ?? 1;
-
-        // Set expiry if this is the first request in the window
-        if (count === 1) {
-            await fetch(`${REDIS_URL}/expire/${redisKey}/${config.windowSeconds}`, {
-                headers: { Authorization: `Bearer ${REDIS_TOKEN}` },
-            });
+        // One round trip: open the window with its expiry if it is new, count, read the TTL.
+        const [, incr, ttl] = await upstash(redis, [
+            ['SET', redisKey, '0', 'EX', window, 'NX'],
+            ['INCR', redisKey],
+            ['TTL', redisKey],
+        ]);
+        if (typeof incr?.result !== 'number') {
+            throw new Error(incr?.error ?? 'Unexpected Upstash reply');
         }
 
-        // Get TTL for remaining time
-        const ttlResponse = await fetch(`${REDIS_URL}/ttl/${redisKey}`, {
-            headers: { Authorization: `Bearer ${REDIS_TOKEN}` },
-        });
-        const ttlData: UpstashResponse = await ttlResponse.json();
-        const ttl = ttlData.result ?? config.windowSeconds;
+        let resetIn = typeof ttl?.result === 'number' ? ttl.result : config.windowSeconds;
+        if (resetIn < 0) {
+            // A counter without an expiry would block this key forever; give it one.
+            await upstash(redis, [['EXPIRE', redisKey, window]]);
+            resetIn = config.windowSeconds;
+        }
 
-        const allowed = count <= config.limit;
+        const count = incr.result;
         return {
-            allowed,
+            allowed: count <= config.limit,
             remaining: Math.max(0, config.limit - count),
-            resetIn: Math.max(0, ttl),
+            resetIn,
         };
     } catch (error) {
+        // Never fail open silently: count in memory until Redis answers again.
         console.error('[RateLimit] Redis error, falling back to memory:', error);
         return checkMemoryRateLimit(key, config);
     }
@@ -159,8 +175,9 @@ export async function checkRateLimit(
     const key = `${action}:${identifier}`;
 
     // Use Redis in production, memory in development
-    if (process.env.NODE_ENV === 'production' && process.env.UPSTASH_REDIS_REST_URL) {
-        return checkRedisRateLimit(key, config);
+    const redis = process.env.NODE_ENV === 'production' ? getRedisConfig() : null;
+    if (redis) {
+        return checkRedisRateLimit(key, config, redis);
     }
 
     return checkMemoryRateLimit(key, config);

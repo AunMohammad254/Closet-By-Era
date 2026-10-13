@@ -65,7 +65,7 @@ export function useAdminAuth(): UseAdminAuthReturn {
                 user: session.user,
                 session,
                 customer: customer as CustomerData,
-                isAdmin: customer.role === 'admin'
+                isAdmin: customer.role === 'admin' || customer.role === 'super_admin'
             });
         } catch (err) {
             // Silently ignore AbortError - happens during navigation
@@ -83,12 +83,20 @@ export function useAdminAuth(): UseAdminAuthReturn {
     useEffect(() => {
         fetchAdminUser();
 
-        // Listen for auth changes
+        // Listen for auth changes. INITIAL_SESSION repeats the fetch above, and token
+        // refreshes and tab focus re-announce the same user: only another user or a
+        // profile update needs the customer row again.
         const supabase = createClient();
-        const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+        let knownUserId: string | null = null;
+        const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
             if (!session) {
+                knownUserId = null;
                 setAdminUser(null);
-            } else {
+                return;
+            }
+            const isNewUser = session.user.id !== knownUserId;
+            knownUserId = session.user.id;
+            if (event !== 'INITIAL_SESSION' && (isNewUser || event === 'USER_UPDATED')) {
                 fetchAdminUser();
             }
         });
