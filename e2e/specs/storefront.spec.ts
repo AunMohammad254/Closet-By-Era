@@ -1,7 +1,19 @@
 /** Browsing the shop as a guest: home, departments, listing filters, search and product pages. */
+import type { Page } from '@playwright/test';
 import { test, expect } from '../fixtures';
 import { PRODUCTS, productPath } from '../data';
 import { pkr, productCard } from '../helpers/shop';
+
+/**
+ * A missing product shows the not-found page and asks search engines not to
+ * index it. The status stays 200: the shop's loading.tsx streams the page, so
+ * the response has started before the product lookup ends, and Next.js marks
+ * the page noindex instead (see Status Codes in the loading.js docs).
+ */
+async function expectNotFound(page: Page) {
+    await expect(page.getByRole('heading', { name: 'Page Not Found' })).toBeVisible();
+    await expect(page.locator('meta[name="robots"][content*="noindex"]').first()).toBeAttached();
+}
 
 test.describe('home page', () => {
     test('shows the hero, announcement and featured products from the database', async ({ page }) => {
@@ -162,9 +174,8 @@ test.describe('product page', () => {
     });
 
     test('a hidden product is not found', async ({ page }) => {
-        const response = await page.goto(productPath('hidden'));
-        expect(response?.status()).toBe(404);
-        await expect(page.getByRole('heading', { name: 'Page Not Found' })).toBeVisible();
+        await page.goto(productPath('hidden'));
+        await expectNotFound(page);
     });
 
     test('a product without a slug opens by id', async ({ page }) => {
@@ -191,8 +202,8 @@ test.describe('product page', () => {
         await expect(recent.getByRole('link', { name: new RegExp(PRODUCTS.sale.name) })).toHaveCount(0);
     });
 
-    test('unknown products return 404', async ({ page }) => {
-        const response = await page.goto('/product/no-such-product');
-        expect(response?.status()).toBe(404);
+    test('unknown products show the not-found page', async ({ page }) => {
+        await page.goto('/product/no-such-product');
+        await expectNotFound(page);
     });
 });
