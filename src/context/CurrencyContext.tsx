@@ -29,13 +29,22 @@ const SYMBOLS: Record<CurrencyCode, string> = {
     AED: 'AED'
 };
 
+// Building an Intl.NumberFormat is far costlier than using one, and every
+// product card formats prices on each render: keep one per currency.
+const formatters = new Map<CurrencyCode, Intl.NumberFormat>();
+
 function formatIn(currency: CurrencyCode, amountInPKR: number): string {
-    return new Intl.NumberFormat('en-US', {
-        style: 'currency',
-        currency,
-        minimumFractionDigits: currency === 'PKR' ? 0 : 2,
-        maximumFractionDigits: currency === 'PKR' ? 0 : 2,
-    }).format(amountInPKR * RATES[currency]);
+    let formatter = formatters.get(currency);
+    if (!formatter) {
+        formatter = new Intl.NumberFormat('en-US', {
+            style: 'currency',
+            currency,
+            minimumFractionDigits: currency === 'PKR' ? 0 : 2,
+            maximumFractionDigits: currency === 'PKR' ? 0 : 2,
+        });
+        formatters.set(currency, formatter);
+    }
+    return formatter.format(amountInPKR * RATES[currency]);
 }
 
 /** Orders are always charged in PKR; use this where the exact charge must be shown. */

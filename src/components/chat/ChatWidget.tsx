@@ -3,9 +3,13 @@
 import { useState, useEffect, useRef } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { useAuth } from '@/context/AuthContext';
-import { createTicket, sendMessage, getUserActiveTicket, getMessages, Message } from '@/actions/chat';
-import { format } from 'date-fns';
+import { createTicket, sendMessage, getActiveChat, getMessages, Message } from '@/actions/chat';
 import { CHAT_POLL_MS, mergeMessages } from '@/lib/chat-messages';
+
+/** Local "HH:mm" (24h). The widget is on every shop page, so no date library for one format. */
+function formatTime(iso: string): string {
+    return new Date(iso).toTimeString().slice(0, 5);
+}
 
 export default function ChatWidget() {
     const { user } = useAuth();
@@ -22,11 +26,10 @@ export default function ChatWidget() {
 
         const loadChat = async () => {
             try {
-                const ticket = await getUserActiveTicket();
-                if (ticket) {
-                    setTicketId(ticket.id);
-                    const msgs = await getMessages(ticket.id);
-                    setMessages(msgs);
+                const chat = await getActiveChat();
+                if (chat) {
+                    setTicketId(chat.ticket.id);
+                    setMessages(chat.messages);
                 }
             } catch (e) {
                 console.error(e);
@@ -133,7 +136,7 @@ export default function ChatWidget() {
                                             }`}>
                                             <p>{msg.message}</p>
                                             <p className={`text-[10px] mt-1 ${isMe ? 'text-slate-400' : 'text-gray-400'}`}>
-                                                {format(new Date(msg.created_at), 'HH:mm')}
+                                                {formatTime(msg.created_at)}
                                             </p>
                                         </div>
                                     </div>

@@ -4,7 +4,7 @@ import FeaturedProductsGrid from '../FeaturedProductsGrid';
 
 // Mock contexts that might be needed by ProductCard
 jest.mock('@/context/CartContext', () => ({
-    useCart: () => ({
+    useCartActions: () => ({
         addItem: jest.fn(),
     }),
 }));

@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { createAdminClient } from '@/lib/supabase/server';
-import { getAdminContext, getSessionUser } from '@/lib/auth';
+import { getAdminContext, getSessionUser, getStaffContext } from '@/lib/auth';
 
 export interface Ticket {
     id: string;
@@ -70,7 +70,7 @@ export async function sendMessage(ticketId: string, message: string) {
     const session = await getSessionUser();
     if (!session) throw new Error('Unauthorized');
 
-    const isAdmin = (await getAdminContext()) !== null;
+    const isAdmin = (await getStaffContext(session)) !== null;
     const admin = createAdminClient();
 
     const { data: ticket } = await admin
@@ -142,7 +142,11 @@ export async function setTicketStatus(ticketId: string, status: 'open' | 'closed
     revalidatePath('/admin/chat');
 }
 
-export async function getUserActiveTicket() {
+/**
+ * The shopper's open ticket and its messages, in one round trip (the chat
+ * widget loads this on every page; the browser sends Server Actions one at a time).
+ */
+export async function getActiveChat(): Promise<{ ticket: Ticket; messages: Message[] } | null> {
     const session = await getSessionUser();
     if (!session) return null;
 
@@ -153,14 +157,24 @@ export async function getUserActiveTicket() {
         .eq('status', 'open')
         .maybeSingle();
 
-    return (ticket || null) as Ticket | null;
+    if (!ticket) return null;
+
+    // The shopper's own ticket: RLS lets the owner read its messages.
+    const { data: messages, error } = await session.supabase
+        .from('support_messages')
+        .select('*')
+        .eq('ticket_id', ticket.id)
+        .order('created_at', { ascending: true });
+
+    if (error) throw new Error(error.message);
+    return { ticket: ticket as Ticket, messages: messages as Message[] };
 }
 
 export async function getMessages(ticketId: string) {
     const session = await getSessionUser();
     if (!session) throw new Error('Unauthorized');
 
-    const isAdmin = (await getAdminContext()) !== null;
+    const isAdmin = (await getStaffContext(session)) !== null;
     // Staff read through the service role; customers through RLS (own tickets only).
     const client = isAdmin ? createAdminClient() : session.supabase;
 

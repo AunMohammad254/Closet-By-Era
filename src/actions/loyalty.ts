@@ -16,10 +16,9 @@ export interface LoyaltyHistory {
 // Points are awarded server-side by createOrder (src/actions/orders.ts).
 // loyalty_history is keyed by auth user id (user_id -> auth.users.id).
 
-export async function getLoyaltyBalance() {
-    const session = await getSessionUser();
-    if (!session) return 0;
+type Session = NonNullable<Awaited<ReturnType<typeof getSessionUser>>>;
 
+async function readBalance(session: Session): Promise<number> {
     const { data: customer } = await session.supabase
         .from('customers')
         .select('loyalty_points')
@@ -29,10 +28,7 @@ export async function getLoyaltyBalance() {
     return customer?.loyalty_points || 0;
 }
 
-export async function getLoyaltyHistory() {
-    const session = await getSessionUser();
-    if (!session) return [];
-
+async function readHistory(session: Session): Promise<LoyaltyHistory[]> {
     const { data: history } = await session.supabase
         .from('loyalty_history')
         .select('id, points, reason, created_at')
@@ -40,6 +36,28 @@ export async function getLoyaltyHistory() {
         .order('created_at', { ascending: false });
 
     return (history as LoyaltyHistory[]) || [];
+}
+
+export async function getLoyaltyBalance() {
+    const session = await getSessionUser();
+    return session ? readBalance(session) : 0;
+}
+
+export async function getLoyaltyHistory() {
+    const session = await getSessionUser();
+    return session ? readHistory(session) : [];
+}
+
+/**
+ * Balance and history together. The browser sends Server Actions one at a time,
+ * so two separate calls cost two round trips and two auth checks.
+ */
+export async function getLoyaltySummary(): Promise<{ points: number; history: LoyaltyHistory[] }> {
+    const session = await getSessionUser();
+    if (!session) return { points: 0, history: [] };
+
+    const [points, history] = await Promise.all([readBalance(session), readHistory(session)]);
+    return { points, history };
 }
 
 // ========== Admin Functions ==========

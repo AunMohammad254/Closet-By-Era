@@ -15,6 +15,16 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+/**
+ * Supabase re-announces the signed-in user (as a new object) on every token
+ * refresh and every time the tab becomes visible again. Keep the current object
+ * unless it is a different user or the user record itself changed, so effects
+ * keyed on `user` do not re-run their database work on each of those events.
+ */
+function sameUser(a: User | null, b: User | null): boolean {
+    return a === b || (!!a && !!b && a.id === b.id && a.email === b.email && a.updated_at === b.updated_at);
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
     const supabase = createClient();
     const [user, setUser] = useState<User | null>(null);
@@ -28,7 +38,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             try {
                 const { data: { session } } = await supabase.auth.getSession();
                 if (isMounted) {
-                    setUser(session?.user ?? null);
+                    const next = session?.user ?? null;
+                    setUser(prev => (sameUser(prev, next) ? prev : next));
                     setLoading(false);
                 }
             } catch (error) {
@@ -49,7 +60,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // Listen for auth changes
         const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
             if (isMounted) {
-                setUser(session?.user ?? null);
+                const next = session?.user ?? null;
+                setUser(prev => (sameUser(prev, next) ? prev : next));
                 setLoading(false);
             }
         });

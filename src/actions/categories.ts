@@ -2,7 +2,7 @@
 
 import { createClient } from '@/lib/supabase/server';
 import { getAdminContext, FORBIDDEN } from '@/lib/auth';
-import { revalidatePath } from 'next/cache';
+import { revalidatePath, revalidateTag } from 'next/cache';
 import { z } from 'zod';
 import { logger } from '@/lib/logger';
 
@@ -59,6 +59,7 @@ export async function createCategory(data: CategoryFormData) {
     }
 
     revalidatePath('/admin/categories');
+    revalidateTag('categories', 'max'); // storefront listings and their filters
     return { success: true };
 }
 
@@ -90,6 +91,7 @@ export async function updateCategory(id: string, data: CategoryFormData) {
     }
 
     revalidatePath('/admin/categories');
+    revalidateTag('categories', 'max'); // storefront listings and their filters
     return { success: true };
 }
 
@@ -108,5 +110,6 @@ export async function deleteCategory(id: string) {
     }
 
     revalidatePath('/admin/categories');
+    revalidateTag('categories', 'max'); // storefront listings and their filters
     return { success: true };
 }

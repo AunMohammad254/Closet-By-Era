@@ -41,17 +41,7 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
     // Await searchParams (Next.js 16 requirement)
     const params = await searchParams;
 
-    // 1. Fetch Categories
-    const supabase = await createClient(); // Initialize server client
-    const { data: categoriesData } = await supabase
-        .from('categories')
-        .select('name, slug')
-        .eq('is_active', true)
-        .order('display_order');
-
-    const categories = Array.from(new Set(categoriesData?.map((c: { name: string; slug: string }) => c.name) || []));
-
-    // 2. Parse Filters from URL
+    // 1. Parse Filters from URL
     const selectedCategories = typeof params.categories === 'string' ? params.categories.split(',') : [];
     const minPrice = typeof params.minPrice === 'string' ? parseInt(params.minPrice) : undefined;
     const maxPrice = typeof params.maxPrice === 'string' ? parseInt(params.maxPrice) : undefined;
@@ -59,15 +49,25 @@ export default async function ProductsPage({ searchParams }: ProductsPageProps) 
     const page = typeof params.page === 'string' ? parseInt(params.page) : 1;
     const search = typeof params.search === 'string' ? params.search.trim().slice(0, 100) : '';
 
-    // 3. Fetch Products with Filters via Action
-    const { data: productsData } = await getProducts(page, 100, search, { // Fetching 100 for now to keep simple pagination
-        categories: selectedCategories,
-        minPrice,
-        maxPrice,
-        sort
-    });
+    // 2. Fetch the filter categories and the products in parallel
+    const supabase = await createClient(); // Initialize server client
+    const [{ data: categoriesData }, { data: productsData }] = await Promise.all([
+        supabase
+            .from('categories')
+            .select('name, slug')
+            .eq('is_active', true)
+            .order('display_order'),
+        getProducts(page, 100, search, { // Fetching 100 for now to keep simple pagination
+            categories: selectedCategories,
+            minPrice,
+            maxPrice,
+            sort
+        }),
+    ]);
 
-    // 4. Transform Data
+    const categories = Array.from(new Set(categoriesData?.map((c: { name: string; slug: string }) => c.name) || []));
+
+    // 3. Transform Data
     const products: ProductUI[] = ((productsData || []) as ProductsQueryResult[]).map((p) => ({
         id: p.id,
         name: p.name,

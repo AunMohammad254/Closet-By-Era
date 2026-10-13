@@ -485,18 +485,22 @@ export async function bulkAdjustPrices(
         return { success: false, updated: 0, error: 'Failed to fetch products' };
     }
 
-    // Update each product with new price
+    // Each product gets its own price, so one UPDATE per product; run them in
+    // batches instead of one round trip after another (up to 100 products).
     const multiplier = 1 + (percentageChange / 100);
+    const BATCH_SIZE = 10;
     let updated = 0;
 
-    for (const product of products) {
-        const newPrice = Math.round(product.price * multiplier);
-        const { error } = await supabase
-            .from('products')
-            .update({ price: newPrice })
-            .eq('id', product.id);
-
-        if (!error) updated++;
+    for (let i = 0; i < products.length; i += BATCH_SIZE) {
+        const results = await Promise.all(
+            products.slice(i, i + BATCH_SIZE).map(product =>
+                supabase
+                    .from('products')
+                    .update({ price: Math.round(product.price * multiplier) })
+                    .eq('id', product.id)
+            )
+        );
+        updated += results.filter(({ error }) => !error).length;
     }
 
     revalidatePath('/admin/products');

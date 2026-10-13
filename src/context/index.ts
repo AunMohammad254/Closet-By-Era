@@ -1,3 +1,3 @@
-export { CartProvider, useCart } from './CartContext';
+export { CartProvider, useCart, useCartActions } from './CartContext';
 export { AuthProvider, useAuth } from './AuthContext';
 export { WishlistProvider, useWishlist } from './WishlistContext';

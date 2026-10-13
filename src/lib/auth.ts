@@ -27,10 +27,15 @@ function isStaffRole(role: string | null | undefined): role is StaffRole {
  * not a sufficient guard.
  */
 export async function getAdminContext(): Promise<StaffContext | null> {
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return null;
+    const session = await getSessionUser();
+    return session ? getStaffContext(session) : null;
+}
 
+/**
+ * The staff context for a session that getSessionUser() already verified, so
+ * code that needs both does not ask Supabase Auth for the user twice.
+ */
+export async function getStaffContext({ supabase, user }: { supabase: ServerClient; user: User }): Promise<StaffContext | null> {
     const { data: customer } = await supabase
         .from('customers')
         .select('id, role')

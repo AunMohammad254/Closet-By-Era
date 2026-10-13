@@ -12,8 +12,10 @@ export const metadata = {
 export default async function EditProductPage({ params }: { params: Promise<{ id: string }> }) {
     const resolvedParams = await params;
 
-    const product = await getProductById(resolvedParams.id);
-    const categories = await getCategories();
+    const [product, categories] = await Promise.all([
+        getProductById(resolvedParams.id),
+        getCategories(),
+    ]);
 
     if (!product) {
         notFound();

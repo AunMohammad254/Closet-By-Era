@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, useState, useEffect, ReactNode, useCallback, useMemo } from 'react';
+import { createContext, useContext, useState, useEffect, ReactNode, useCallback, useMemo, useRef } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { useAuth } from './AuthContext';
 
@@ -23,6 +23,35 @@ interface WishlistContextType {
     syncWishlistFromDB: () => Promise<void>;
 }
 
+const WISHLIST_STORAGE_KEY = 'closet-by-era-wishlist';
+
+/** Identifies the rows a wishlist is stored as (order-independent): equal keys need no write. */
+function wishlistKey(items: WishlistItem[]): string {
+    return JSON.stringify(
+        [...items]
+            .sort((a, b) => a.id.localeCompare(b.id))
+            .map(i => [i.id, i.name, i.price, i.image, i.category])
+    );
+}
+
+type WishlistRow = {
+    product_id: string;
+    product_name: string;
+    product_price: number;
+    product_image: string | null;
+    category: string | null;
+};
+
+function fromRow(row: WishlistRow): WishlistItem {
+    return {
+        id: row.product_id,
+        name: row.product_name || 'Unknown Product',
+        price: row.product_price || 0,
+        image: row.product_image || '',
+        category: row.category || 'Uncategorized',
+    };
+}
+
 const WishlistContext = createContext<WishlistContextType | undefined>(undefined);
 
 export function WishlistProvider({ children }: { children: ReactNode }) {
@@ -31,30 +60,41 @@ export function WishlistProvider({ children }: { children: ReactNode }) {
     const [isLoading, setIsLoading] = useState(false);
     const [isInitialized, setIsInitialized] = useState(false);
     const { user } = useAuth();
+    // Depend on the id, not the User object (see CartContext).
+    const userId = user?.id ?? null;
 
-    // Sync wishlist to database - Optimized with upsert instead of delete+insert
+    // The user whose database wishlist has been merged in. Until then the local
+    // list is incomplete, and syncing it would delete the account's saved items.
+    const mergedUserRef = useRef<string | null>(null);
+    // Key of the list the database is known to hold.
+    const syncedKeyRef = useRef<string | null>(null);
+
+    // Sync wishlist to database - upsert the list, then drop rows no longer in it
     const syncWishlistToDB = useCallback(async (wishlistItems: WishlistItem[]) => {
-        if (!user) return;
+        if (!userId) return;
+        const key = wishlistKey(wishlistItems);
+        if (key === syncedKeyRef.current) return;
 
         try {
             if (wishlistItems.length === 0) {
-                // Only delete if wishlist is empty
-                await supabase
+                const { error } = await supabase
                     .from('wishlist_items')
                     .delete()
-                    .eq('user_id', user.id);
+                    .eq('user_id', userId);
+                if (error) throw error;
+                syncedKeyRef.current = key;
                 return;
             }
 
             // Get current wishlist item IDs from DB
-            const { data: existingItems } = await supabase
+            const { data: existingItems, error: selectError } = await supabase
                 .from('wishlist_items')
                 .select('id, product_id')
-                .eq('user_id', user.id);
+                .eq('user_id', userId);
+            if (selectError) throw selectError;
 
-            // Build list of items to upsert
             const dbItems = wishlistItems.map(item => ({
-                user_id: user.id,
+                user_id: userId,
                 product_id: item.id,
                 product_name: item.name,
                 product_price: item.price,
@@ -63,42 +103,43 @@ export function WishlistProvider({ children }: { children: ReactNode }) {
             }));
 
             // Upsert all items (insert or update on conflict)
-            await supabase
+            const { error: upsertError } = await supabase
                 .from('wishlist_items')
                 .upsert(dbItems, {
                     onConflict: 'user_id,product_id',
                     ignoreDuplicates: false
                 });
+            if (upsertError) throw upsertError;
 
             // Remove items that are no longer in wishlist
-            if (existingItems && existingItems.length > 0) {
-                const currentProductIds = new Set(wishlistItems.map(item => item.id));
-                const idsToDelete = existingItems
-                    .filter(item => !currentProductIds.has(item.product_id))
-                    .map(item => item.id);
+            const currentProductIds = new Set(wishlistItems.map(item => item.id));
+            const idsToDelete = (existingItems ?? [])
+                .filter(item => !currentProductIds.has(item.product_id))
+                .map(item => item.id);
 
-                if (idsToDelete.length > 0) {
-                    await supabase
-                        .from('wishlist_items')
-                        .delete()
-                        .in('id', idsToDelete);
-                }
+            if (idsToDelete.length > 0) {
+                const { error: deleteError } = await supabase
+                    .from('wishlist_items')
+                    .delete()
+                    .in('id', idsToDelete);
+                if (deleteError) throw deleteError;
             }
+            syncedKeyRef.current = key;
         } catch (error) {
             console.error('Error syncing wishlist to database:', error);
         }
-    }, [user]); // eslint-disable-line react-hooks/exhaustive-deps
+    }, [userId, supabase]);
 
     // Fetch wishlist from database
     const syncWishlistFromDB = useCallback(async () => {
-        if (!user) return;
+        if (!userId) return;
 
         setIsLoading(true);
         try {
             const { data, error } = await supabase
                 .from('wishlist_items')
                 .select('id, product_id, product_name, product_price, product_image, category')
-                .eq('user_id', user.id);
+                .eq('user_id', userId);
 
             if (error) {
                 console.error('Error fetching wishlist from database:', error);
@@ -106,29 +147,24 @@ export function WishlistProvider({ children }: { children: ReactNode }) {
             }
 
             if (data && data.length > 0) {
-                const wishlistItems: WishlistItem[] = data.map((item) => ({
-                    id: item.product_id,
-                    name: item.product_name || 'Unknown Product',
-                    price: item.product_price || 0,
-                    image: item.product_image || '',
-                    category: item.category || 'Uncategorized',
-                }));
+                const wishlistItems = data.map(fromRow);
+                syncedKeyRef.current = wishlistKey(wishlistItems);
                 setItems(wishlistItems);
                 // Also save to localStorage as backup
-                localStorage.setItem('closet-by-era-wishlist', JSON.stringify(wishlistItems));
+                localStorage.setItem(WISHLIST_STORAGE_KEY, JSON.stringify(wishlistItems));
             }
         } catch (error) {
             console.error('Error fetching wishlist:', error);
         } finally {
             setIsLoading(false);
         }
-    }, [user]); // eslint-disable-line react-hooks/exhaustive-deps
+    }, [userId, supabase]);
 
     // Load from localStorage on mount (for guests and initial load)
     useEffect(() => {
         if (isInitialized) return;
 
-        const saved = localStorage.getItem('closet-by-era-wishlist');
+        const saved = localStorage.getItem(WISHLIST_STORAGE_KEY);
         if (saved) {
             try {
                 const parsedWishlist = JSON.parse(saved);
@@ -140,73 +176,66 @@ export function WishlistProvider({ children }: { children: ReactNode }) {
         setIsInitialized(true);
     }, [isInitialized]);
 
-    // When user logs in, merge local wishlist with database wishlist
+    // Forget the previous account's sync state on sign-out
     useEffect(() => {
-        if (user && isInitialized) {
-            const mergeAndSyncWishlist = async () => {
-                setIsLoading(true);
-                try {
-                    // Fetch existing wishlist from database
-                    const { data: dbWishlistData } = await supabase
-                        .from('wishlist_items')
-                        .select('id, product_id, product_name, product_price, product_image, category')
-                        .eq('user_id', user.id);
-
-                    // Get local wishlist
-                    const localWishlist = items;
-
-                    // Merge wishlists (local wishlist takes precedence for newer items)
-                    const mergedWishlist: WishlistItem[] = [...localWishlist];
-
-                    if (dbWishlistData && dbWishlistData.length > 0) {
-                        dbWishlistData.forEach((dbItem) => {
-                            const existingIndex = mergedWishlist.findIndex(
-                                item => item.id === dbItem.product_id
-                            );
-
-                            if (existingIndex === -1) {
-                                // Add item from database that's not in local wishlist
-                                mergedWishlist.push({
-                                    id: dbItem.product_id,
-                                    name: dbItem.product_name,
-                                    price: dbItem.product_price,
-                                    image: dbItem.product_image || '',
-                                    category: dbItem.category || 'Uncategorized',
-                                });
-                            }
-                        });
-                    }
-
-                    setItems(mergedWishlist);
-                    // Sync merged wishlist back to database
-                    await syncWishlistToDB(mergedWishlist);
-                    localStorage.setItem('closet-by-era-wishlist', JSON.stringify(mergedWishlist));
-                } catch (error) {
-                    console.error('Error merging wishlists:', error);
-                } finally {
-                    setIsLoading(false);
-                }
-            };
-
-            mergeAndSyncWishlist();
+        if (!userId) {
+            mergedUserRef.current = null;
+            syncedKeyRef.current = null;
         }
-    }, [user, isInitialized]); // eslint-disable-line react-hooks/exhaustive-deps
+    }, [userId]);
+
+    // When user logs in, merge the database wishlist into the local one (once per sign-in).
+    // The items effect below then writes the merged list back only if it differs.
+    useEffect(() => {
+        if (!userId || !isInitialized || mergedUserRef.current === userId) return;
+        let cancelled = false;
+
+        const mergeWishlist = async () => {
+            setIsLoading(true);
+            try {
+                const { data: dbWishlistData, error } = await supabase
+                    .from('wishlist_items')
+                    .select('id, product_id, product_name, product_price, product_image, category')
+                    .eq('user_id', userId);
+                if (error) throw error;
+                if (cancelled) return;
+
+                const dbWishlist = (dbWishlistData ?? []).map(fromRow);
+                syncedKeyRef.current = wishlistKey(dbWishlist);
+                mergedUserRef.current = userId;
+
+                // Local items take precedence; add the ones only the database has.
+                setItems(prev => {
+                    const localIds = new Set(prev.map(item => item.id));
+                    return [...prev, ...dbWishlist.filter(item => !localIds.has(item.id))];
+                });
+            } catch (error) {
+                console.error('Error merging wishlists:', error);
+            } finally {
+                setIsLoading(false);
+            }
+        };
+
+        mergeWishlist();
+        return () => { cancelled = true; };
+    }, [userId, isInitialized, supabase]);
 
     // Save wishlist to localStorage on change (and sync to DB if logged in)
     useEffect(() => {
         if (!isInitialized) return;
 
-        localStorage.setItem('closet-by-era-wishlist', JSON.stringify(items));
+        localStorage.setItem(WISHLIST_STORAGE_KEY, JSON.stringify(items));
+
+        if (!userId || mergedUserRef.current !== userId) return;
+        if (wishlistKey(items) === syncedKeyRef.current) return;
 
         // Debounce database sync
         const timeoutId = setTimeout(() => {
-            if (user) {
-                syncWishlistToDB(items);
-            }
+            syncWishlistToDB(items);
         }, 500);
 
         return () => clearTimeout(timeoutId);
-    }, [items, user, syncWishlistToDB, isInitialized]);
+    }, [items, userId, syncWishlistToDB, isInitialized]);
 
     const addItem = useCallback((item: WishlistItem) => {
         setItems((prev) => {
@@ -219,23 +248,26 @@ export function WishlistProvider({ children }: { children: ReactNode }) {
         setItems((prev) => prev.filter((item) => item.id !== id));
     }, []);
 
-    const isInWishlist = useCallback((id: string) => items.some((item) => item.id === id), [items]);
+    const wishlistIds = useMemo(() => new Set(items.map((item) => item.id)), [items]);
+    const isInWishlist = useCallback((id: string) => wishlistIds.has(id), [wishlistIds]);
 
     const clearWishlist = useCallback(async () => {
         setItems([]);
-        localStorage.removeItem('closet-by-era-wishlist');
+        localStorage.removeItem(WISHLIST_STORAGE_KEY);
 
-        if (user) {
+        if (userId) {
             try {
-                await supabase
+                const { error } = await supabase
                     .from('wishlist_items')
                     .delete()
-                    .eq('user_id', user.id);
+                    .eq('user_id', userId);
+                if (error) throw error;
+                syncedKeyRef.current = wishlistKey([]);
             } catch (error) {
                 console.error('Error clearing wishlist from database:', error);
             }
         }
-    }, [user]); // eslint-disable-line react-hooks/exhaustive-deps
+    }, [userId, supabase]);
 
     const itemCount = items.length;
 

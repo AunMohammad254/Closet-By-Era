@@ -150,7 +150,7 @@ export default async function Page({ params }: { params: Promise<{ slug: string 
     const [relatedDataSimple, reviews] = await Promise.all([
         supabase
             .from('products')
-            .select('id, name, price, original_price, image_url, images, is_new, is_sale')
+            .select('id, slug, name, price, original_price, image_url, images, is_new, is_sale')
             .neq('id', product.id)
             .eq('is_active', true)
             .eq('in_stock', true)
@@ -160,6 +160,7 @@ export default async function Page({ params }: { params: Promise<{ slug: string 
 
     const relatedProducts: RelatedProduct[] = (relatedDataSimple.data || []).map((p) => ({
         id: p.id,
+        slug: p.slug ?? undefined,
         name: p.name,
         price: p.price,
         originalPrice: p.original_price ?? undefined,

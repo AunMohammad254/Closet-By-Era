@@ -1,8 +1,9 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import dynamic from 'next/dynamic';
 import Link from 'next/link';
-import { useCart } from '@/context/CartContext';
+import { useCartActions } from '@/context/CartContext';
 import { useWishlist } from '@/context/WishlistContext';
 import { useCurrency } from '@/context/CurrencyContext';
 import { Review } from '@/actions/reviews';
@@ -14,7 +15,6 @@ import AddToCartToast from './product/AddToCartToast';
 import RelatedProducts, { RelatedProduct } from './product/RelatedProducts';
 import ReviewList from './reviews/ReviewList';
 import ReviewForm from './reviews/ReviewForm';
-import SizeGuideModal from './product/SizeGuideModal';
 import RecentlyViewed from './product/RecentlyViewed';
 import ColorSelector, { ProductColor } from './product/ColorSelector';
 import SizeSelector from './product/SizeSelector';
@@ -22,6 +22,9 @@ import QuantitySelector from './product/QuantitySelector';
 import ProductActions from './product/ProductActions';
 
 export type { ProductColor };
+
+// The size guide (a dialog with tabs and size tables) is loaded the first time it is opened.
+const SizeGuideModal = dynamic(() => import('./product/SizeGuideModal'), { ssr: false });
 
 // Categories with their own storefront page; others open the filtered catalogue.
 const DEPARTMENT_PAGES = new Set(['women', 'men', 'accessories', 'sale']);
@@ -58,7 +61,7 @@ interface ProductViewProps {
 }
 
 export default function ProductView({ product, relatedProducts, reviews = [] }: ProductViewProps) {
-    const { addItem } = useCart();
+    const { addItem } = useCartActions();
     const { addItem: addToWishlist, removeItem: removeFromWishlist, isInWishlist } = useWishlist();
     const { formatPrice } = useCurrency();
 
@@ -67,6 +70,8 @@ export default function ProductView({ product, relatedProducts, reviews = [] }: 
     const [quantity, setQuantity] = useState(1);
     const [showAddedToast, setShowAddedToast] = useState(false);
     const [isSizeGuideOpen, setIsSizeGuideOpen] = useState(false);
+    // Stays mounted after the first open so its closing transition can run.
+    const [isSizeGuideLoaded, setIsSizeGuideLoaded] = useState(false);
 
     const discount = product.originalPrice
         ? Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100)
@@ -191,7 +196,10 @@ export default function ProductView({ product, relatedProducts, reviews = [] }: 
                                     sizes={product.sizes}
                                     selectedSize={selectedSize}
                                     onSelect={setSelectedSize}
-                                    onSizeGuideClick={() => setIsSizeGuideOpen(true)}
+                                    onSizeGuideClick={() => {
+                                        setIsSizeGuideLoaded(true);
+                                        setIsSizeGuideOpen(true);
+                                    }}
                                 />
 
                                 <QuantitySelector
@@ -272,14 +280,16 @@ export default function ProductView({ product, relatedProducts, reviews = [] }: 
             {/* Added to Cart Toast */}
             <AddToCartToast isVisible={showAddedToast} />
 
-            <SizeGuideModal
-                isOpen={isSizeGuideOpen}
-                onClose={() => setIsSizeGuideOpen(false)}
-                defaultCategory={
-                    product.category.toLowerCase().includes('men') ? 'mens-tops' :
-                        product.category.toLowerCase().includes('women') ? 'womens-tops' : 'mens-tops'
-                }
-            />
+            {isSizeGuideLoaded && (
+                <SizeGuideModal
+                    isOpen={isSizeGuideOpen}
+                    onClose={() => setIsSizeGuideOpen(false)}
+                    defaultCategory={
+                        product.category.toLowerCase().includes('men') ? 'mens-tops' :
+                            product.category.toLowerCase().includes('women') ? 'womens-tops' : 'mens-tops'
+                    }
+                />
+            )}
 
             <RecentlyViewed excludeId={product.id} />
         </main>
