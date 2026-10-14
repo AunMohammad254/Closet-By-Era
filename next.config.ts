@@ -35,8 +35,11 @@ const nextConfig: NextConfig = {
     deviceSizes: [640, 750, 828, 1080, 1200, 1920, 2048],
     imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
 
-    // Only the end-to-end stack (Supabase on 127.0.0.1) needs this; never set it in production.
-    dangerouslyAllowLocalIP: process.env.E2E_ALLOW_LOCAL_IMAGES === '1',
+    // End-to-end builds serve images as they are. Under `next start`, the optimizer
+    // can hang for good on an image whose first request was cut off, and every
+    // later request for that image waits on it, so a `priority` image stops the
+    // page's load event. On Vercel, /_next/image is Vercel's own image service.
+    unoptimized: process.env.E2E_UNOPTIMIZED_IMAGES === '1',
 
     remotePatterns: [
       ...(supabaseUrl
