@@ -19,10 +19,14 @@ permissions:
 env:
   NEXT_TELEMETRY_DISABLED: 1
 
+# Runners are pinned rather than ubuntu-latest, which moves to Ubuntu 26 on
+# 2026-10-19: the e2e job installs Playwright's system packages and runs
+# Supabase in Docker. Move all three jobs together once a PR passes on the
+# new image.
 jobs:
   checks:
     name: Typecheck, lint & unit tests
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7
@@ -56,7 +60,7 @@ jobs:
 
   build:
     name: Production build
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     # The build needs no secrets: pages that query Supabase are rendered on
     # request, so placeholder values are enough to compile and prerender.
@@ -94,7 +98,7 @@ jobs:
 
   e2e:
     name: End-to-end tests (Playwright)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 40
     steps:
       - uses: actions/checkout@v7
