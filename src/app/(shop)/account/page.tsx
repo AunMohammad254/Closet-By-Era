@@ -37,6 +37,7 @@ interface Address {
 
 function AccountPageContent() {
     const { user, signOut, loading } = useAuth();
+    // One shared browser client, so as an effect dependency it never changes.
     const supabase = createClient();
     const router = useRouter();
     const searchParams = useSearchParams();
@@ -133,7 +134,7 @@ function AccountPageContent() {
         };
 
         fetchOrCreateCustomer();
-    }, [user]);
+    }, [user, supabase]);
 
     // Fetch Loyalty Data
     useEffect(() => {
@@ -201,7 +202,7 @@ function AccountPageContent() {
         };
 
         fetchOrders();
-    }, [user, customer, customerLoaded]);
+    }, [user, customer, customerLoaded, supabase]);
 
     // Extract addresses from orders
     useEffect(() => {

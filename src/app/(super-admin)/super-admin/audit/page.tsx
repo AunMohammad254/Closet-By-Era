@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useEffectEvent } from 'react';
 import { getAuditLogs, type AuditLog } from '@/actions/super-admin';
 import { ScrollText, Shield, User, Package, ShoppingCart, Settings, Loader2, Filter, Calendar, Search } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -12,8 +12,14 @@ export default function AuditLogsPage() {
     const [startDate, setStartDate] = useState<string>('');
     const [endDate, setEndDate] = useState<string>('');
 
-    useEffect(() => {
+    // Load once on open. loadLogs reads the date filters, which apply only when
+    // the admin asks, so the effect calls it through an effect event.
+    const loadInitialLogs = useEffectEvent(() => {
         loadLogs();
+    });
+
+    useEffect(() => {
+        loadInitialLogs();
     }, []);
 
     async function loadLogs() {
