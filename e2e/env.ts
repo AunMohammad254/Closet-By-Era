@@ -96,7 +96,7 @@ export function appEnv(): Record<string, string> {
         NODE_ENV: 'production',
         NEXT_TELEMETRY_DISABLED: '1',
         NEXT_DIST_DIR: '.next-e2e',
-        E2E_ALLOW_LOCAL_IMAGES: '1',
+        E2E_UNOPTIMIZED_IMAGES: '1',
 
         NEXT_PUBLIC_SUPABASE_URL: sb.API_URL,
         NEXT_PUBLIC_SUPABASE_ANON_KEY: sb.ANON_KEY,
