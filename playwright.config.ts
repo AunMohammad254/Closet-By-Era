@@ -6,7 +6,7 @@
  *   bun run test:e2e       run every test (builds the app first)
  *   bun run e2e:report     open the last HTML report
  *
- * See e2e/README.md.
+ * See "End-to-end tests" in README.md.
  */
 import { defineConfig, devices } from '@playwright/test';
 import { appEnv, APP_PORT, BASE_URL, MAILDEV } from './e2e/env';

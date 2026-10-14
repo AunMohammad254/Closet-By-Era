@@ -4,7 +4,7 @@
 -- `supabase start --workdir e2e`. It is not part of supabase/migrations and
 -- is never pushed to the hosted project.
 --
--- Regenerate after schema changes (see e2e/README.md).
+-- Keep it in step with supabase/migrations (see "End-to-end tests" in README.md).
 -- =============================================================================
 
 set check_function_bodies = off;
