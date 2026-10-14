@@ -2,6 +2,7 @@
   "name": "closet-by-era",
   "version": "0.1.0",
   "private": true,
+  "license": "MIT",
   "packageManager": "bun@1.4.2",
   "engines": {
     "node": "24.x"

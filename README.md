@@ -39,7 +39,8 @@ A premium fashion e-commerce website built with **Next.js 16**, **TypeScript**, 
 - **Styling**: Tailwind CSS 4
 - **Database**: Supabase (PostgreSQL)
 - **Fonts**: Inter, Outfit (Google Fonts)
-- **Deployment**: Vercel-ready
+- **Package manager**: Bun
+- **Hosting**: Vercel (pages rendered in Mumbai, `bom1`, next to the database)
 
 ## 📁 Project Structure
 
@@ -47,28 +48,24 @@ A premium fashion e-commerce website built with **Next.js 16**, **TypeScript**, 
 closet-by-era/
 ├── src/
 │   ├── app/
-│   │   ├── globals.css      # Global styles
-│   │   ├── layout.tsx       # Root layout with metadata
-│   │   ├── page.tsx         # Homepage
-│   │   ├── products/        # Products listing page
-│   │   ├── women/           # Women's collection
-│   │   ├── men/             # Men's collection
-│   │   └── sale/            # Sale section
-│   ├── components/
-│   │   ├── Navbar.tsx       # Navigation bar
-│   │   ├── Hero.tsx         # Hero section
-│   │   ├── CategorySection.tsx
-│   │   ├── ProductCard.tsx
-│   │   ├── FeaturedProducts.tsx
-│   │   ├── PromoSection.tsx
-│   │   ├── Newsletter.tsx
-│   │   └── Footer.tsx
-│   └── lib/
-│       └── supabase.ts      # Supabase client
-├── database/
-│   └── schema.sql           # Database schema & seed data
-├── public/                  # Static assets
-└── package.json
+│   │   ├── (shop)/          # Storefront: home, departments, products, cart, checkout, account
+│   │   ├── (admin)/         # Store admin: /admin and /dashboard
+│   │   ├── (super-admin)/   # Owner panel: /super-admin
+│   │   ├── auth/            # Sign in, register, password reset, email confirmation
+│   │   └── api/webhooks/    # Stripe and Supabase auth-email webhooks
+│   ├── actions/             # Server Actions (orders, coupons, gift cards, admin tools)
+│   ├── components/          # UI components
+│   ├── context/             # Auth, cart, wishlist and currency providers
+│   ├── hooks/
+│   ├── lib/                 # Supabase clients, catalog caching, payments, email, rate limiting
+│   ├── types/               # Generated Supabase types (`bun run gen-types`)
+│   └── proxy.ts             # Sign-in checks for account, checkout and staff pages
+├── supabase/migrations/     # Database schema history (applied to production)
+├── e2e/                     # Playwright tests and the local Supabase test stack
+├── public/                  # Static assets and the PWA service worker
+├── .github/workflows/ci.yml # CI
+├── vercel.json              # Function region (bom1)
+└── .env.example             # Every environment variable, with comments
 ```
 
 ## 🛠️ Getting Started
@@ -83,8 +80,8 @@ closet-by-era/
 
 1. **Clone the repository**
    ```bash
-   git clone https://github.com/yourusername/closet-by-era.git
-   cd closet-by-era
+   git clone https://github.com/AunMohammad254/Closet-By-Era.git
+   cd Closet-By-Era
    ```
 
 2. **Install dependencies**
@@ -95,11 +92,13 @@ closet-by-era/
 
 3. **Set up environment variables**
    
-   Create a `.env.local` file in the root directory:
+   Copy `.env.example` to `.env.local` and fill in at least the Supabase values:
    ```env
    NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
    NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
+   SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
    ```
+   See [Environment Variables](#-environment-variables) for the rest.
 
 4. **Set up the database**
    
@@ -125,14 +124,30 @@ bun run check        # typecheck + lint + unit tests (Jest)
 bun run build        # production build
 ```
 
-Every pull request (and every push to `master`) runs the same checks on GitHub Actions ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)):
+Every pull request (and every push to `master`) runs three jobs on GitHub Actions ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)), on Ubuntu 24.04:
 
 | Job | Steps |
 |---|---|
 | Typecheck, lint & unit tests | `bun install --frozen-lockfile`, `tsc --noEmit`, `eslint`, `jest --ci` |
 | Production build | `next build --webpack` (no secrets needed) |
+| End-to-end tests (Playwright) | Starts the local Supabase test stack in Docker, then runs the whole Playwright suite against a production build |
 
-The Playwright checkout test (`bun run test:e2e`) needs a seeded local Supabase and is not part of CI yet.
+If the end-to-end job fails, the run keeps a `playwright-report` artifact (traces, screenshots and videos) for 14 days.
+
+### End-to-end tests
+
+The tests in `e2e/specs` drive a production build of the app against a local Supabase stack (`e2e/supabase`), with emails captured by MailDev. They need Docker.
+
+```bash
+bun run e2e:db:start   # start the local Supabase test stack
+bun run test:e2e       # build into .next-e2e, serve on localhost:3123 and run every test
+bun run e2e:report     # open the last HTML report
+bun run e2e:db:stop    # stop the stack
+```
+
+- The first time, install the browser with `bunx playwright install chromium`.
+- `E2E_SKIP_BUILD=1 bun run test:e2e` reuses the last build.
+- The test database is `e2e/supabase/migrations/00000000000000_schema.sql`, a snapshot of the production schema, plus the test data in `e2e/supabase/seed.sql`. When a migration in `supabase/migrations` changes the schema, make the same change in the snapshot.
 
 ## 🎨 Design System
 
@@ -158,30 +173,28 @@ The Playwright checkout test (`bun run test:e2e`) needs a seeded local Supabase 
 
 ## 📊 Database Schema
 
-### Main Tables
+The schema lives in [`supabase/migrations`](supabase/migrations). Main tables:
 
-- `products` - Product catalog
-- `categories` - Product categories with hierarchy
-- `customers` - User accounts
-- `orders` - Order records
-- `order_items` - Line items per order
-- `carts` - Shopping cart items
-- `wishlists` - Saved products
-- `reviews` - Product reviews
-- `coupons` - Discount codes
-- `banners` - Promotional banners
+- `products`, `product_images`, `product_variants`, `categories` - Catalog
+- `customers` - Accounts and staff roles (`customer`, `admin`, `super_admin`)
+- `orders`, `order_items`, `returns` - Orders
+- `cart_items`, `wishlist_items` - Signed-in carts and wishlists
+- `reviews` - Product reviews (shown after approval)
+- `coupons`, `gift_cards`, `promotions`, `loyalty_history` - Discounts and rewards
+- `banners`, `popups`, `faqs`, `store_settings` - Store content
+- `shipping_zones`, `shipping_rates`, `tax_rules` - Shipping and tax
+- `support_tickets`, `support_messages` - Customer chat
+- `audit_logs`, `login_history`, `analytics_events` - Admin records
 
-### Views
-
-- `popular_products` - Featured products
-- `sale_products` - Products on sale with discount %
-- `new_arrivals` - Latest additions
+The storefront reads products through RPC functions such as `get_featured_products_fast` and `get_products_optimized`, which return active products only.
 
 ## 🔒 Security
 
-- Row Level Security (RLS) enabled on all user data
+- Row Level Security (RLS) enabled on every table
 - Public read access for products and categories
 - Authenticated access required for orders and cart
+- Account, checkout and staff pages require sign-in (`src/proxy.ts`); staff pages also need the `admin` or `super_admin` role
+- Rate limiting on coupons, gift cards, orders and reviews (Upstash Redis)
 
 ## 📦 Deployment
 
@@ -202,14 +215,25 @@ Server-rendered pages run in Vercel's `bom1` (Mumbai) region, set in [`vercel.js
 
 ## 📝 Environment Variables
 
+[`.env.example`](.env.example) lists every variable with setup notes. The main ones:
+
 | Variable | Description |
 |----------|-------------|
-| `NEXT_PUBLIC_SUPABASE_URL` | Your Supabase project URL |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase anonymous key |
+| `NEXT_PUBLIC_SUPABASE_URL` | Your Supabase project URL (required) |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Supabase anonymous key (required) |
+| `SUPABASE_SERVICE_ROLE_KEY` | Server-only key for admin actions (required, keep secret) |
+| `ADMIN_EMAIL`, `SUPER_ADMIN_EMAIL` | Staff accounts allowed into `/admin` and `/super-admin` |
+| `KV_REST_API_URL`, `KV_REST_API_TOKEN` | Rate limiting (set by Vercel's Upstash integration; `UPSTASH_REDIS_REST_*` also works) |
+| `EMAIL_PROVIDERS`, `EMAIL_FROM`, SMTP / Brevo / Resend settings | Order and account emails |
+| `SEND_EMAIL_HOOK_SECRET` | Supabase Auth "Send Email" hook |
+| `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` | Card payments |
+| `NEXT_PUBLIC_SITE_URL` | Public URL used in emails |
+| `NEXT_PUBLIC_WHATSAPP_NUMBER` | WhatsApp chat button |
+| `OPENAI_API_KEY` | AI Stylist |
 
 ## 🤝 Contributing
 
-Contributions are welcome! Please read our contributing guidelines first.
+Open a pull request against `master`. CI must pass before merging.
 
 ## 📄 License
 
@@ -217,4 +241,4 @@ MIT License - see [LICENSE](LICENSE) for details.
 
 ---
 
-Made with ❤️ by [Your Name]
+Made with ❤️ by [AunMohammad254](https://github.com/AunMohammad254)
