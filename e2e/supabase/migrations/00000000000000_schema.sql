@@ -13,6 +13,8 @@ set search_path = public, extensions;
 create extension if not exists "uuid-ossp" with schema extensions;
 create extension if not exists pgcrypto with schema extensions;
 create extension if not exists pg_trgm with schema extensions;
+-- Production has GraphQL turned off (supabase/migrations/20261014120000_advisor_fixes.sql).
+drop extension if exists pg_graphql;
 
 -- -----------------------------------------------------------------------------
 -- Enums
@@ -766,6 +768,8 @@ CREATE INDEX idx_products_slug ON public.products USING btree (slug);
 
 CREATE INDEX idx_profiles_role ON public.profiles USING btree (role);
 
+CREATE INDEX idx_promotion_products_product_id ON public.promotion_products USING btree (product_id);
+
 CREATE INDEX idx_promotions_active ON public.promotions USING btree (is_active) WHERE (is_active = true);
 
 CREATE INDEX idx_promotions_active_dates ON public.promotions USING btree (is_active, start_date, end_date) WHERE (is_active = true);
@@ -789,6 +793,8 @@ CREATE INDEX idx_reviews_product_id ON public.reviews USING btree (product_id);
 CREATE INDEX idx_reviews_rating ON public.reviews USING btree (rating);
 
 CREATE INDEX idx_reviews_user_id ON public.reviews USING btree (user_id);
+
+CREATE INDEX idx_shipping_rates_zone_id ON public.shipping_rates USING btree (zone_id);
 
 CREATE INDEX idx_support_messages_sender_id ON public.support_messages USING btree (sender_id);
 
@@ -1657,9 +1663,10 @@ BEGIN
         COUNT(*) OVER() as total_count
     FROM products p
     LEFT JOIN categories c ON p.category_id = c.id
-    WHERE 
-        (search_query IS NULL OR 
-         p.name ILIKE '%' || search_query || '%' OR 
+    WHERE
+        p.is_active = true
+        AND (search_query IS NULL OR
+         p.name ILIKE '%' || search_query || '%' OR
          p.description ILIKE '%' || search_query || '%')
         AND (category_ids IS NULL OR p.category_id = ANY(category_ids))
         AND (min_price IS NULL OR p.price >= min_price)
