@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useEffectEvent } from 'react';
 import { getAllUsersWithRoles, updateUserRole, exportUsersCSV, getUserActivity, bulkUpdateUserRoles, type UserWithRole } from '@/actions/super-admin';
 import { Users, Search, Shield, ShieldCheck, User, Loader2, ChevronDown, RefreshCw, Download, Eye, X, Clock, ShoppingBag, FileText, CheckSquare, Monitor } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -27,8 +27,14 @@ export default function UserManagementPage() {
     const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
     const [bulkUpdating, setBulkUpdating] = useState(false);
 
-    useEffect(() => {
+    // Load the first page once. loadUsers reads the current list, so the effect
+    // calls it through an effect event instead of re-running when it changes.
+    const loadFirstPage = useEffectEvent(() => {
         loadUsers(true);
+    });
+
+    useEffect(() => {
+        loadFirstPage();
     }, []);
 
     async function handleViewActivity(userId: string) {

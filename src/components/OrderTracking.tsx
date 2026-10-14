@@ -20,6 +20,7 @@ const STEPS: { status: OrderStatus; label: string; icon: string }[] = [
 ];
 
 export default function OrderTracking({ orderId, currentStatus: initialStatus, createdAt }: OrderTrackingProps) {
+    // One shared browser client, so as an effect dependency it never changes.
     const supabase = createClient();
     const [status, setStatus] = useState<string>(initialStatus);
 
@@ -50,7 +51,7 @@ export default function OrderTracking({ orderId, currentStatus: initialStatus, c
         return () => {
             supabase.removeChannel(channel);
         };
-    }, [orderId, initialStatus]);
+    }, [orderId, initialStatus, supabase]);
 
     // Handle cancelled state specially
     if (status === 'cancelled') {

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import NextImage from 'next/image';
 import {
     getBanners, createBanner, deleteBanner, Banner,
     getPopups, createPopup, togglePopup, deletePopup, Popup,
@@ -205,7 +206,8 @@ export default function CMSPage() {
                     {banners.map(banner => (
                         <div key={banner.id} className="bg-[#1e293b] rounded-xl border border-slate-700/50 overflow-hidden">
                             <div className="aspect-video bg-slate-800 relative">
-                                <img src={banner.image_url} alt={banner.title} className="w-full h-full object-cover" />
+                                {/* Admins can paste any image URL; the optimizer only accepts hosts in next.config.ts. */}
+                                <NextImage src={banner.image_url} alt={banner.title} fill unoptimized className="object-cover" />
                                 <span className="absolute top-2 left-2 px-2 py-1 text-xs bg-slate-900/80 text-slate-300 rounded">
                                     {banner.position}
                                 </span>
