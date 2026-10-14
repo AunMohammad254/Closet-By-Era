@@ -8,6 +8,8 @@
 --      get_new_arrivals_fast and get_products_optimized it never filtered on
 --      is_active, so hidden products were returned to anyone who called it.
 --      The app does not call it; it now hides inactive products like the rest.
+--      It also failed on every call (categories.name is varchar(100) but the
+--      function returns text), so category_name is now cast to text.
 --   2. promotion_products.product_id and shipping_rates.zone_id are foreign
 --      keys without a covering index.
 --   3. pg_graphql exposed every public table and column name in the GraphQL
@@ -47,7 +49,7 @@ BEGIN
         p.is_new,
         p.is_sale,
         p.created_at,
-        c.name as category_name,
+        c.name::text as category_name,
         COUNT(*) OVER() as total_count
     FROM products p
     LEFT JOIN categories c ON p.category_id = c.id

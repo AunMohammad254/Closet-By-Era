@@ -1659,7 +1659,7 @@ BEGIN
         p.is_new,
         p.is_sale,
         p.created_at,
-        c.name as category_name,
+        c.name::text as category_name,
         COUNT(*) OVER() as total_count
     FROM products p
     LEFT JOIN categories c ON p.category_id = c.id
