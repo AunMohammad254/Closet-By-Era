@@ -2,6 +2,7 @@
 import type { Page } from '@playwright/test';
 import { test, expect } from '../fixtures';
 import { PRODUCTS, productPath } from '../data';
+import { supabaseStatus } from '../env';
 import { pkr, productCard } from '../helpers/shop';
 
 /**
@@ -205,5 +206,21 @@ test.describe('product page', () => {
     test('unknown products show the not-found page', async ({ page }) => {
         await page.goto('/product/no-such-product');
         await expectNotFound(page);
+    });
+});
+
+test.describe('public API', () => {
+    // search_products skips row level security (SECURITY DEFINER) and anyone can
+    // call it with the public key, so it has to hide inactive products itself.
+    test('product search never returns hidden products', async ({ request }) => {
+        const { API_URL, ANON_KEY } = supabaseStatus();
+        const res = await request.post(`${API_URL}/rest/v1/rpc/search_products`, {
+            headers: { apikey: ANON_KEY, Authorization: `Bearer ${ANON_KEY}` },
+            data: { search_query: 'E2E', page_limit: 100 },
+        });
+        expect(res.ok()).toBe(true);
+        const names = ((await res.json()) as { name: string }[]).map((product) => product.name);
+        expect(names).toContain(PRODUCTS.shirt.name);
+        expect(names).not.toContain(PRODUCTS.hidden.name);
     });
 });
