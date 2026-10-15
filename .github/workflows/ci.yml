@@ -55,8 +55,8 @@ jobs:
       - name: Lint
         run: bun run lint
 
-      - name: Unit tests
-        run: bun run test -- --ci
+      - name: Unit tests & coverage
+        run: bun run test -- --ci --coverage
 
   build:
     name: Production build
