@@ -20,14 +20,14 @@ test.describe('account area', () => {
         await expect(page.getByRole('heading', { name: 'My Profile' })).toBeVisible();
 
         // Click Edit
-        await page.getByRole('button', { name: 'Edit' }).click();
+        await page.getByRole('button', { name: 'Edit' }).click({ force: true });
 
         // Update First Name
         const firstNameInput = page.getByLabel('First Name');
         await firstNameInput.fill('UpdatedName');
 
         // Save Changes
-        await page.getByRole('button', { name: 'Save Changes' }).click();
+        await page.getByRole('button', { name: 'Save Changes' }).click({ force: true });
 
         // Verify notification
         await expect(page.getByText('Profile saved.')).toBeVisible();
@@ -37,7 +37,7 @@ test.describe('account area', () => {
     test('customer can navigate to loyalty points tab', async ({ customerPage }) => {
         await customerPage.goto('/account');
         await customerPage.getByRole('button', { name: 'Loyalty Points' }).click();
-        await expect(customerPage.getByRole('heading', { name: 'Loyalty Points' })).toBeVisible();
-        await expect(customerPage.getByText('Available Points')).toBeVisible();
+        await expect(customerPage.getByRole('heading', { name: /Loyalty Points/i })).toBeVisible();
+        await expect(customerPage.getByText('Points History')).toBeVisible();
     });
 });

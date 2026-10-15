@@ -71,12 +71,12 @@ test.describe('checkout flow', () => {
         await placeOrder(page, 'Cash on Delivery');
         const orderNumber = await confirmedOrderNumber(page);
 
-        const order = await one<{ shipping_fee: number }>(
-            'select shipping_fee from public.orders where order_number = $1',
+        const order = await one<{ shipping_cost: number }>(
+            'select shipping_cost from public.orders where order_number = $1',
             [orderNumber]
         );
         // Standard (500) + Express surcharge (300) = 800
-        expect(Number(order.shipping_fee)).toBe(800);
+        expect(Number(order.shipping_cost)).toBe(800);
     });
 
     test('bank transfer displays payment instructions upon confirmation', async ({ shopper, page }) => {
@@ -89,6 +89,6 @@ test.describe('checkout flow', () => {
 
         // Instructions heading should be visible
         await expect(page.getByRole('heading', { name: /Complete your payment/i })).toBeVisible();
-        await expect(page.getByText(orderNumber)).toBeVisible();
+        await expect(page.getByTestId('order-number')).toHaveText(orderNumber);
     });
 });
