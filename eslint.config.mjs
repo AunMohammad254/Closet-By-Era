@@ -24,6 +24,8 @@ const eslintConfig = defineConfig([
     ".next-e2e/**",
     "playwright-report/**",
     "test-results/**",
+    "scripts/**",
+    "coverage/**",
   ]),
 ]);
 
