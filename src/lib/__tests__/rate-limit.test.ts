@@ -1,50 +1,50 @@
 /**
  * Unit tests for rate limiting functionality
  */
-import { checkRateLimitSync, RateLimits } from '@/lib/rate-limit';
+import { checkRateLimit, RateLimits } from '@/lib/rate-limit';
 
 describe('Rate Limiter', () => {
-    describe('checkRateLimitSync', () => {
-        it('should allow first request', () => {
-            const result = checkRateLimitSync('test-user-1', 'test-action', { limit: 5, windowSeconds: 60 });
+    describe('checkRateLimit', () => {
+        it('should allow first request', async () => {
+            const result = await checkRateLimit('test-user-1', 'test-action', { limit: 5, windowSeconds: 60 });
 
             expect(result.allowed).toBe(true);
             expect(result.remaining).toBe(4);
             expect(result.resetIn).toBeGreaterThan(0);
         });
 
-        it('should decrement remaining count on subsequent requests', () => {
+        it('should decrement remaining count on subsequent requests', async () => {
             const identifier = 'test-user-decrement';
             const config = { limit: 5, windowSeconds: 60 };
 
-            checkRateLimitSync(identifier, 'test-action', config);
-            const result = checkRateLimitSync(identifier, 'test-action', config);
+            await checkRateLimit(identifier, 'test-action', config);
+            const result = await checkRateLimit(identifier, 'test-action', config);
 
             expect(result.allowed).toBe(true);
             expect(result.remaining).toBe(3);
         });
 
-        it('should block requests when limit is exceeded', () => {
+        it('should block requests when limit is exceeded', async () => {
             const identifier = 'test-user-block';
             const config = { limit: 2, windowSeconds: 60 };
 
-            checkRateLimitSync(identifier, 'block-action', config);
-            checkRateLimitSync(identifier, 'block-action', config);
-            const result = checkRateLimitSync(identifier, 'block-action', config);
+            await checkRateLimit(identifier, 'block-action', config);
+            await checkRateLimit(identifier, 'block-action', config);
+            const result = await checkRateLimit(identifier, 'block-action', config);
 
             expect(result.allowed).toBe(false);
             expect(result.remaining).toBe(0);
         });
 
-        it('should track different actions separately', () => {
+        it('should track different actions separately', async () => {
             const identifier = 'test-user-actions';
             const config = { limit: 2, windowSeconds: 60 };
 
-            checkRateLimitSync(identifier, 'action-a', config);
-            checkRateLimitSync(identifier, 'action-a', config);
+            await checkRateLimit(identifier, 'action-a', config);
+            await checkRateLimit(identifier, 'action-a', config);
 
             // Different action should have its own counter
-            const resultB = checkRateLimitSync(identifier, 'action-b', config);
+            const resultB = await checkRateLimit(identifier, 'action-b', config);
             expect(resultB.allowed).toBe(true);
             expect(resultB.remaining).toBe(1);
         });

@@ -184,19 +184,6 @@ export async function checkRateLimit(
 }
 
 /**
- * Synchronous check for backward compatibility (memory-only)
- * @deprecated Use async checkRateLimit() instead
- */
-export function checkRateLimitSync(
-    identifier: string,
-    action: string,
-    config: RateLimitConfig = DEFAULT_CONFIG
-): RateLimitResult {
-    const key = `${action}:${identifier}`;
-    return checkMemoryRateLimit(key, config);
-}
-
-/**
  * Preset rate limit configurations for different action types
  */
 export const RateLimits = {
