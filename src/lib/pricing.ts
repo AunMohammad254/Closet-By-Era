@@ -23,7 +23,8 @@ export interface CouponRule {
 
 /** Round to whole paisa to avoid floating point drift (e.g. 0.1 + 0.2). */
 export function roundMoney(value: number): number {
-    return Math.round(value * 100) / 100;
+    // Add Number.EPSILON to handle floating point edge cases like 1.005 * 100 = 100.49999999999999
+    return Math.round((value + Number.EPSILON) * 100) / 100;
 }
 
 export function calculateShipping(subtotal: number, method: ShippingMethod): number {
