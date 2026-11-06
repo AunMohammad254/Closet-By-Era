@@ -66,7 +66,7 @@ export default function ReviewForm({ productId }: { productId: string }) {
             // Upload images in parallel
             const uploadPromises = images.map(async (file) => {
                 const fileExt = file.name.split('.').pop();
-                const fileName = `${productId}/${Date.now()}-${Math.random().toString(36).substring(7)}.${fileExt}`;
+                const fileName = `${productId}/${Date.now()}-${crypto.randomUUID()}.${fileExt}`;
 
                 const { error: uploadError } = await supabase.storage
                     .from('review-images')
