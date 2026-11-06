@@ -158,12 +158,26 @@ export async function cancelUnpaidCardOrder(orderId: string, couponId: string | 
             .from('gift_card_usage')
             .select('id, gift_card_id, amount_used')
             .eq('order_id', orderId);
-        for (const usage of usages ?? []) {
-            const { data: card } = await admin.from('gift_cards').select('balance').eq('id', usage.gift_card_id).single();
-            if (card) {
-                await admin.from('gift_cards').update({ balance: Number(card.balance) + Number(usage.amount_used) }).eq('id', usage.gift_card_id);
+
+        if (usages && usages.length > 0) {
+            const cardUsages: Record<string, number> = {};
+            const usageIds: string[] = [];
+
+            for (const usage of usages) {
+                usageIds.push(usage.id);
+                cardUsages[usage.gift_card_id] = (cardUsages[usage.gift_card_id] || 0) + Number(usage.amount_used);
             }
-            await admin.from('gift_card_usage').delete().eq('id', usage.id);
+
+            const cardIds = Object.keys(cardUsages);
+            const { data: cards } = await admin.from('gift_cards').select('id, balance').in('id', cardIds);
+
+            if (cards) {
+                await Promise.all(cards.map(card =>
+                    admin.from('gift_cards').update({ balance: Number(card.balance) + cardUsages[card.id] }).eq('id', card.id)
+                ));
+            }
+
+            await admin.from('gift_card_usage').delete().in('id', usageIds);
         }
 
         if (couponId) {
