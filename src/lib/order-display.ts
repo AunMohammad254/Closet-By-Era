@@ -21,7 +21,7 @@ export function parseShippingAddress(raw: unknown): ParsedShippingAddress {
     if (typeof raw !== 'string' || !raw.trim()) return {};
     try {
         const parsed: unknown = JSON.parse(raw);
-        return parsed && typeof parsed === 'object' ? (parsed as ParsedShippingAddress) : { address: raw };
+        return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? (parsed as ParsedShippingAddress) : { address: raw };
     } catch {
         return { address: raw }; // legacy free-text address
     }
